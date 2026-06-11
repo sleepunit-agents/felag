@@ -14,7 +14,18 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-Pre-spec. The design draft (v1, post cold-review) lives at
+**spec/felag-core v0.1.0 is live, and the reference implementation conforms.**
+`felag-ts` (this repo: `src/`, the `felag/interchange` + `felag/verifier`
+classes) passes the full fixture corpus; its self-verification report lives in
+`verification/felag-ts.report.json` — verdict: `conforms`.
+
+```bash
+npm install && npm test        # run the corpus (the spec IS the test suite)
+npm run self-verify            # emit VerificationRecords + conformance report
+npx tsx src/cli.ts lint spec/felag-core
+```
+
+Design history: The design draft (v1, post cold-review) lives at
 [docs/design/2026-06-11-felag-design-draft-v1.md](docs/design/2026-06-11-felag-spec-format-design-draft.md).
 The first milestone is compiling that draft into the format it describes.
 

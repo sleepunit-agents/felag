@@ -1,0 +1,24 @@
+{
+  "name": "felag",
+  "version": "0.1.0",
+  "description": "félag — communal contract format for software: interchange + verifier classes (reference implementation)",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "felag": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "self-verify": "tsx scripts/self-verify.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
