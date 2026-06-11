@@ -56,10 +56,15 @@ makes something core — error-message wording, log formats, latency, and
 pagination order are all observable and all residue *unless declared*. This
 is the Hyrum's-law guard: the preamble is the allowlist, not a hint.
 
-Worked exclusion example: a task-manager spec declares `contract: task
-interchange format` and is silent on CLI output. A criterion proposing exact
-CLI table formatting fails `lint`: observable, divergeable, **not within a
-declared contract** → profile or residue.
+Worked exclusion example (corrected in v1.2 per finding F4): a task-manager
+spec declares `contract: task interchange format` and is silent on CLI
+output. A criterion about exact CLI table formatting **cannot gate**: with no
+`contractId` it is advisory *by construction* (nothing for lint to reject);
+with `contractId: cli-format` it fails lint mechanically
+(`E_UNDECLARED_CONTRACT` — the id is not in the preamble). The two
+mechanically checkable lint obligations are undeclared contract ids and
+behavioral-under-contract criteria with empty fixtures
+(`E_MISSING_FIXTURES`).
 
 **Preamble schema** (normative part of the interchange format):
 
@@ -96,9 +101,15 @@ and mirror the same provenance:
 - `deprecated` — criterion retired from gating (kept for history, excluded
   from conformance), with reason + attribution.
 - `disputed` — an implementer formally contests the criterion or its
-  verification. A disputed criterion reports loudly everywhere, but it
-  **stops gating only for the disputing implementer's** conformance reports;
-  it continues to gate everyone else. Resolution requires acknowledgment
+  verification, recorded as `dispute: { by, reason, at }` on the criterion
+  (v1.2, ratifying the compiler's F2 schema). **`dispute.by` is a roster
+  reference, not an attribution string**: it names an entry in the
+  preamble's `implementers` roster and *does* carry semantics (it selects
+  whose reports the criterion stops gating). Roster references are
+  governance plumbing and are the sole exception to the
+  attribution-strings-have-no-semantics rule. A disputed criterion reports
+  loudly everywhere, but it **stops gating only for the disputing
+  implementer's** conformance reports; it continues to gate everyone else. Resolution requires acknowledgment
   from all roster implementers **except the disputer** (solo roster or
   deadlock → repo-owner tiebreak). Dispute is an objection channel, not a
   cheaper deprecation: removing a MUST for everyone remains a MAJOR
@@ -144,11 +155,16 @@ gates and carries no conformance meaning; if an interface is contractual,
 express it as criteria + fixtures.
 
 **Canonical serialization is a conformance requirement** of the interchange
-class: conforming writers MUST emit canonical form — one record per line,
-pinned key order, pinned escaping, stable record ordering — so that git
-diff/blame/merge and fixture hashing are well-defined across tools. (The
-precise canonicalization rules are written during compilation; the
-*requirement* is normative now.)
+class, and as of v1.2 the rules exist and are **ratified**: CS1–CS9 as
+compiled into `spec/felag-core/spec.jsonl` (UTF-8/LF, one record per line,
+`record`-then-`id`-then-codepoint key order, minimal escaping, flat records
+with parent references in a two-file layout `spec/<name>/spec.jsonl` +
+`fixtures.jsonl`, `fixtureHash` = SHA-256 over the canonical record line).
+**Readers liberal, writers strict**: readers accept any schema-valid
+serialization; only writers are bound to canonical form. Verdict evaluation
+takes an explicit `asOf` clock (waiver expiry makes verdicts time-dependent).
+**These rules are normative in the compiled spec, not here** — see Authority,
+below.
 
 **Fixtures are the interop proof.** Gherkin/EARS sentences carry human
 intent; **canonical fixtures carry the contract**. Any **behavioral**
@@ -233,8 +249,11 @@ re-runnable*, not *third-party-certified*.
 2 waivers active; 1 criterion disputed."
 
 **Gating:** a criterion gates conformance only if **all** hold:
-`class: behavioral`, `state: active`, force `MUST`, **and `contractId` set
-to a contract declared in the preamble**. Gate ⊆ allowlist — this is what
+`class: behavioral`, `state: active` **or `disputed`** (disputed gates
+everyone except the disputing implementer — v1.2, fixing the F1
+contradiction where `active`-only made dispute a free global un-gate),
+force `MUST`, **and `contractId` set to a contract declared in the
+preamble**. Gate ⊆ allowlist — this is what
 makes closed-world scope mechanical: a criterion about an undeclared surface
 cannot gate no matter how it's written, and `lint` enforces it structurally
 (gating criterion ⇒ contractId present ∧ declared ⇒ fixtures non-empty).
@@ -391,6 +410,55 @@ mandatory piece for a stranger, and the least interesting one to own.
 | M6 EARS verifiability | **Accepted.** Expect judgment-lopsidedness; authoring prefers fixtures for contracts. |
 | PM round-trip / onboarding / economics | **Accepted.** `author --from-annotations`; excavate as the wedge; incremental verification keyed on content hashes. |
 | Thesis 1 unfalsifiable | **Accepted.** Moved to Motivation, unnumbered. |
+
+## Authority (v1.2)
+
+As of the merge of `spec/felag-core` v0.1.0, **the compiled spec is the
+normative surface and this document is commentary.** Changes to contracts,
+criteria, fixtures, serialization, or the verdict algorithm happen as spec
+PRs under the versioning and governance rules — not as edits here. This
+document records intent, rationale, and history; where it disagrees with the
+spec, the spec wins. (This inversion is the design working as designed: the
+prose was the authoring membrane; the strict form is the contract.)
+
+## Compilation ratification (v1.2)
+
+The first self-compilation (findings:
+[compilation-findings-v0.md](compilation-findings-v0.md)) required decisions
+the document had deferred. Dispositions:
+
+- **D-A (CS1–CS9, readers-liberal/writers-strict), D-B (flat records,
+  two-file layout — partially resolves open question 4), D-C (tool result
+  formats, verdict algorithm D1–D6, `asOf`): RATIFIED** as compiled.
+- **F1 (gating vs disputed contradiction): RATIFIED** as the compiler
+  resolved; conjunction restated above.
+- **F2 (dispute schema + roster-reference semantics): RATIFIED**; carve-out
+  stated above.
+- **F4 (impossible lint case): corrected** in the worked example above.
+- **F6(i) (versioning rules unenforceable): lint gains a base ref** —
+  `lint --against <released-ref>` compares criterion/fixture sets and checks
+  the version-bump classification mechanically. Ships advisory until
+  fixtured in a MINOR spec bump.
+- **F6(ii) (the refusals can't gate): OWNED as a named tier.** The design's
+  identity commitments — never executes, vendor neutrality, attribution
+  opacity, the work-state refusal — are **constitutional clauses**: they
+  live as judgment-class advisory criteria, are excluded from mechanical
+  gating *by the design's own rules*, and are protected instead by
+  governance (amending one = MAJOR + full roster acknowledgment). The
+  constitution is enforced by the amendment process, not the test suite.
+  This is honest, not weak: every standards body works this way.
+- **F7 (`felag/author` has no contract): acknowledged**; excluded from
+  0.1.0 conformance; writing the author/render/interview protocols is the
+  prerequisite for the class to be verifiable at all.
+- **F8 (section vs item): RATIFIED** — one record type, `item`; no grouping
+  level until a real spec needs one.
+- **F9 (fiat schema choices): RATIFIED** as compiled, with one flagged for
+  the next spec PR: `Fixture.contractId` being required means advisory
+  criteria can never carry fixtures even voluntarily — likely relax to
+  optional (MINOR, schema change, goes through the spec, not this doc).
+- **F10 (spec-as-fixture-payload): convention blessed** — parsed-record
+  representation for verify fixtures; raw-text representation reserved for
+  byte-level round-trip fixtures only.
 
 ## Second cold review disposition (v1 → v1.1, same file)
 
