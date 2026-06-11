@@ -67,10 +67,14 @@ declared contract** → profile or residue.
 preamble:
   name, conformanceVersion
   goals: [prose]
-  contracts: [ { id, description, fixtures: required|optional } ]
+  contracts: [ { id, description } ]
   exclusions: [prose]        # optional, documentation of deliberate non-contracts
   implementers: [ { name, role(s) } ]   # governance roster; may be one entry
 ```
+
+(v1.1: contracts no longer carry a `fixtures: required|optional` knob — it
+existed only to weaken the interop proof. The fixture rule lives on the
+criterion, below.)
 
 The **profile** is a separate artifact (not a child of the Spec — it ships
 with one implementation, not with the contract): a declared set of standing
@@ -84,11 +88,21 @@ standing preference), or remains residue. Every criterion carries
 `source: forethought | discovered` with attribution. The inverse paths exist
 and mirror the same provenance:
 
+- `proposed` — exists in committed interchange (diffable, reviewable,
+  mergeable) but not yet ratified; **never gates**. This is excavate's
+  output state; ratification moves it to `active`, rejection deletes it
+  (history lives in git), known-bug records the divergence as a
+  `kind: known-bug` waiver in the implementation's ledger.
 - `deprecated` — criterion retired from gating (kept for history, excluded
   from conformance), with reason + attribution.
 - `disputed` — an implementer formally contests the criterion or its
-  verification; disputed criteria report loudly and do not gate until
-  resolved by governance.
+  verification. A disputed criterion reports loudly everywhere, but it
+  **stops gating only for the disputing implementer's** conformance reports;
+  it continues to gate everyone else. Resolution requires acknowledgment
+  from all roster implementers **except the disputer** (solo roster or
+  deadlock → repo-owner tiebreak). Dispute is an objection channel, not a
+  cheaper deprecation: removing a MUST for everyone remains a MAJOR
+  governance act.
 
 Attribution fields (`discoveredBy`, verdict provenance, waiver authors) are
 **free-form attribution strings with no semantics**. felag defines no
@@ -100,16 +114,17 @@ run:12345"`. Implementers MUST NOT build behavior on these values.
 ```
 Spec  (committed interchange: line-oriented JSONL + JSON Schema)
 ├── preamble (schema above)
-├── sections[] → SpecItem { id, title, body, signature? }
+├── sections[] → SpecItem { id, title, body, interfaceSketch? }
 │     └── acceptanceCriteria[] → AcceptanceCriterion
 │           ├── id                              # stable; coverage and idempotency key
+│           ├── contractId?                     # membership in a declared contract; GATING REQUIRES THIS
 │           ├── type: scenario | checklist
 │           ├── class: behavioral | judgment     # gating vs advisory (see Conformance)
 │           ├── gherkin | item                   # Gherkin scenario or EARS sentence
 │           ├── force: MUST | SHOULD | MAY
-│           ├── state: active | deprecated | disputed
+│           ├── state: proposed | active | deprecated | disputed   # proposed never gates
 │           ├── source: forethought | discovered (+ discoveredAt/By/triggeringEvent)
-│           ├── fixtures: [fixtureRef]           # required for criteria under a contract
+│           ├── fixtures: [fixtureRef]           # MUST be non-empty when contractId set AND class=behavioral
 │           └── judgment?: { rubric, judgeConfig, reproducibility }   # required if class=judgment gating is ever requested
 │
 ├── fixtures[] → Fixture                         # first-class, canonical interop corpus
@@ -123,10 +138,24 @@ Spec  (committed interchange: line-oriented JSONL + JSON Schema)
     VerificationRecord — see Conformance model
 ```
 
+`signature` (v0) is renamed **`interfaceSketch?`**: an optional,
+non-normative illustration of an interface shape for human readers. It never
+gates and carries no conformance meaning; if an interface is contractual,
+express it as criteria + fixtures.
+
+**Canonical serialization is a conformance requirement** of the interchange
+class: conforming writers MUST emit canonical form — one record per line,
+pinned key order, pinned escaping, stable record ordering — so that git
+diff/blame/merge and fixture hashing are well-defined across tools. (The
+precise canonicalization rules are written during compilation; the
+*requirement* is normative now.)
+
 **Fixtures are the interop proof.** Gherkin/EARS sentences carry human
-intent; **canonical fixtures carry the contract**. Any criterion under a
-declared contract MUST reference at least one fixture (concrete input →
-expected output). Two implementations interoperate when both pass the shared
+intent; **canonical fixtures carry the contract**. Any **behavioral**
+criterion with a `contractId` MUST reference at least one fixture (concrete
+input → expected output); `lint` enforces this mechanically. **Judgment
+criteria are exempt from the fixture rule and never gate** — contract
+interop is proven on behavioral criteria only. Two implementations interoperate when both pass the shared
 fixture corpus — not when both teams privately bound the same English to
 their own interfaces. Bindings are named per-implementation artifacts
 precisely because binding is where ambiguity lives; fixtures are how we stop
@@ -134,9 +163,10 @@ ambiguity from mattering.
 
 Checklist (EARS) criteria are rarely mechanically verifiable; expect them to
 be `judgment`-class (advisory) or to earn fixtures. The authoring protocol
-prefers fixtures for anything contractual and carries **scenario budgets**:
-granularity guidance so the interview generates few high-value criteria, not
-Cucumber-style sprawl.
+prefers fixtures for anything contractual and carries **scenario budgets** —
+explicit caps and granularity rules in the interview protocol (criteria per
+item, scenarios per criterion) so authoring generates few high-value
+criteria, not Cucumber-style sprawl.
 
 ## Storage and authority
 
@@ -167,6 +197,15 @@ bumping the version is surfaced by lint, resolved by governance rules below).
 - `felag/author` — implements the interview and render protocols. Partially
   judgment-verified; its conformance reports say so on their face.
 
+**Verb → conformance class** (the classes are the compiled spec's
+contracts; a reimplementer targets classes, not the whole surface):
+
+| Class | Verbs | Also validates |
+|---|---|---|
+| `felag/interchange` | `lint` | the interchange format itself, Profile and Binding artifact formats, canonical serialization, index rebuild |
+| `felag/verifier` | `verify`, `audit` | VerificationRecord ingestion, waivers, reports, coverage |
+| `felag/author` | `author`, `excavate`, `render`, `prime` | interview/render protocols (partially judgment-verified) |
+
 **`verify` is a ledger, not a runner.** felag never executes
 implementations, spawns agents, or manages sessions — that refusal is real
 and this is how: checks are run *outside* felag (CI, an agent, a human, a
@@ -175,19 +214,31 @@ submits **VerificationRecords** in a defined result format:
 
 ```
 VerificationRecord {
-  criterionId, fixtureId?, implementation, conformanceVersion,
+  criterionId, fixtureId?, fixtureHash?,        # hash over canonical fixture serialization
+  implementation, implementationVersion,
+  conformanceVersion,
   verdict: pass | fail | unverifiable,
   evidence (free-form, e.g. runner output ref),
   runner, at, attribution-string
 }
 ```
 
+Records are **self-reported**; their check is reproducibility against the
+public fixture corpus, not identity — felag defines no trust hierarchy.
+"Never asserted bare" (commitment 3) means *evidence-carrying and
+re-runnable*, not *third-party-certified*.
+
 `verify` validates records, derives per-criterion conformance, and reports:
 "implementation X conforms to 1.2; drifts from 1.3 at criteria a, b;
 2 waivers active; 1 criterion disputed."
 
-**Gating:** only `class: behavioral`, `state: active`, force `MUST`
-criteria gate conformance. **`judgment` criteria are advisory in v1** —
+**Gating:** a criterion gates conformance only if **all** hold:
+`class: behavioral`, `state: active`, force `MUST`, **and `contractId` set
+to a contract declared in the preamble**. Gate ⊆ allowlist — this is what
+makes closed-world scope mechanical: a criterion about an undeclared surface
+cannot gate no matter how it's written, and `lint` enforces it structurally
+(gating criterion ⇒ contractId present ∧ declared ⇒ fixtures non-empty).
+Criteria without a contractId may exist as advisory documentation. **`judgment` criteria are advisory in v1** —
 they appear in reports, never in the conformance verdict. A judgment
 criterion may *graduate* to gating only when its `judgment` block pins
 rubric + judge configuration + a reproducibility statement, and the felag
@@ -198,9 +249,15 @@ v0 Art-shaped hole, closed: nothing in gating depends on any particular
 cognition stack.)
 
 **Waivers** (the override that every system reinvents — designed in, not
-smuggled in): `{ criterionId, justification, attribution, expiresAt }`.
-A waived failing criterion does not block conformance but appears in every
-report, first, until it expires. Expired waivers are failures again.
+smuggled in): `{ criterionId, implementation, kind: waiver | known-bug,
+justification, attribution, expiresAt }`, stored in the implementation's
+ledger (waivers are per-implementation by construction). A waived failing
+criterion does not block conformance but changes the verdict token: such an
+implementation reports **`conforms-with-waivers`**, never bare `conforms` —
+the headline cannot be laundered by truncating the report. Expired waivers
+are failures again. `kind: known-bug` is the home for excavate's tracked
+divergences: a standing, acknowledged delta between current behavior and the
+ratified spec.
 
 **Verification records live with implementations, not in the spec repo.**
 The spec repo commits the contract; each implementation (or its CI) owns its
@@ -215,17 +272,33 @@ triggered by rubric/judge-config changes, not by the calendar.
 
 - **Additive MUST criterion = MAJOR.** It breaks every conforming
   implementation by definition. (v0 called this minor; that was wrong.)
-- Additive SHOULD/MAY, new fixtures for existing criteria = MINOR.
+- **Modifying an existing fixture's `input` or `expected` = MAJOR; removing
+  a fixture = MAJOR.** Fixtures carry the contract — editing one is a
+  behavior change wearing a test's clothes. Fixture description/metadata
+  edits = PATCH.
+- **Graduating a judgment criterion to gating = MAJOR** (it is an additive
+  MUST in effect).
+- Additive SHOULD/MAY, *new* fixtures for existing criteria = MINOR.
 - Clarifications, prose, renders = PATCH.
 - Deprecating a MUST = MAJOR; deprecating SHOULD/MAY = MINOR.
 
 **Governance (minimum viable):** spec changes merge via the same review
 mechanics as code. The preamble's `implementers` roster is the governance
-body: **promotion to core, MAJOR bumps, and dispute resolution require
-acknowledgment from all roster implementers** (a roster of one — the solo
-case — degenerates to repo-owner authority, explicitly). `disputed` is the
-formal objection channel. Errata (PATCH) need only ordinary review. This
-paragraph is deliberately small; it exists so that silence doesn't default
+body: **promotion to core and MAJOR bumps require acknowledgment from all
+roster implementers; dispute resolution requires all roster implementers
+except the disputer** (a roster of one — the solo case — degenerates to
+repo-owner authority, explicitly; deadlocks tiebreak to the repo owner).
+`disputed` is the formal objection channel, scoped per the criterion-state
+rules above so it is never a cheaper deprecation. Errata (PATCH) need only
+ordinary review.
+
+**Liveness:** acknowledgments lapse — a roster implementer silent past the
+roster's declared timeout (default 30 days) does not veto; their
+acknowledgment records as lapsed and the change proceeds. Roster membership
+is maintained by ordinary spec PR, so an absent implementer can be removed
+the same way. One abandoned implementer never freezes the contract.
+
+This section is deliberately small; it exists so that silence doesn't default
 to "whoever holds the repo" while the project claims to be a communal
 contract.
 
@@ -241,7 +314,7 @@ prompts, whatever a vendor calls them) is an adapter beyond the seam.
 | `author` | Prose→schema compilation. Interview flows: greenfield, delta (update), and **`--from-annotations`** (ingest an annotated render — the stakeholder round-trip; the edited render never becomes a second source of truth). Interview script front-loads: "contract or choice? could a stranger get it wrong? which fixture proves it?" Carries scenario budgets. **The no-LLM path is normative:** hand-write interchange lines, run `lint`. |
 | `excavate` | Brownfield: propose a spec from a repo's current behavior, **bounded by a required scoping input** (which surfaces/contracts to mirror). Output criteria are `source: discovered` in triage state `proposed`; ratification is explicit: `proposed → ratified | rejected | known-bug`. Bugs become tracked divergences, never MUSTs. The honest onboarding wedge is this verb on the adopter's own repo. |
 | `verify` | The ledger: validate + ingest VerificationRecords, derive conformance, report (incl. waivers, disputes, version drift). Never executes anything. |
-| `audit` | Coverage: criteria lacking passing records, items lacking tasks. Emits task proposals across the felag-tasks contract, **idempotent on (specItemRef, criterionId)** — re-running audit never duplicates proposals. |
+| `audit` | Coverage: criteria lacking passing records, items lacking tasks. Emits task proposals across the felag-tasks contract, **idempotent on (specItemRef, criterionId)** — re-running audit never duplicates proposals. With no work layer attached, proposals emit as a report artifact (stdout/file) instead. |
 | `render` | Audience projections from the single source of truth: stakeholder (criteria-only, observable language), developer (+ contracts, fixtures, profile), verifier (raw schema). Renders are one-way artifacts; edits return via `author --from-annotations`. |
 | `lint` | Schema + structure + scope enforcement: criteria typed and forced, fixtures present under contracts, closed-world scope respected, version-bump consistency, unique ids. The merge gate. |
 | `prime` | Emit the protocols, vendor-neutral. |
@@ -284,7 +357,13 @@ mandatory piece for a stranger, and the least interesting one to own.
 ## Open questions (v1)
 
 1. Judgment graduation bar: the concrete reproducibility tolerance and
-   pinned-judge format (schema fields exist; the bar needs numbers).
+   pinned-judge format (schema fields exist; the bar needs numbers). The bar
+   must also make the judge itself **substitutable** — a pinned vendor model
+   would smuggle vendor-dependence back into conformance (violating
+   commitment 1). Likely shape: the judge is specified by a calibration
+   corpus (rubric + calibration set any candidate judge must pass to
+   qualify), so "same pinned judge" means "any judge passing calibration,"
+   not "this vendor's model."
 2. Fixture format for non-deterministic surfaces (timestamps, generated
    ids) — canonicalization rules.
 3. felag-tasks contract: the exact MUST set (next artifact to draft).
@@ -295,7 +374,7 @@ mandatory piece for a stranger, and the least interesting one to own.
 
 | Finding | Disposition |
 |---|---|
-| C1 judgment/loom coupling | **Accepted.** Judgment = advisory; gating is behavioral-only; graduation requires pinned rubric/judge + reproducibility bar. |
+| C1 judgment verification coupled to the authors' private cognition stack | **Accepted.** Judgment = advisory; gating is behavioral-only; graduation requires pinned rubric/judge + reproducibility bar. |
 | C2 binding/glue absent | **Accepted.** Binding = named artifact; canonical fixtures = first-class and required under contracts; interop proven on shared corpus. |
 | C3 verify vs execution refusal | **Accepted.** `verify` is a ledger; VerificationRecord format defined; runners are external. |
 | C4 Dolt-in-git authority | **Accepted.** Authority inverted: committed JSONL is truth; Dolt is a regenerable local index. |
@@ -312,3 +391,21 @@ mandatory piece for a stranger, and the least interesting one to own.
 | M6 EARS verifiability | **Accepted.** Expect judgment-lopsidedness; authoring prefers fixtures for contracts. |
 | PM round-trip / onboarding / economics | **Accepted.** `author --from-annotations`; excavate as the wedge; incremental verification keyed on content hashes. |
 | Thesis 1 unfalsifiable | **Accepted.** Moved to Motivation, unnumbered. |
+
+## Second cold review disposition (v1 → v1.1, same file)
+
+All seven must-fix findings applied in place; verdict was "architecture
+survives; the schemas don't yet."
+
+| Finding | Disposition |
+|---|---|
+| CR2-C1 no criterion↔contract linkage | **Accepted.** `contractId?` on criteria; gating requires declared-contract membership (gate ⊆ allowlist); lint rule now mechanical. |
+| CR2-C2 preamble `fixtures: optional` vs fixture MUST | **Accepted.** Enum dropped; fixture MUST scoped to behavioral criteria with contractId; judgment criteria exempt and never gate. |
+| CR2-C3 dispute = free unilateral un-gating | **Accepted.** Resolution excludes disputer; dispute un-gates only the disputer's reports; liveness timeout + roster maintenance; deadlock → repo owner. |
+| CR2-H4 `proposed` state + divergence home | **Accepted.** State enum extended; known-bug = waiver kind in the implementation ledger. |
+| CR2-H5 record lacks incremental keys | **Accepted.** `fixtureHash` + `implementationVersion` added. |
+| CR2-H6 fixture modification unversioned | **Accepted.** Fixture input/expected edit or removal = MAJOR; metadata = PATCH; graduation = MAJOR. |
+| CR2-M7 verb→class mapping | **Accepted.** Table added; interchange class validates Profile/Binding formats. |
+| CR2-M8 canonical serialization | **Accepted as requirement**; rules derived during compilation. |
+| CR2-M9 pinned judge = vendor trapdoor | **Accepted into open question 1**: judge substitutability via calibration corpus. |
+| CR2-M10/L11/L12/L14/L15 | **Accepted.** Self-reported trust model stated; waiver scope/storage + `conforms-with-waivers` token; `interfaceSketch` named non-normative; audit-without-work-layer emits a report. |
