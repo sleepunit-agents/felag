@@ -4,6 +4,7 @@
 // mechanical across implementations.
 
 import { TaskStore, type TaskStatus } from "./store.js";
+import type { WorkLayer } from "./layer.js";
 
 export interface Op {
   op: "propose" | "report" | "transition";
@@ -12,8 +13,8 @@ export interface Op {
   to?: string;
 }
 
-export function runOps(ops: Op[]): unknown[] {
-  const store = new TaskStore();
+export function runOps(ops: Op[], layer?: WorkLayer): unknown[] {
+  const store: WorkLayer = layer ?? new TaskStore();
   const refToToken = new Map<string, string>();
   const tokenToRef = new Map<string, string>();
 
