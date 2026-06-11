@@ -14,8 +14,8 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-Pre-spec. The design draft lives at
-[docs/design/2026-06-11-felag-spec-format-design-draft.md](docs/design/2026-06-11-felag-spec-format-design-draft.md).
+Pre-spec. The design draft (v1, post cold-review) lives at
+[docs/design/2026-06-11-felag-design-draft-v1.md](docs/design/2026-06-11-felag-spec-format-design-draft.md).
 The first milestone is compiling that draft into the format it describes.
 
 ## Lineage
