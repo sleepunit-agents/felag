@@ -1,4 +1,4 @@
-# felag/author class contract — design draft v0.1
+# felag/author class contract — design draft v0.2
 
 *2026-06-12. Closes F7 of [compilation-findings-v0](compilation-findings-v0.md):
 `felag/author` is a conformance class with verbs (`author`, `excavate`,
@@ -9,11 +9,13 @@ mechanically versus remain judgment. Authority note: this prose is a draft
 membrane per design v1.2 — when compiled, the spec records are normative and
 this document is history.*
 
-*v0.1 (same day): cold review round 1 (verdict REVISE-FIRST) found the
-promotion function non-total (conflicting acks, unsourced waiver fields,
-P6 quorum unstated, multiple repo-owners), the MINOR landing circular, and
-four wire-format sketches too thin to compile. All folded in; disposition
-table at the end.*
+*Revision history (same day): v0.1 folded cold review round 1 (14 findings;
+promotion non-totality, circular MINOR landing, thin wire formats). v0.2
+folds round 2 (the promotion function is now defined as independent error
+predicates — total by construction; A3 scoped to newly-authored criteria;
+known-bug reconciled with excavate's mirror-current-behavior model; the
+normative-text-edit versioning hole closed; timeout moved into the
+committed spec). Disposition tables at the end.*
 
 ---
 
@@ -33,7 +35,7 @@ contracts over values are fixturable:
 | Render audience projection (what is included for whom) | pure function of (spec, audience) | **behavioral** |
 | Prime protocol emission (protocol bodies present, verbatim) | predicate over emitted document | **behavioral** |
 | Interview conduct (front-loaded questions, dialog quality) | process, not value | judgment |
-| Stakeholder-render language quality ("observable language") | prose quality | judgment |
+| Stakeholder-render language quality | prose quality | judgment |
 | `--from-annotations` round-trip | needs an annotation format that does not exist | **excluded** (deferred) |
 
 The pattern is the one felag already uses for `verify`: felag never runs the
@@ -43,60 +45,68 @@ the *artifacts* the verbs produce, and artifacts are fixturable.
 The existing `ac-class-author-labeled` criterion ("author-class conformance
 is partially judgment-verified, on its face") **stays as written**: it
 remains literally true after this contract — conduct is judgment,
-permanently. This draft does not edit that criterion; it shrinks the
-judgment share without eliminating it. (v0 proposed a relabel; review round
-1 correctly noted that edits MUST criteria for no contractual gain.)
+permanently. This draft shrinks the judgment share without eliminating it.
 
 ## 2. The promotion protocol (the load-bearing piece)
 
 Design v1 states the governance rules in prose (roster acknowledgment,
 30-day lapse, solo-roster degeneracy, repo-owner tiebreak) and the
-compilation's F6 found them unenforceable — "the design's core identity
-commitments are protected by its weakest enforcement tier." The promotion
-protocol fixes the half of F6 that is fixable: ratification becomes a
-total, deterministic, fixturable state-transition function. Totality is
-the design requirement: every input in the format's space has exactly one
-defined output, or two independent compilers will diverge exactly where
-governance matters most.
+compilation's F6 found them unenforceable. The promotion protocol fixes the
+half of F6 that is fixable: ratification becomes a total, deterministic,
+fixturable function. **Totality is achieved by construction**: after two
+structural guards, every error code is an independent predicate over the
+input; the result's `errors` is the sorted set of all predicates that hold.
+There are no rule-interaction cases to enumerate because rules do not
+interact (review round 2, C-1: the v0.1 rule-list left nak-vs-pending and
+guard-ordering overlaps undefined).
+
+### The roster's declared timeout becomes committed
+
+Design v1 and `ac-gate-dispute-resolution` say "the roster's declared
+timeout (default 30 days)", but no preamble field declares it — so v0.1
+took it as a loose input, making the same committed spec ratify
+differently under different parameters (round 2, M-2). Fix: the preamble
+gains an optional `governance` object: `{ "timeoutDays": int >= 1 }`,
+default `{ "timeoutDays": 30 }` when absent. The promotion function is a
+pure function of exactly **(spec, transition, asOf)** — every governance
+parameter is committed.
 
 ### Wire format `felag/promotion-input@0`
 
-One JSON object:
+One JSON object — `{ "asOf", "spec", "transition" }`:
 
 ```
 {
   "asOf":        ISO timestamp — evaluation clock (same role as in verify-input),
-  "spec":        concatenated parsed records (the roster lives in the preamble),
+  "spec":        concatenated parsed records (roster and governance live in the preamble),
   "transition": {
     "criterionId":   id of a state: proposed criterion,
     "to":            "active" | "rejected" | "known-bug",
     "requestedAt":   ISO timestamp — starts the lapse clock,
-    "requestedBy":   roster reference (validated, see P7),
-    "implementation": required iff to = known-bug — whose ledger gets the waiver,
+    "requestedBy":   roster reference (validated, E_NOT_ROSTER),
+    "implementation": required iff to = known-bug — whose ledger gets the waiver.
+                      An OPAQUE implementation name, deliberately NOT
+                      roster-validated: waivers are per-implementation and
+                      implementations are a different namespace from the
+                      governance roster (a third party can carry a known-bug),
     "justification":  required iff to = known-bug,
     "expiresAt":      required iff to = known-bug — the waiver's expiry,
     "attribution":    required iff to = known-bug — the waiver's attribution string,
     "acknowledgments": [ { "implementer": roster reference,
                            "decision": "ack" | "nak",
                            "at": ISO timestamp } ]
-  },
-  "timeoutDays": integer, default 30 — the roster's declared timeout
+  }
 }
 ```
-
-Every field of the emitted waiver (P6) now has a source in the input; the
-function is pure. (v0 left `expiresAt` and `attribution` sourceless —
-review C1.)
 
 ### Result format `felag/promotion-result@0`
 
 ```
 {
-  "accepted": boolean,
-  "errors":   [code],            // ALL applicable errors, sorted ascending —
-                                 // same all-applicable convention as lint/ingest
+  "accepted": boolean,           // true iff errors is empty
+  "errors":   [code],            // ALL holding predicates, sorted ascending
   "outcome":  "ratified" | "rejected" | null,
-  "lapsed":   [roster name],     // acks that lapsed past the timeout — loud
+  "lapsed":   [roster name],     // sorted ascending (round 2, M-6) — loud
   "waiver":   Waiver | null      // emitted iff to = known-bug and accepted
 }
 ```
@@ -107,98 +117,120 @@ interchange, history lives in git — not a criterion state. The function
 returns a verdict; applying the deletion/activation to the files is the
 caller's write, same as verify reports without mutating the ledger.)
 
-### Transition rules (P1–P9)
+### Definitions
 
-- **P1** Only a `state: proposed` criterion may be transitioned
-  (`E_NOT_PROPOSED` otherwise; promotion is not a cheaper deprecation or
-  un-dispute — those have their own rules in it-gating).
-  `criterionId` naming no record → `E_UNKNOWN_CRITERION`.
-- **P2 — effective decision per implementer.** Acknowledgments are not
-  constrained to one per implementer; the effective decision for each
-  roster implementer is the **latest valid acknowledgment by `at`, ties
-  broken by last submitted** — the same rule as verify's D1, for the same
-  reason. A valid acknowledgment satisfies
-  `requestedAt <= at <= asOf`; an acknowledgment outside that window is an
-  error (`E_BAD_ACK`), not silently ignored — loudness over forgiveness.
-- **P3 — to: active (ratification).** Accepted iff every roster implementer
-  has either an effective `ack` or has lapsed: no valid decision and
-  `asOf > requestedAt + timeoutDays`. Lapsed names are listed in the
-  result — liveness is loud, never silent. Acks incomplete and not lapsed
-  → `E_PENDING`.
-- **P4 — nak blocks; deadlock tiebreaks to the repo owner.** Any effective
-  `nak` from a non-repo-owner blocks (`E_VETOED`) *unless* the repo
-  owner's effective decision is `ack`, which resolves the deadlock: the
-  result is accepted with the nak recorded. The repo owner's own effective
-  `nak` is final (`E_VETOED`). If **no** roster entry carries the
-  `repo-owner` role, there is no resolver and any nak stands
-  (`E_VETOED`). If **more than one** roster entry carries it, the function
-  refuses: `E_AMBIGUOUS_OWNER` — it does not guess between owners.
-  (Compilation adds the structural guard: lint gains
-  `E_MULTIPLE_OWNERS` so a multi-owner roster cannot merge in the first
-  place; the promotion-side error keeps the function total even over
-  specs that never passed lint.)
-- **P5 — solo roster degenerates explicitly.** A roster of one is
-  repo-owner authority: that implementer's single effective `ack`
-  ratifies. (This is the current felag-core situation; the degeneracy is
-  contract, not accident.)
-- **P6 — to: rejected is deliberately lighter than ratification.**
-  Rejection requires a single effective `ack` from any roster implementer
-  and no effective `nak` from the repo owner. Rationale: ratification
-  creates obligations for every implementer, so it takes the full roster;
-  rejection deletes an inert proposal that never gated anyone, history
-  survives in git, and re-proposing is one PR — so one accountable ack
-  suffices. (v0 required the full quorum for rejection; review M3
-  correctly observed that lets one nak freeze junk proposals as permanent
-  clutter, against design v1's lightweight-triage intent.)
-- **P7 — to: known-bug.** Same acknowledgment rules as ratification
-  (P3–P5), because it *is* a ratification: the criterion activates AND the
-  result carries a `kind: known-bug` waiver for
-  `transition.implementation`, built entirely from input fields
-  (criterionId, implementation, justification, expiresAt, attribution).
-  Excavate found real divergent behavior; the spec records the correct
-  behavior and the divergence is tracked in the implementation's ledger.
-  Missing `implementation`/`justification`/`expiresAt`/`attribution` →
-  `E_MISSING_FIELD`.
-- **P8 — roster validation.** `requestedBy` and every
-  `acknowledgments[].implementer` must name a roster entry
-  (`E_NOT_ROSTER`) — governance is the roster, no drive-by ratification.
-- **P9 — error composition.** The function evaluates all rules and
-  returns every applicable error code, sorted ascending — never
-  short-circuits. `accepted: true` iff `errors` is empty.
+- **Effective decision** (per roster implementer): the latest *valid*
+  acknowledgment by `at`; ties broken by greatest array index ("last
+  submitted" = position in `acknowledgments`, stated explicitly per round
+  2 L-1). An acknowledgment is **valid** iff
+  `requestedAt <= at <= asOf`.
+- **Lapsed** (per roster implementer): no valid acknowledgment and
+  `asOf > requestedAt + timeoutDays`.
+- **The repo owner**: the unique roster entry whose `roles` include
+  `repo-owner`. When zero or multiple entries qualify, owner-dependent
+  clauses evaluate with **no owner** (no tiebreak available); the multiple
+  case additionally errors (`E_AMBIGUOUS_OWNER`).
 
-Error codes: `E_AMBIGUOUS_OWNER`, `E_BAD_ACK`, `E_MISSING_FIELD`,
-`E_NOT_PROPOSED`, `E_NOT_ROSTER`, `E_PENDING`, `E_UNKNOWN_CRITERION`,
-`E_VETOED`.
+### Evaluation
+
+Two structural guards, then independent predicates:
+
+- **G1** Input fails the wire-format schema → `{accepted: false, errors:
+  ["E_SCHEMA"], outcome: null, lapsed: [], waiver: null}` and nothing else
+  is evaluated (mirrors ingest).
+- **G2** `criterionId` names no criterion record →
+  `errors: ["E_UNKNOWN_CRITERION"]` alone (state-dependent predicates have
+  no subject).
+
+Otherwise `errors` = sorted set of every holding predicate:
+
+| Code | Predicate |
+|---|---|
+| `E_NOT_PROPOSED` | the target criterion's `state` is not `proposed` |
+| `E_BAD_REQUEST` | `requestedAt > asOf` (temporally incoherent request; round 2 L-2) |
+| `E_NOT_ROSTER` | `requestedBy`, or any `acknowledgments[].implementer`, names no roster entry |
+| `E_BAD_ACK` | any acknowledgment is invalid (`at` outside `[requestedAt, asOf]`) — loud, never silently ignored |
+| `E_AMBIGUOUS_OWNER` | more than one roster entry carries role `repo-owner` |
+| `E_MISSING_FIELD` | `to = known-bug` and any of `implementation` / `justification` / `expiresAt` / `attribution` is absent |
+| `E_VETOED` | **to = active or known-bug:** the owner's effective decision is `nak`; OR a non-owner's effective decision is `nak` and the owner's effective decision is not `ack`. **to = rejected:** the owner's effective decision is `nak` |
+| `E_PENDING` | **to = active or known-bug:** some roster implementer has neither an effective decision nor lapsed. **to = rejected:** no roster implementer's effective decision is `ack` (round 2, H-1: zero-ack rejection now has a defined code) |
+
+`E_VETOED` and `E_PENDING` co-fire when both hold — all-applicable
+composition, same convention as lint. `accepted` iff `errors` empty;
+`outcome` is `"ratified"` for accepted active/known-bug, `"rejected"` for
+accepted rejected, else `null`; `waiver` is built entirely from input
+fields for accepted known-bug.
+
+The acceptance conditions in prose (they are the predicates' complement,
+restated for the reader):
+
+- **Ratification (active, known-bug)** — every roster implementer either
+  effectively acks or lapses; a non-owner nak is overridden only by an
+  owner ack (deadlock tiebreak); the owner's nak is final; with no unique
+  owner there is no tiebreak and any nak stands. Solo roster degenerates
+  to repo-owner authority: one valid ack ratifies (the current felag-core
+  situation; degeneracy is contract, not accident).
+- **Rejection** — deliberately lighter: one effective ack from any roster
+  implementer, no owner nak. Ratification creates obligations for every
+  implementer, so it takes the full roster; rejection deletes an inert
+  proposal that never gated anyone, history survives in git, re-proposing
+  is one PR.
+- **Known-bug** — a ratification plus a waiver (see the excavate
+  reconciliation below).
+
+### Known-bug reconciled with the excavate model (round 2, H-5)
+
+Round 2 found a real contradiction: excavate proposes criteria mirroring
+*current* behavior, so ratifying a mirrored criterion with a waiver would
+be vacuous — the implementation passes its own mirror. The resolution,
+now stated as contract: **the known-bug path presupposes triage amended
+the proposed criterion to state the correct behavior.** Proposed criteria
+are inert; editing one is an ordinary spec PR (it gates nobody — this is
+exactly what `proposed` is for). The triage sequence for a discovered
+bug: excavate emits the mirror (`proposed`); review recognizes the mirror
+describes a bug; the proposal is amended in place to the correct
+behavior; the amended proposal ratifies via `to: known-bug`, which
+activates it AND records the divergence as a `kind: known-bug` waiver for
+the named implementation. The waiver is non-vacuous because verification
+runs against the corrected text. Design v1's "bugs become tracked
+divergences, never MUSTs" reads precisely: the *bug* never becomes a
+MUST; the *correct behavior* does, with the bug tracked in the ledger.
 
 ### Roster references and the repo-owner role — stated honestly
 
-Design v1.2 made `dispute.by` a roster reference that carries semantics,
-as an enumerated exception to "attribution strings have no semantics."
-This draft does something **adjacent but new, and bigger than v0 claimed**:
-it makes the roster role string `repo-owner` *mechanically* load-bearing
-(P4/P5 read it to resolve deadlocks). Two clarifications, both due to
-review round 1:
+Design v1.2 made `dispute.by` a roster reference that carries semantics.
+This draft does something adjacent but new: it makes the roster role
+string `repo-owner` *mechanically* load-bearing (the tiebreak clauses
+read it). Three commitments, the first two due to round 1, the third to
+round 2:
 
-- This is not literally a carve-out from `ac-ver-attribution-opaque` —
-  that criterion enumerates `discoveredBy`, verdict provenance, waiver
-  authors, and record attribution; roster `roles` are not on its list.
-  The honest framing: **roster entries (names and the `repo-owner` role)
-  are governance plumbing, a different kind of thing from attribution
-  strings.** The compiled spec should say so in one place (a new
-  `it-governance` item): attribution = opaque, roster = semantic, and
-  the ratified spec already leaned on repo-owner semantics in advisory
-  prose (`ac-gate-dispute-resolution`) — this contract is merely the
-  first *mechanical* reader.
-- **Making `repo-owner` mechanical reclassifies roster-role edits as
-  governance-critical.** Design v1 lets roster membership change by
-  "ordinary spec PR"; composed naively with P4, an ordinary PR that adds
-  `repo-owner` to your roster entry hands you tiebreak authority. The
-  contract therefore states: **adding, removing, or moving the
-  `repo-owner` role is a MAJOR governance act** requiring the same
-  acknowledgment as ratification (P3–P5, evaluated against the roster
-  *before* the edit). Plain membership changes (add/remove an implementer
-  without that role) remain ordinary PRs. This is the escalation path
-  closed deliberately rather than discovered later.
+- **Not an attribution carve-out.** `ac-ver-attribution-opaque`
+  enumerates `discoveredBy`, verdict provenance, waiver authors, record
+  attribution — roster `roles` are not on its list. The honest framing:
+  roster entries (names and the `repo-owner` role) are **governance
+  plumbing**, a different kind of thing from attribution strings. The
+  compiled spec says so in one place (new `it-governance` item):
+  attribution = opaque, roster = semantic. The ratified spec already
+  leaned on repo-owner semantics in advisory prose
+  (`ac-gate-dispute-resolution`); this contract is the first *mechanical*
+  reader.
+- **Repo-owner role edits are governance acts, explicitly overriding
+  design v1's "roster membership is maintained by ordinary spec PR" for
+  this one case** (the override is stated, not implied): adding,
+  removing, or moving the `repo-owner` role requires ratification-grade
+  acknowledgment. Plain membership changes (add/remove an implementer
+  without that role) remain ordinary PRs.
+- **The owner cannot veto their own demotion** (round 2, M-5: v0.1's
+  version let the owner's "final nak" entrench them forever, recreating
+  the capture design v1's governance section exists to prevent). For a
+  repo-owner role edit, acknowledgment is required from all roster
+  implementers **except the entry whose role changes**, and that entry's
+  nak records loudly but does not veto — the same all-but-the-affected
+  shape as dispute resolution. Solo roster: degenerate, the owner edits
+  freely (there is no one else to protect). Residual risk accepted and
+  named: in a two-entry roster the other implementer alone can strip the
+  role — but a role edit is still a spec PR, and merge rights on the repo
+  remain the outer gate.
 
 ## 3. The interview protocol (author)
 
@@ -210,12 +242,16 @@ never runs the interview and cannot fixture a dialog.
 
 What gates is the interview's *output*. Wire format
 `felag/author-output@0`:
-`{ "spec": [records], "budgets": { "criteriaPerItem": int } | absent }`
+`{ "spec": [records], "new": [criterionId], "budgets": { "criteriaPerItem": int } | absent }`
 → result `{ "valid": boolean, "errors": [{code, ref}] }` (lint's result
-shape). **When `budgets` is absent, `criteriaPerItem` defaults to 7; the
-default is pinned in this wire format's definition, not in any spec
-record** (review M1: v0 said "spec-declared defaults" and declared them
-nowhere). Rules:
+shape). `spec` is the complete post-interview record set; `new` lists the
+criteria this interview authored (round 2, H-3: v0.1 applied the
+provenance rule to *every* criterion, which is jointly unsatisfiable with
+lint-validity for any delta interview on a spec containing
+ratified-from-excavate `discovered` criteria — carried-through records
+keep their provenance). When `budgets` is absent, `criteriaPerItem`
+defaults to 7; **the default is pinned in this wire format's definition,
+not in any spec record.** Rules:
 
 - **A1** The emitted record set passes lint (all lint codes apply; an
   author implementation that emits unlintable interchange does not
@@ -224,10 +260,12 @@ nowhere). Rules:
   effective `criteriaPerItem`. Violation: `E_BUDGET_CRITERIA` naming the
   item. The cap is the protocol's defense against Cucumber-style sprawl,
   so the cap itself must be mechanical.
-- **A3 — provenance.** Every emitted criterion carries
-  `source: forethought` (greenfield/delta interviews produce forethought;
+- **A3 — provenance of new work.** Every criterion listed in `new`
+  carries `source: forethought` (interviews produce forethought;
   `discovered` is excavate's word and an author implementation that emits
-  it is lying about provenance). Violation: `E_BAD_PROVENANCE`.
+  it for interview output is lying about provenance). A `new` id naming
+  no criterion in `spec` → `E_UNKNOWN_CRITERION`. Violation:
+  `E_BAD_PROVENANCE` naming the criterion.
 
 The no-LLM path stays normative and is already covered: hand-written
 interchange validated by lint IS an author-output that passes A1–A3.
@@ -238,9 +276,7 @@ Excavate reads a repo (outside felag's verifiable boundary — same stance as
 verify: felag checks artifacts, not the archaeology). Wire format
 `felag/excavate-output@0`:
 `{ "scope": { "contracts": [id] } | null, "spec": [records] }`
-→ lint-shaped result. (v0 sketched a `scope.surfaces` field consumed by no
-rule; cut — a dead field in a wire format is a divergence invitation.)
-Rules:
+→ lint-shaped result. Rules:
 
 - **X1** `scope` is required and `scope.contracts` non-empty; otherwise
   `E_NO_SCOPE` (the bounded-scoping input from design v1 — unbounded
@@ -257,31 +293,45 @@ Rules:
 
 The exclusion list already refuses render aesthetics ("observable but
 undeclared, therefore non-core"). What is contractual is **audience
-projection** — *what* each audience sees, not how it is typeset. Wire
-format `felag/render-inventory@0`: `{ "spec": [records], "audience":
-"stakeholder" | "developer" | "verifier" }` → `{ "included": [recordId],
-"excludedFields": [string] }`. **Both result fields are exact sets**
-(sorted ascending; equality, not subset — review M1: v0 mixed "matches"
-with "must cover" and two compilers would diverge). A conforming render
-implementation must produce a document whose content inventory equals the
-expected value:
+projection** — *what* each audience sees, not how it is typeset.
 
-- **R1 — stakeholder**: every item and every non-deprecated criterion (ids
-  in `included`), human text only — `excludedFields` is exactly
-  `["contractId", "fixtures", "judgment"]`. **Criteria appear with their
-  state, and non-`active` states are marked loudly: a `proposed` criterion
-  rendered as if ratified is the render-side version of asserting bare
-  conformance** (review M1: v0 applied loud-everywhere to `disputed` only;
-  showing un-ratified criteria to stakeholders unmarked is the more
-  dangerous case). Disputed criteria appear with their dispute.
-- **R2 — developer**: stakeholder content plus contracts, fixtures, and
-  Profile/Binding references; `excludedFields` is exactly `[]`.
-- **R3 — verifier**: the identity projection — every record id in
-  `included`, `excludedFields` `[]`. (`render --audience verifier` and the
-  interchange file say the same thing; this pins it.)
+Wire format `felag/render-inventory@0`: `{ "spec": [records], "audience":
+"stakeholder" | "developer" | "verifier" }` → `{ "included": [recordId],
+"excludedFields": [string] }`. Both result fields are **exact sets, sorted
+ascending** (equality, not subset). `included` ranges over id-bearing
+records — items, criteria, fixtures; **the preamble has no id and is
+included for every audience by definition** (round 2, M-3: v0.1's
+developer audience named contracts and Profile/Binding, which have no
+record ids — contracts are preamble fields, covered by the
+preamble-always rule; Profile and Binding are separate artifacts that
+ship with implementations, not spec records, and rendering them is
+**cut from this contract** — deferred alongside the formats themselves).
+
+- **R1 — stakeholder**: `included` = every item and every non-deprecated
+  criterion; `excludedFields` = exactly
+  `["class", "contractId", "fixtures", "judgment", "source", "type"]` —
+  the machine plumbing. Retained: criterion text (`gherkin`/`item`),
+  `force` (MUST/SHOULD/MAY is stakeholder-meaningful), and `state`:
+  **criteria render with their state, and non-`active` states are marked
+  loudly — a `proposed` criterion rendered as if ratified is the
+  render-side version of asserting bare conformance.** Disputed criteria
+  appear with their dispute. (Round 2, M-4: v0.1 said "human text only"
+  while excluding only three fields — the exact list above replaces the
+  prose phrase; the list IS the definition.)
+- **R2 — developer**: `included` = every item, every criterion, every
+  fixture; `excludedFields` = exactly `[]`.
+- **R3 — verifier**: the identity projection — `included` = every
+  id-bearing record; `excludedFields` = exactly `[]`. (`render
+  --audience verifier` and the interchange file say the same thing; this
+  pins it.)
 - **R4** Renders are one-way artifacts: a render is never input to any
   felag verb except (future) `author --from-annotations`. No verb in this
   contract accepts markdown.
+
+(R2 and R3 produce the same inventory for a spec with no deprecated
+criteria — by design; they differ in *typesetting*, which is excluded
+surface, and diverge in inventory exactly when deprecation history
+exists.)
 
 The *language quality* of the stakeholder render ("observable language",
 no implementation jargon) stays **judgment** — fixturing prose style would
@@ -294,32 +344,36 @@ pin aesthetics, which the exclusions forbid.
 lint-shaped result. The emitted document must contain, verbatim
 (substring), the `body` of every **protocol item**, where a protocol item
 is defined mechanically as: **an item with at least one criterion whose
-`contractId` is `c-author`** (review M1: items carry no contract
-membership in the data model, so v0's "items under the c-author contract"
-was undefined; this derivation is computable from the records). Missing
-body → `E_MISSING_PROTOCOL` naming the item. Judgment half:
-vendor-neutrality of any added framing — already covered by the existing
-`ac-class-vendor-neutral` judgment criterion; prime adds no new judgment
-surface.
+`contractId` is `c-author`**. Missing body → `E_MISSING_PROTOCOL` naming
+the item. Judgment half: vendor-neutrality of any added framing — already
+covered by the existing `ac-class-vendor-neutral` judgment criterion;
+prime adds no new judgment surface.
 
 ## 7. Landing strategy: one honest MAJOR, then proposed-state MINORs
 
-v0 claimed the landing was MINOR because the new criteria are
-`state: proposed`. Review H1 demolished this: the ratified `ac-vers-major`
-says "adds a MUST criterion ⇒ MAJOR" **unconditional on state**, and using
-a not-yet-ratified "proposed ⇒ MINOR" exception to classify the change
-that introduces it is circular. The honest sequence:
+The honest sequence (round 1, H1; round 2, H-4 and L-4):
 
 - **The landing is MAJOR: felag-core 0.2.0 → 1.0.0.** It adds MUST
-  criteria under the rules in force (unconditional ac-vers-major), amends
-  `ac-vers-major`/`ac-vers-minor-patch` to add the state distinction
-  (*adding criteria in `state: proposed` is MINOR — they are inert until
-  ratified; ratifying a proposed MUST to `active` is MAJOR — that is the
-  moment gating obligations change*), adds the `it-governance` item
-  (roster semantics, repo-owner edit rule), adds lint
-  `E_MULTIPLE_OWNERS`, and lands `c-author` with all its criteria
-  `state: proposed`. MAJOR requires roster acknowledgment — solo roster,
-  P5 degeneracy, Jonathan's merge IS the ack.
+  criteria under the rules in force (unconditional `ac-vers-major`), and
+  in the same act amends the versioning criteria with **two**
+  clarifications:
+  1. *State distinction*: adding criteria in `state: proposed` is MINOR —
+     they are inert until ratified; ratifying a proposed MUST to `active`
+     is MAJOR — that is the moment gating obligations change.
+  2. *Normative-text edits* (round 2, H-4: classified by nothing today):
+     materially changing the normative text (`gherkin`/`item`) of an
+     existing **active** MUST criterion is MAJOR — same logic as fixture
+     edits, "a behavior change wearing a test's clothes." Editing a
+     **proposed** criterion's text is MINOR (inert; and the known-bug
+     triage path depends on it being routine).
+  The landing also adds the `it-governance` item, lint
+  `E_MULTIPLE_OWNERS`, the preamble `governance` field, and `c-author`
+  with all its criteria `state: proposed`.
+- **Authority for the landing**: design v1's governance section as
+  ratified — solo roster degenerates to repo-owner authority, so
+  Jonathan's merge is the acknowledgment. (Round 2, L-4: v0.1 cited P5 —
+  a not-yet-in-force rule introduced by the landing itself — the same
+  circular shape as the MINOR claim. The in-force authority is v1.)
 - **Thereafter, proposed-state additions are MINOR** under the amended
   rule — the exception classifies future changes, never its own
   introduction.
@@ -329,16 +383,16 @@ that introduces it is circular. The honest sequence:
   corpus — the contract enters through its own front door, and the spec's
   version number tells the truth at every step: at 1.0.0 the author class
   has a published contract that gates no one; at 2.0.0 it gates.
-- **Honesty about the interim** (review M2): between landing and
-  ratification, `felag/author` remains exactly as un-gated as today —
+- **Honesty about the interim**: between landing and ratification,
+  `felag/author` remains exactly as un-gated as today —
   `ac-class-declaration` yields an empty gating set for the class. What
   the landing delivers is the *contract and its fixtures as reviewable,
   committed, proposed records* — the difference between "no contract"
   (F7) and "a contract awaiting ratification" is the entire reviewable
   surface of this draft.
-- Fixtures land WITH the proposed criteria (lint's E_MISSING_FIXTURES is
-  state-independent, deliberately: a proposal without its interop proof is
-  not reviewable).
+- Fixtures land WITH the proposed criteria (lint's `E_MISSING_FIXTURES`
+  is state-independent, deliberately: a proposal without its interop
+  proof is not reviewable).
 
 ## 8. What this draft refuses
 
@@ -349,35 +403,42 @@ that introduces it is circular. The honest sequence:
   is judgment, permanently, by the same reasoning that verify is a ledger.
 - **Render aesthetics** — already excluded; R1–R3 pin selection, never
   typesetting.
+- **Profile/Binding rendering** — those artifacts ship with
+  implementations, not specs; rendering them waits for their formats to be
+  contract surface (round 2, M-3).
 - **Judgment-criterion graduation** — the c-author judgment criteria
   (conduct, stakeholder language) ship advisory with no graduation bar,
-  same as 0.2.0's existing judgment criteria. Writing the graduation bar
-  is its own future contract.
-- **Waiver expiry policy** — P7's waiver carries `expiresAt` from the
-  promotion input; how an implementation's ledger *chooses* expiry
-  durations is ledger policy, outside this spec (named here because v0
-  leaned on "the ledger's normal rules", which do not exist — review L2).
-- ~~Absent repo-owner deadlock~~ — no longer deferred: defined in P4 (no
-  owner ⇒ any nak stands).
+  same as the existing judgment criteria. Writing the graduation bar is
+  its own future contract.
+- **Waiver expiry policy** — P-known-bug's waiver carries `expiresAt` from
+  the promotion input; how an implementation's ledger *chooses* expiry
+  durations is ledger policy, outside this spec.
 
 ## 9. Compilation checklist (the follow-up task)
 
-New preamble contract `c-author`; new item `it-governance` (roster
-semantics: attribution opaque vs roster semantic, repo-owner edit = MAJOR
-act); items `it-author-interview`, `it-author-excavate`,
-`it-author-render`, `it-author-promotion` (A/X/R/P rule blocks as bodies);
-~10–12 behavioral `state: proposed` criteria with fixtures across the five
-wire formats (promotion needs the largest corpus: ratify-clean, lapse,
-nak-veto, owner-tiebreak, owner-nak-final, no-owner, multi-owner refuse,
-conflicting-acks-latest-wins, bad-ack-window, rejected-single-ack,
-known-bug-waiver, pending); 2 judgment criteria (conduct, stakeholder
-language); schema.json `$defs` for the five wire formats; amend
-`ac-vers-major`/`ac-vers-minor-patch` (state distinction); lint
-`E_MULTIPLE_OWNERS`; update it-classes and the preamble exclusions
-(author exclusion shrinks to `--from-annotations` + conduct). Version:
-0.2.0 → 1.0.0. felag-ts implements the five validators (small pure
-functions) in a follow-up; until then felag-ts's declared classes
-(interchange, verifier) keep its verdict unaffected.
+New preamble contract `c-author` and optional `governance.timeoutDays`
+field; new item `it-governance` (attribution opaque vs roster semantic;
+repo-owner edit rules incl. the no-self-veto clause, stated as an explicit
+override of v1's ordinary-PR roster rule); items `it-author-interview`,
+`it-author-excavate`, `it-author-render`, `it-author-promotion` (A/X/R +
+definitions/guards/predicate-table as bodies); ~12 behavioral
+`state: proposed` criteria with fixtures across the five wire formats.
+Promotion needs the largest corpus: ratify-clean, lapse, nak-veto,
+owner-tiebreak, owner-nak-final, no-owner-nak-stands, multi-owner
+(`E_AMBIGUOUS_OWNER`), conflicting-acks-latest-wins, same-at-tie (array
+index), bad-ack-window, bad-request, rejected-single-ack,
+rejected-zero-acks (`E_PENDING`), known-bug-waiver, known-bug-missing-
+fields, pending-and-vetoed-co-fire, schema-guard (G1), unknown-criterion
+(G2). Plus 2 judgment criteria (conduct, stakeholder language);
+schema.json `$defs` for the five wire formats; amend
+`ac-vers-major`/`ac-vers-minor-patch` (state distinction +
+normative-text-edit rule); lint `E_MULTIPLE_OWNERS` **with its fixture**
+(state-independent fixture rule applies); update it-classes and the
+preamble exclusions (author exclusion shrinks to `--from-annotations` +
+conduct + Profile/Binding rendering). Version: 0.2.0 → 1.0.0. felag-ts
+implements the five validators (small pure functions) in a follow-up;
+until then felag-ts's declared classes (interchange, verifier) keep its
+verdict unaffected.
 
 ---
 
@@ -385,17 +446,33 @@ functions) in a follow-up; until then felag-ts's declared classes
 
 | Finding | Disposition |
 |---|---|
-| C1 conflicting/duplicate acks undefined | **Fixed** — P2: effective decision = latest valid by `at`, ties last-submitted (mirrors verify D1) |
-| C1 P6 waiver fields unsourced (expiresAt, attribution) | **Fixed** — both are required transition inputs iff known-bug; function now pure |
-| C1 known-bug quorum unstated | **Fixed** — P7: same rules as ratification, because it is one |
-| C1 multiple repo-owners undefined | **Fixed** — P4: `E_AMBIGUOUS_OWNER`; lint `E_MULTIPLE_OWNERS` at compilation |
-| H1 MINOR landing circular; MUST edits smuggled | **Accepted** — landing is MAJOR (1.0.0); exception classifies only future changes; ratification is a second MAJOR |
-| H2 repo-owner escalation via ordinary roster PR | **Fixed** — repo-owner role edits are MAJOR governance acts (it-governance); framing corrected: first *mechanical* reader, not a second carve-out; no conflict with ac-ver-attribution-opaque |
-| M1 prime "items under contract" undefined | **Fixed** — protocol item := item owning ≥1 c-author criterion |
-| M1 render equality vs subset; `state` unaddressed | **Fixed** — exact sets; states rendered, non-active marked loudly |
-| M1 excavate `scope.surfaces` dead field | **Fixed** — cut |
-| M1 budget default source unspecified | **Fixed** — default 7 pinned in the wire format definition |
-| M2 mechanical-now vs inert-until-ratified oscillation | **Fixed** — §7 states the interim honestly; §1 no longer relabels ac-class-author-labeled |
-| M3 rejection quorum freezes junk; resultingState token | **Fixed** — P6 single-ack rejection with owner veto; result field renamed `outcome` |
-| L1 ack timing, requestedBy validation, error composition | **Fixed** — P2 validity window + E_BAD_ACK; P8 roster check on requestedBy; P9 all-applicable errors |
-| L2 unnamed dependencies (waiver expiry, absent owner) | **Fixed** — expiry policy named as refusal; absent owner defined in P4 |
+| C1 conflicting/duplicate acks undefined | **Fixed** — effective decision = latest valid by `at`, ties by array index |
+| C1 P6 waiver fields unsourced | **Fixed** — required transition inputs iff known-bug |
+| C1 known-bug quorum unstated | **Fixed** — ratification rules, because it is one |
+| C1 multiple repo-owners undefined | **Fixed** — `E_AMBIGUOUS_OWNER` + lint `E_MULTIPLE_OWNERS` |
+| H1 MINOR landing circular | **Accepted** — landing is MAJOR (1.0.0) |
+| H2 repo-owner escalation via ordinary PR | **Fixed** — role edits are governance acts (it-governance) |
+| M1 four thin wire-format sketches | **Fixed** — pinned (see v0.1) |
+| M2 mechanical-now vs inert oscillation | **Fixed** — §7 interim honesty |
+| M3 rejection quorum too heavy | **Fixed** — single-ack rejection |
+| L1/L2 ack windows, error composition, deps | **Fixed** |
+
+## Cold review round 2 — disposition
+
+| Finding | Disposition |
+|---|---|
+| C-1 error composition still underdefined (nak-vs-pending, guard order, input schema) | **Fixed** — function restructured: G1/G2 guards + independent predicates; all-applicable union; `E_VETOED`/`E_PENDING` co-fire by definition |
+| H-1 rejected with zero acks has no code | **Fixed** — `E_PENDING` predicate covers rejection's no-ack case |
+| H-3 A3 unsatisfiable with A1 for delta interviews | **Fixed** — `new: [criterionId]` input; A3 scopes to newly-authored criteria |
+| H-4 normative-text edits unclassified by versioning | **Fixed** — amended ac-vers-major: active-MUST text edit = MAJOR, proposed text edit = MINOR |
+| H-5 known-bug contradicts excavate-mirrors-current | **Fixed** — triage amends the proposal to correct behavior before known-bug ratification; stated as contract |
+| M-1 `transition.implementation` roster membership undefined | **Fixed** — opaque name, NOT roster-validated, stated in the wire format |
+| M-2 `timeoutDays` loose input vs "roster-declared" | **Fixed** — preamble `governance.timeoutDays` (default 30); function is (spec, transition, asOf) |
+| M-3 developer/verifier `included` cannot express contracts/Profile/Binding | **Fixed** — preamble always included by definition; Profile/Binding rendering cut (named refusal) |
+| M-4 stakeholder "human text only" vs 3-field exclusion | **Fixed** — exact 6-field exclusion list replaces the prose phrase |
+| M-5 owner can veto own demotion (capture path) | **Fixed** — all-but-the-affected acknowledgment for role edits; owner nak loud but non-veto |
+| M-6 `lapsed` ordering | **Fixed** — sorted ascending |
+| L-1 tie-break convention unstated | **Fixed** — array index, stated; tie fixture in checklist |
+| L-2 `requestedAt > asOf` unguarded | **Fixed** — `E_BAD_REQUEST` predicate |
+| L-3 `E_MULTIPLE_OWNERS` fixture omitted | **Fixed** — in checklist |
+| L-4 §7 cites P5 to authorize its own landing | **Fixed** — authority cited to design v1's ratified governance |
