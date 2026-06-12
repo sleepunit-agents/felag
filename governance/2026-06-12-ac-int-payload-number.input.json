@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-12T19:24:13.450Z",
+  "asOf": "2026-06-12T19:34:05.834Z",
   "spec": [
     {
       "record": "preamble",
@@ -53,7 +53,7 @@
     {
       "record": "item",
       "id": "it-interchange",
-      "body": "A felag spec is committed as line-oriented JSONL under an interchange directory: spec/<name>/spec.jsonl holds one preamble record followed by item records, each item followed by its criterion records (criterion.itemId names the parent); spec/<name>/fixtures.jsonl holds fixture records. The committed interchange files are the source of truth; any database or index (Dolt or otherwise) is a regenerable local accelerator, never authoritative, never committed.\n\nCanonical serialization rules, derived during this compilation as design v1.1 requires (the requirement is normative; these rules make it mechanical):\nCS1. Encoding is UTF-8 without BOM; the line separator is LF; a file ends with exactly one trailing LF; no blank lines, no comments.\nCS2. Each line is exactly one JSON object (a record) serialized with no insignificant whitespace (separators ',' and ':').\nCS3. Every record carries a 'record' field naming its type: preamble | item | criterion | fixture.\nCS4. Key order: 'record' first, then 'id' when present, then all remaining keys ascending by Unicode code point; keys of nested objects are ordered ascending by Unicode code point.\nCS5. String escaping: only quotation mark, backslash, and control characters U+0000-U+001F are escaped; the short escapes \\b \\f \\n \\r \\t are used where defined, otherwise \\u00xx with lowercase hex; all other characters, including non-ASCII, are emitted literally as UTF-8.\nCS6. Every number field this format defines is a decimal integer; schema validation constrains these fields to integer values, and the canonical lexeme - no leading zeros, plus sign, fraction, or exponent - is a writer rule. Opaque payload subtrees (a fixture's input and expected) may carry any JSON number whose IEEE-754 double value is finite: its canonical form is the ECMAScript string serialization of that double (RFC 8785 section 3.2.2.3) - integer values of magnitude below 10^21 emit as plain decimals, identical to the field lexeme; larger magnitudes take the ECMAScript exponential form (1e+21); non-integers emit shortest round-trip (600.5); negative zero emits as 0. The lexeme never survives canonicalization: 600.50 and 6.005e2 both emit as 600.5. A numeral that is valid JSON but whose double value is non-finite (1e309) has no canonical form: a conforming writer refuses to serialize the record rather than corrupt the value; readers remain liberal. The refusal is unfixturable in this interchange - the corpus cannot canonically carry the value it must refuse - and is recorded as residue in the exclusions.\nCS7. Record order in spec.jsonl: preamble first, then items in author-declared order, each immediately followed by its criteria in author-declared order.\nCS8. Record order in fixtures.jsonl: fixtures sorted ascending by id in code-point order.\nCS9. The canonical hash of a fixture is 'sha256:' followed by the lowercase hex SHA-256 of the UTF-8 bytes of its canonical record line, excluding the trailing LF.\n\nReaders MUST accept any record set that validates against the schema regardless of serialization details (key order, whitespace, escaping); writers MUST emit canonical form. interfaceSketch on an item is optional and non-normative: it never gates and carries no conformance meaning.",
+      "body": "A felag spec is committed as line-oriented JSONL under an interchange directory: spec/<name>/spec.jsonl holds one preamble record followed by item records, each item followed by its criterion records (criterion.itemId names the parent); spec/<name>/fixtures.jsonl holds fixture records. The committed interchange files are the source of truth; any database or index (Dolt or otherwise) is a regenerable local accelerator, never authoritative, never committed.\n\nCanonical serialization rules, derived during this compilation as design v1.1 requires (the requirement is normative; these rules make it mechanical):\nCS1. Encoding is UTF-8 without BOM; the line separator is LF; a file ends with exactly one trailing LF; no blank lines, no comments.\nCS2. Each line is exactly one JSON object (a record) serialized with no insignificant whitespace (separators ',' and ':').\nCS3. Every record carries a 'record' field naming its type: preamble | item | criterion | fixture.\nCS4. Key order: 'record' first, then 'id' when present, then all remaining keys ascending by Unicode code point; keys of nested objects are ordered ascending by Unicode code point.\nCS5. String escaping: only quotation mark, backslash, and control characters U+0000-U+001F are escaped; the short escapes \\b \\f \\n \\r \\t are used where defined, otherwise \\u00xx with lowercase hex; all other characters, including non-ASCII, are emitted literally as UTF-8.\nCS6. Every number field this format defines is a decimal integer; schema validation constrains these fields to integer values, and the canonical lexeme - no leading zeros, plus sign, fraction, or exponent - is a writer rule. Opaque payload subtrees (a fixture's input and expected) may carry any JSON number whose IEEE-754 double value is finite: its canonical form is the ECMAScript string serialization of that double (RFC 8785 section 3.2.2.3) - integer values of magnitude below 10^21 emit as plain decimals, identical to the field lexeme; magnitudes of 10^21 and above take the ECMAScript exponential form (1e+21), and magnitudes below 10^-6 take it too (1e-7); non-integers emit shortest round-trip (600.5); negative zero emits as 0. The lexeme never survives canonicalization: 600.50 and 6.005e2 both emit as 600.5. A payload number IS its IEEE-754 double, by definition: a JSON numeral beyond double precision denotes the nearest double (round-to-nearest-even), so 9007199254740993 and 9007199254740992 are the same payload value and canonicalize identically. The interchange round-trip guarantee is value-level, canonical-form to canonical-form; source lexemes are not values (the I-JSON stance, RFC 7493). Identifiers needing more than 53 bits of integer precision travel as strings. A numeral that is valid JSON but whose double value is non-finite (1e309) has no canonical form: a conforming writer refuses to serialize the record rather than corrupt the value; readers remain liberal. The refusal is unfixturable in this interchange - the corpus cannot canonically carry the value it must refuse - and is recorded as residue in the exclusions.\nCS7. Record order in spec.jsonl: preamble first, then items in author-declared order, each immediately followed by its criteria in author-declared order.\nCS8. Record order in fixtures.jsonl: fixtures sorted ascending by id in code-point order.\nCS9. The canonical hash of a fixture is 'sha256:' followed by the lowercase hex SHA-256 of the UTF-8 bytes of its canonical record line, excluding the trailing LF.\n\nReaders MUST accept any record set that validates against the schema regardless of serialization details (key order, whitespace, escaping); writers MUST emit canonical form. interfaceSketch on an item is optional and non-normative: it never gates and carries no conformance meaning.",
       "title": "Interchange format"
     },
     {
@@ -107,10 +107,11 @@
       "class": "behavioral",
       "contractId": "c-interchange",
       "fixtures": [
-        "fx-payload-number"
+        "fx-payload-number",
+        "fx-payload-number-bounds"
       ],
       "force": "MUST",
-      "gherkin": "Given interchange records whose fixture payloads carry finite non-integer JSON numbers\nWhen a conforming implementation parses any schema-valid spelling and writes canonical form\nThen every number emits as the ECMAScript serialization of its IEEE-754 double value - shortest round-trip, lexeme-independent - and the output round-trips byte-identically",
+      "gherkin": "Given interchange records whose fixture payloads carry finite JSON numbers, integer and non-integer alike\nWhen a conforming implementation parses any schema-valid spelling and writes canonical form\nThen every number emits as the ECMAScript serialization of its IEEE-754 double value - shortest round-trip, lexeme-independent, value not lexeme - and the output round-trips byte-identically",
       "itemId": "it-interchange",
       "source": "forethought",
       "state": "proposed",
@@ -2585,10 +2586,19 @@
       "record": "fixture",
       "id": "fx-payload-number",
       "contractId": "c-interchange",
-      "description": "A fixture record whose payload carries non-integer numerals in non-canonical spellings (600.50, 0.1, 1e21, -0) with unsorted keys: canonical form emits RFC 8785 ECMAScript number serialization (600.5, 0.1, 1e+21, 0) with CS4 key order. Payload numbers are values, not lexemes (ac-int-payload-number; felag finding from the watchdog-core compilation).",
+      "description": "A fixture record whose payload carries finite JSON numbers in non-canonical spellings (600.50, 0.1, 1e21, -0) with unsorted keys: canonical form emits RFC 8785 ECMAScript number serialization (600.5, 0.1, 1e+21, 0) with CS4 key order. Payload numbers are values, not lexemes (ac-int-payload-number; felag finding from the watchdog-core compilation).",
       "expected": "{\"record\":\"fixture\",\"id\":\"fxn\",\"contractId\":\"c1\",\"description\":\"payload numerals\",\"expected\":{\"ok\":true},\"format\":\"json\",\"input\":{\"big\":1e+21,\"neg\":0,\"ratio\":0.1,\"threshold\":600.5}}\n",
       "format": "felag/jsonl-text@0",
       "input": "{\"id\":\"fxn\",\"record\":\"fixture\",\"contractId\":\"c1\",\"description\":\"payload numerals\",\"format\":\"json\",\"input\":{\"threshold\":600.50,\"ratio\":0.1,\"big\":1e21,\"neg\":-0},\"expected\":{\"ok\":true}}\n"
+    },
+    {
+      "record": "fixture",
+      "id": "fx-payload-number-bounds",
+      "contractId": "c-interchange",
+      "description": "The ES-serialization boundaries native float formatters get wrong: 1e-7 stays exponential (not 0.0000001, not 1e-07), 0.000001 stays plain, 1e20 emits plain (100000000000000000000) while 1e21 goes exponential (1e+21), 9007199254740993 collapses to the double 9007199254740992 (value not lexeme; beyond-2^53 identifiers travel as strings), 5e-324 is the minimal subnormal (ac-int-payload-number).",
+      "expected": "{\"record\":\"fixture\",\"id\":\"fxb\",\"contractId\":\"c1\",\"description\":\"boundary numerals\",\"expected\":{\"ok\":true},\"format\":\"json\",\"input\":{\"beyond53\":9007199254740992,\"bigExp\":1e+21,\"bigPlain\":100000000000000000000,\"smallPlain\":0.000001,\"subnormal\":5e-324,\"tiny\":1e-7}}\n",
+      "format": "felag/jsonl-text@0",
+      "input": "{\"id\":\"fxb\",\"record\":\"fixture\",\"contractId\":\"c1\",\"description\":\"boundary numerals\",\"format\":\"json\",\"input\":{\"tiny\":1e-7,\"smallPlain\":0.000001,\"bigPlain\":1e20,\"bigExp\":1e21,\"beyond53\":9007199254740993,\"subnormal\":5e-324},\"expected\":{\"ok\":true}}\n"
     },
     {
       "record": "fixture",
@@ -7087,14 +7097,14 @@
   "transition": {
     "criterionId": "ac-int-payload-number",
     "to": "active",
-    "requestedAt": "2026-06-12T19:24:13.450Z",
+    "requestedAt": "2026-06-12T19:34:05.834Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-12T19:24:13.450Z",
-        "criterionHash": "sha256:e66209ddee3c0c53e6dff02eaa2b01e3cda76d4e91f46eb1e7ddb9dc12298970"
+        "at": "2026-06-12T19:34:05.834Z",
+        "criterionHash": "sha256:380e4af0aaa5d6e78aea8437b15a293d0b8bd599c580bee7980be0db74fa979f"
       }
     ]
   }
