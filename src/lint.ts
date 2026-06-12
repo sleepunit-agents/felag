@@ -43,7 +43,7 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
     case "fixture":
       return !(
         typeof rec.id === "string" &&
-        typeof rec.contractId === "string" &&
+        (rec.contractId === undefined || typeof rec.contractId === "string") &&
         typeof rec.description === "string" &&
         typeof rec.format === "string" &&
         "input" in rec &&
@@ -89,7 +89,10 @@ export function lint(records: SpecRecord[]): LintResult {
     }
     if (r.record === "fixture") {
       const f = r as Fixture;
-      if (!declared.has(f.contractId)) {
+      // contractId optional since 0.2.0: a contract-less fixture is legal
+      // (advisory criteria may reference fixtures voluntarily); when present
+      // it must still be declared.
+      if (f.contractId !== undefined && !declared.has(f.contractId)) {
         errors.push({ code: "E_UNDECLARED_CONTRACT", ref: f.id });
       }
     }

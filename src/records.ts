@@ -1,4 +1,4 @@
-// Record types for the felag interchange format (spec/felag-core 0.1.0).
+// Record types for the felag interchange format (spec/felag-core 0.2.0).
 // The committed JSONL interchange files are the source of truth; these types
 // mirror spec/felag-core/schema.json.
 
@@ -65,7 +65,7 @@ export interface Criterion {
 export interface Fixture {
   record: "fixture";
   id: string;
-  contractId: string;
+  contractId?: string; // optional since 0.2.0 — advisory criteria may reference fixtures voluntarily
   description: string;
   format: string;
   input: unknown;
