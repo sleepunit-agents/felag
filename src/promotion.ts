@@ -4,8 +4,7 @@
 // errors is the sorted set of every predicate that holds. Rules never
 // interact; E_VETOED and E_PENDING co-fire when both hold.
 
-import { canonicalLine } from "./canonical.js";
-import { createHash } from "node:crypto";
+import { recordHash } from "./canonical.js";
 import { lint } from "./lint.js";
 import type {
   Acknowledgment,
@@ -19,10 +18,6 @@ import type {
 
 const TRANSITIONS = new Set(["active", "rejected", "known-bug"]);
 const KNOWN_BUG_FIELDS = ["implementation", "justification", "expiresAt", "attribution"] as const;
-
-function criterionHash(c: Criterion): string {
-  return "sha256:" + createHash("sha256").update(canonicalLine(c), "utf8").digest("hex");
-}
 
 function fail(errors: string[]): PromotionResult {
   return { accepted: false, errors, outcome: null, lapsed: [], stale: [], waiver: null };
@@ -58,7 +53,10 @@ function schemaValid(input: unknown): input is PromotionInput {
     }
   }
   for (const f of KNOWN_BUG_FIELDS) {
-    if (f in t && typeof t[f] !== "string") return false;
+    // undefined ≡ absent: the wire format is JSON, where undefined does not
+    // exist; a JS caller passing an explicit undefined must behave like the
+    // round-tripped JSON (the totality fuzz caught this divergence).
+    if (t[f] !== undefined && typeof t[f] !== "string") return false;
   }
   return true;
 }
@@ -92,7 +90,7 @@ export function promote(rawInput: unknown): PromotionResult {
   const owner = owners.length === 1 ? owners[0].name : null;
 
   // Acknowledgment classification.
-  const currentHash = criterionHash(criterion);
+  const currentHash = recordHash(criterion);
   const valid = (a: Acknowledgment) => t.requestedAt <= a.at && a.at <= asOf;
   const isStale = (a: Acknowledgment) => valid(a) && a.criterionHash !== currentHash;
 

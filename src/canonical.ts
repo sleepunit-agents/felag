@@ -54,11 +54,16 @@ export function parse(text: string): SpecRecord[] {
     .map((line) => JSON.parse(line) as SpecRecord);
 }
 
-/** CS9: 'sha256:' + lowercase hex SHA-256 of the canonical record line (no trailing LF). */
-export function fixtureHash(fixtureRecord: object): string {
-  const line = canonicalLine(fixtureRecord);
+/** CS9: 'sha256:' + lowercase hex SHA-256 of the canonical record line (no
+ * trailing LF). Generic over record type: fixtureHash on VerificationRecords
+ * and criterionHash on promotion acknowledgments are the same operation. */
+export function recordHash(record: object): string {
+  const line = canonicalLine(record);
   return "sha256:" + createHash("sha256").update(line, "utf8").digest("hex");
 }
+
+/** CS9 applied to a fixture record (the name the spec uses in it-fixtures). */
+export const fixtureHash = recordHash;
 
 /** CS8: fixtures.jsonl record order — ascending by id, code-point order. */
 export function sortFixtures<T extends { id: string }>(fixtures: T[]): T[] {

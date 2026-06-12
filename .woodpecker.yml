@@ -1,0 +1,35 @@
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+
+steps:
+  - name: install
+    image: node:22-bookworm-slim
+    commands:
+      - npm ci
+
+  - name: build
+    image: node:22-bookworm-slim
+    commands:
+      - npm run build
+    depends_on: [install]
+
+  - name: lint-spec
+    image: node:22-bookworm-slim
+    commands:
+      - node dist/cli.js lint spec/felag-core
+      - node dist/cli.js lint spec/felag-tasks
+    depends_on: [build]
+
+  - name: test
+    image: node:22-bookworm-slim
+    commands:
+      - npm test
+    depends_on: [build]
+
+  - name: self-verify
+    image: node:22-bookworm-slim
+    commands:
+      - npm run self-verify
+    depends_on: [build]

@@ -1,4 +1,13 @@
-# felag/author class contract — design draft v0.4
+# felag/author class contract — design draft v0.4 [COMPILED — authority handed over]
+
+> **Authority note (2026-06-12, post-compilation):** this draft was compiled
+> into `spec/felag-core` 1.0.0 (PR #4). Per design v1.2's authority model,
+> **the compiled spec records are now normative and this document is
+> history.** One deviation surfaced during compilation and was fixed there,
+> not here: §9's item list omitted `it-author-prime` while its wire-format
+> list included `prime-output`; the compiled spec binds prime via
+> `it-author-prime` + `ac-prime-protocol`. Where this document and the
+> compiled records disagree, the records win.
 
 *2026-06-12. Closes F7 of [compilation-findings-v0](compilation-findings-v0.md):
 `felag/author` is a conformance class with verbs (`author`, `excavate`,
