@@ -121,9 +121,10 @@ text nobody saw — the staleness guard the rest of felag already has).
   "errors":   [code],            // ALL holding predicates, sorted ascending
   "outcome":  "ratified" | "rejected" | null,
   "lapsed":   [roster name],     // sorted ascending (round 2, M-6) — loud
-  "stale":    [roster name],     // sorted ascending — implementers whose only
-                                 // acknowledgments are stale (hash mismatch);
-                                 // ignored for decisions, loud here (D1 convention)
+  "stale":    [roster name],     // sorted ascending — roster implementers with
+                                 // >=1 valid stale acknowledgment and no effective
+                                 // decision; ignored for decisions, loud here
+                                 // (D1 convention)
   "waiver":   Waiver | null      // emitted iff to = known-bug and accepted
 }
 ```
@@ -148,7 +149,14 @@ caller's write, same as verify reports without mutating the ledger.)
   ("last submitted" = position in `acknowledgments`, round 2 L-1).
   An implementer may have no effective decision.
 - **Lapsed** (per roster implementer): no effective decision and
-  `asOf > requestedAt + timeoutDays`.
+  `asOf > requestedAt + timeoutDays`, where `+ timeoutDays` means
+  **`timeoutDays × 86400` seconds added to the UTC-normalized
+  `requestedAt` instant**, compared as instants — never calendar
+  arithmetic (round 5: a wall-clock reading diverges from the duration
+  reading across a DST transition and flips the verdict at the lapse
+  boundary; lapse stays a pure instant comparison like the rest of
+  felag). The lapse fixture pins the boundary, with a
+  DST-crossing case as a deliberate regression pin.
 - **The owner's effective decision** is three-valued — `ack`, `nak`, or
   `none` (round 3, C3-7: prose gloss is not a definition). It is `none`
   when the unique owner has no effective decision, and also when **zero**
@@ -437,9 +445,10 @@ The honest sequence (round 1, H1; round 2, H-4 and L-4):
      routine — and `criterionHash` staleness makes it safe). Pure
      clarification prose in bodies remains PATCH; the MUST/PATCH line is
      whether any conforming implementation's obligations change.
-  The landing also adds the `it-governance` item, lint
-  `E_MULTIPLE_OWNERS`, the preamble `governance` field, and `c-author`
-  with all its criteria `state: proposed`.
+  The landing also adds the `it-governance` item, the lint codes
+  `E_MULTIPLE_OWNERS` and `E_DUPLICATE_IMPLEMENTER` (their criteria
+  `state: proposed`), the preamble `governance` field, and `c-author`
+  with all its criteria `state: proposed` (full inventory in §9).
 - **Authority for the landing**: design v1's governance section as
   ratified — solo roster degenerates to repo-owner authority, so
   Jonathan's merge is the acknowledgment. (Round 2, L-4: v0.1 cited P5 —
@@ -533,6 +542,9 @@ keep its verdict unaffected.
 
 ## Cold review round 1 — disposition
 
+*(Note: the `E_AMBIGUOUS_OWNER` entries below are superseded by round 4 —
+the code was removed; lint/G2 owns the multi-owner case.)*
+
 | Finding | Disposition |
 |---|---|
 | C1 conflicting/duplicate acks undefined | **Fixed** — effective decision = latest valid by `at`, ties by array index |
@@ -591,3 +603,13 @@ keep its verdict unaffected.
 | §9 "union code enum" over-claims for render-inventory | **Fixed** — scoped to lint-shaped results |
 | Two "declared timeout" notions coexist | **Fixed** — it-governance reconciles ac-gate-dispute-resolution's prose to `governance.timeoutDays` |
 | Promotion fixtures embed lint-valid mini-specs (F10 squared) | **Acknowledged** — budget note in §9 |
+
+## Cold review round 5 — verdict COMPILE
+
+Three caveats, all folded into the body: (1) lapse arithmetic pinned to
+`timeoutDays × 86400` seconds on UTC-normalized instants — the only
+remaining verdict-affecting under-specification (a calendar reading
+diverges across DST); (2) `stale` defined precisely (≥1 valid stale ack,
+no effective decision); (3) round-1 table annotated, §7 recap completed.
+The promotion function survived two consecutive rounds of adversarial
+input construction. Ready for compilation (the follow-up task).
