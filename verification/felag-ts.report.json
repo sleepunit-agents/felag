@@ -1,6 +1,6 @@
 {
   "advisory": [],
-  "conformanceVersion": "0.2.0",
+  "conformanceVersion": "1.0.0",
   "disputed": [],
   "failing": [],
   "implementation": "felag-ts",

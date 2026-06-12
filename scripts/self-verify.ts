@@ -11,16 +11,27 @@ import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
+import { promote } from "../src/promotion.js";
+import {
+  renderInventory,
+  validateAuthorOutput,
+  validateExcavateOutput,
+  validatePrimeOutput,
+} from "../src/author.js";
 import type {
+  AuthorOutputInput,
   Criterion,
+  ExcavateOutputInput,
   Fixture,
+  PrimeOutputInput,
+  RenderInventoryInput,
   SpecRecord,
   VerificationRecord,
   VerifyInput,
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "0.2.0";
+const IMPLEMENTATION_VERSION = "1.0.0";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 const at = new Date().toISOString();
 
@@ -49,6 +60,21 @@ function runFixture(fx: Fixture): "pass" | "fail" {
         break;
       case "felag/verify-input@0":
         ok = eq(verify(fx.input as VerifyInput), fx.expected);
+        break;
+      case "felag/promotion-input@0":
+        ok = eq(promote(fx.input), fx.expected);
+        break;
+      case "felag/author-output@0":
+        ok = eq(validateAuthorOutput(fx.input as AuthorOutputInput), fx.expected);
+        break;
+      case "felag/excavate-output@0":
+        ok = eq(validateExcavateOutput(fx.input as ExcavateOutputInput), fx.expected);
+        break;
+      case "felag/render-inventory@0":
+        ok = eq(renderInventory(fx.input as RenderInventoryInput), fx.expected);
+        break;
+      case "felag/prime-output@0":
+        ok = eq(validatePrimeOutput(fx.input as PrimeOutputInput), fx.expected);
         break;
       default:
         return "fail";

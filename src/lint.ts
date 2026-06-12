@@ -1,6 +1,8 @@
 // lint — the merge gate of the interchange class (spec/felag-core it-lint).
-// Codes at 0.1.0: E_SCHEMA, E_DUPLICATE_ID, E_UNDECLARED_CONTRACT,
-// E_MISSING_FIXTURES, E_UNKNOWN_FIXTURE. Errors sorted ascending by (code, ref).
+// Codes: E_SCHEMA, E_DUPLICATE_ID, E_UNDECLARED_CONTRACT, E_MISSING_FIXTURES,
+// E_UNKNOWN_FIXTURE; since 1.0.0 the roster checks E_DUPLICATE_IMPLEMENTER
+// (ref: the duplicated name) and E_MULTIPLE_OWNERS (ref: "preamble").
+// Errors sorted ascending by (code, ref).
 
 import type {
   Criterion,
@@ -27,7 +29,12 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
         Array.isArray(rec.goals) &&
         Array.isArray(rec.contracts) &&
         Array.isArray(rec.exclusions) &&
-        Array.isArray(rec.implementers)
+        Array.isArray(rec.implementers) &&
+        (rec.governance === undefined ||
+          (typeof rec.governance === "object" &&
+            rec.governance !== null &&
+            Number.isInteger((rec.governance as Record<string, unknown>).timeoutDays) &&
+            ((rec.governance as Record<string, unknown>).timeoutDays as number) >= 1))
       );
     case "item":
       return !(typeof rec.id === "string" && typeof rec.title === "string" && typeof rec.body === "string");
@@ -60,6 +67,19 @@ export function lint(records: SpecRecord[]): LintResult {
   const fixtureIds = new Set(
     records.filter((r): r is Fixture => r.record === "fixture").map((f) => f.id),
   );
+
+  // Roster checks (1.0.0): duplicate implementer names break roster-reference
+  // resolution; more than one repo-owner breaks the promotion tiebreak.
+  if (preamble) {
+    const names = new Set<string>();
+    let owners = 0;
+    for (const imp of preamble.implementers ?? []) {
+      if (names.has(imp.name)) errors.push({ code: "E_DUPLICATE_IMPLEMENTER", ref: imp.name });
+      names.add(imp.name);
+      if ((imp.roles ?? []).includes("repo-owner")) owners++;
+    }
+    if (owners > 1) errors.push({ code: "E_MULTIPLE_OWNERS", ref: "preamble" });
+  }
 
   // E_SCHEMA + E_DUPLICATE_ID
   const seen = new Set<string>();
