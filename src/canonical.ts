@@ -14,8 +14,11 @@ function quote(value: string | number | boolean | null): string {
 
 function canonicalValue(value: unknown, topLevel = false): string {
   if (value === null || typeof value !== "object") {
-    if (typeof value === "number" && !Number.isInteger(value)) {
-      throw new Error(`CS6 violation: non-integer number ${value}`);
+    // CS6: format-defined fields are integers (schema-enforced); payload
+    // subtrees carry any finite JSON number, serialized per RFC 8785
+    // (ECMAScript Number serialization — exactly what JSON.stringify emits).
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new Error(`CS6 violation: non-finite number ${value}`);
     }
     return quote(value as string | number | boolean | null);
   }

@@ -30,7 +30,14 @@ function criteria(spec: SpecRecord[]): Criterion[] {
   return spec.filter((r): r is Criterion => r.record === "criterion");
 }
 
-/** A1 lint-valid; A2 scenario budgets; A3 provenance of newly-authored criteria. */
+/**
+ * A1 lint-valid; A2 scenario budgets; A3 provenance of newly-authored criteria.
+ *
+ * input.spec is the COMPLETE post-interview record set — fixture records
+ * included, not just spec.jsonl's preamble/items/criteria. Criteria
+ * referencing fixtures absent from input.spec fail A1 with
+ * E_UNKNOWN_FIXTURE. (First trip hazard of the watchdog-core dogfood run.)
+ */
 export function validateAuthorOutput(input: AuthorOutputInput): LintResult {
   const errors = [...lint(input.spec).errors];
   const cap = input.budgets?.criteriaPerItem ?? DEFAULT_CRITERIA_PER_ITEM;
