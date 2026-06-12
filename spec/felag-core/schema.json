@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://felag.dev/schema/felag-core/1.1.0/schema.json",
-  "title": "felag-core interchange records (conformanceVersion 1.1.0)",
+  "$id": "https://felag.dev/schema/felag-core/2.0.0/schema.json",
+  "title": "felag-core interchange records (conformanceVersion 2.0.0)",
   "description": "Schema for the records of spec.jsonl and fixtures.jsonl, plus the verification-side objects (VerificationRecord, Waiver, ConformanceReport) and the tool result objects used by fixtures. Each JSONL line validates against #/$defs/record. Canonical serialization (CS1-CS9) is specified in spec item it-interchange and is a conformance requirement on writers, not expressible in JSON Schema.",
   "$defs": {
     "record": {
