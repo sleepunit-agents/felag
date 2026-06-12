@@ -6,6 +6,7 @@
 
 import { recordHash } from "./canonical.js";
 import { lint } from "./lint.js";
+import { parseInstant } from "./instant.js";
 import type {
   Acknowledgment,
   Criterion,
@@ -42,7 +43,7 @@ function schemaValid(input: unknown): input is PromotionInput {
   }
   // Timestamps are instants: strings that do not parse as RFC 3339
   // date-times fail the wire format here at G1.
-  if (Number.isNaN(Date.parse(i.asOf as string)) || Number.isNaN(Date.parse(t.requestedAt as string))) {
+  if (Number.isNaN(parseInstant(i.asOf as string)) || Number.isNaN(parseInstant(t.requestedAt as string))) {
     return false;
   }
   for (const a of t.acknowledgments as unknown[]) {
@@ -52,7 +53,7 @@ function schemaValid(input: unknown): input is PromotionInput {
       typeof ack.implementer !== "string" ||
       (ack.decision !== "ack" && ack.decision !== "nak") ||
       typeof ack.at !== "string" ||
-      Number.isNaN(Date.parse(ack.at)) ||
+      Number.isNaN(parseInstant(ack.at)) ||
       typeof ack.criterionHash !== "string"
     ) {
       return false;
@@ -64,6 +65,9 @@ function schemaValid(input: unknown): input is PromotionInput {
     // round-tripped JSON (the totality fuzz caught this divergence).
     if (t[f] !== undefined && typeof t[f] !== "string") return false;
   }
+  // expiresAt is a timestamp: present but unparseable would ratify a
+  // known-bug with a born-dead waiver — fail the wire format instead.
+  if (typeof t.expiresAt === "string" && Number.isNaN(parseInstant(t.expiresAt))) return false;
   return true;
 }
 
@@ -99,10 +103,10 @@ export function promote(rawInput: unknown): PromotionResult {
   // comparisons after UTC normalization — never lexical string order, which
   // diverges for non-Z offsets and differing sub-second precision.
   const currentHash = recordHash(criterion);
-  const reqAt = Date.parse(t.requestedAt);
-  const asOfAt = Date.parse(asOf);
+  const reqAt = parseInstant(t.requestedAt);
+  const asOfAt = parseInstant(asOf);
   const valid = (a: Acknowledgment) => {
-    const at = Date.parse(a.at);
+    const at = parseInstant(a.at);
     return reqAt <= at && at <= asOfAt;
   };
   const isStale = (a: Acknowledgment) => valid(a) && a.criterionHash !== currentHash;
@@ -114,15 +118,15 @@ export function promote(rawInput: unknown): PromotionResult {
     let best: Acknowledgment | undefined;
     for (const a of t.acknowledgments) {
       if (a.implementer !== name || !valid(a) || isStale(a)) continue;
-      if (!best || Date.parse(a.at) >= Date.parse(best.at)) best = a; // >= : later index wins equal instants
+      if (!best || parseInstant(a.at) >= parseInstant(best.at)) best = a; // >= : later index wins equal instants
     }
     if (best) effective.set(name, best.decision);
   }
 
   // Lapse arithmetic: timeoutDays × 86400 s on the UTC-normalized instant —
   // never calendar arithmetic (DST flips the boundary verdict otherwise).
-  const deadline = Date.parse(t.requestedAt) + timeoutDays * 86400_000;
-  const lapsedAt = Date.parse(asOf) > deadline;
+  const deadline = parseInstant(t.requestedAt) + timeoutDays * 86400_000;
+  const lapsedAt = parseInstant(asOf) > deadline;
   const lapsed = [...rosterNames].filter((n) => !effective.has(n) && lapsedAt).sort();
 
   // Stale list: roster implementers with >=1 valid stale ack and no

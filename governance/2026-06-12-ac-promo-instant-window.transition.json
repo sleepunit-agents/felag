@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-promo-instant-window",
   "to": "active",
-  "requestedAt": "2026-06-12T19:45:36.162Z",
+  "requestedAt": "2026-06-12T20:04:13.405Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-12T19:45:36.162Z",
-      "criterionHash": "sha256:76f308aa5f5436269f8faa111fa66fb8260d022a77813340cd6b14dbb77e6c61"
+      "at": "2026-06-12T20:04:13.405Z",
+      "criterionHash": "sha256:a38e10db96f1b8f1d6d740b69f4aea396d941ee91ae8eef4e7ef23f5723c2c16"
     }
   ]
 }

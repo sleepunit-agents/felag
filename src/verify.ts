@@ -2,6 +2,7 @@
 // Ingests externally-produced VerificationRecords and derives conformance.
 
 import { fixtureHash } from "./canonical.js";
+import { parseInstant } from "./instant.js";
 import type {
   ConformanceReport,
   Criterion,
@@ -41,7 +42,7 @@ export function ingest(record: unknown): IngestResult {
   if (typeof r.verdict === "string" && !VERDICTS.has(r.verdict)) errors.add("E_BAD_VERDICT");
   // Timestamps are instants: an at that does not parse as RFC 3339 cannot
   // participate in D1's instant ordering — reject at the front door.
-  if (typeof r.at === "string" && Number.isNaN(Date.parse(r.at))) errors.add("E_SCHEMA");
+  if (typeof r.at === "string" && Number.isNaN(parseInstant(r.at))) errors.add("E_SCHEMA");
   const sorted = [...errors].sort();
   return { accepted: sorted.length === 0, errors: sorted };
 }
@@ -73,7 +74,7 @@ function latestRecord(
     // Instant order after UTC normalization, never lexical (non-Z offsets
     // and sub-second precision diverge); unparseable ats are ignored.
     // Equal instants tie to the last submitted (idx ascending).
-    const at = Date.parse(r.at);
+    const at = parseInstant(r.at);
     if (Number.isNaN(at)) return;
     if (!best || at >= bestAt) {
       best = r;
@@ -125,7 +126,7 @@ export function verify(input: VerifyInput): ConformanceReport {
         (w.kind === "waiver" || w.kind === "known-bug") &&
         // Instant comparison; an unparseable expiresAt is expired (fail
         // closed — a malformed waiver waives nothing).
-        Date.parse(w.expiresAt) > Date.parse(input.asOf),
+        parseInstant(w.expiresAt) > parseInstant(input.asOf),
     );
     if (hasWaiver) waived.push(c.id);
     else failing.push(c.id);

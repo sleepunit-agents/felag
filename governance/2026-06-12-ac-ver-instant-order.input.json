@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-12T19:45:36.162Z",
+  "asOf": "2026-06-12T20:04:13.405Z",
   "spec": [
     {
       "record": "preamble",
@@ -291,7 +291,7 @@
     {
       "record": "item",
       "id": "it-verification",
-      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl.\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps).\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of judgment criteria that have records, with their latest verdicts.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
+      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl.\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. Parseable means exactly: RFC 3339 date-time with the T and Z designators case-insensitive (per its ABNF), a numeric offset or Z REQUIRED (a missing offset is not RFC 3339; a parser that reads it as host-local time makes the verdict depend on the box's timezone), and second 60 excluded - a leap second has no instant on the POSIX scale this contract normalizes to, so it is unparseable here, not mapped. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps). D1 deliberately has no asOf upper bound - a future-dated record still wins, because the ledger reports what was submitted; promotion bounds at <= asOf because acknowledgments are endorsements inside a deliberation window. The asymmetry is intended.\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the greatest array index - last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of judgment criteria that have records, with their latest verdicts.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
       "title": "VerificationRecord ingestion and verdict derivation"
     },
     {
@@ -395,12 +395,17 @@
       "contractId": "c-verification",
       "fixtures": [
         "fx-ingest-badstamp",
+        "fx-ingest-leapsecond",
+        "fx-ingest-no-offset",
         "fx-instant-d1",
+        "fx-instant-d1-badstamp",
+        "fx-instant-lowercase",
         "fx-instant-subsecond",
-        "fx-instant-waiver"
+        "fx-instant-waiver",
+        "fx-instant-waiver-badstamp"
       ],
       "force": "MUST",
-      "gherkin": "Given VerificationRecords and waivers whose timestamps carry non-Z offsets or differing sub-second precision\nWhen the ledger selects D1's latest record and tests waiver expiry\nThen every comparison is an instant comparison after UTC normalization - a lexically greater but instant-earlier timestamp never wins, equal instants tie to the last submitted - and a record whose at does not parse as RFC 3339 fails ingest with E_SCHEMA",
+      "gherkin": "Given VerificationRecords and waivers whose timestamps carry non-Z offsets, differing sub-second precision, lowercase designators, missing offsets, leap seconds, or garbage\nWhen the ledger ingests records, selects D1's latest, and tests waiver expiry\nThen every comparison is an instant comparison after UTC normalization - a lexically greater but instant-earlier timestamp never wins, equal instants tie to the greatest array index - unparseable ats fail ingest (E_SCHEMA) and are ignored at D1, and an unparseable waiver expiresAt is expired, fail closed",
       "itemId": "it-verification",
       "source": "forethought",
       "state": "proposed",
@@ -683,7 +688,7 @@
     {
       "record": "item",
       "id": "it-author-promotion",
-      "body": "Ratification as a total, deterministic, fixturable function of exactly (spec, transition, asOf) - the fixable half of the F6 governance-enforceability gap. Wire formats felag/promotion-input@0 and felag/promotion-result@0 (see schema). Every acknowledgment carries criterionHash: the CS9 hash of the criterion's canonical record line AS ACKNOWLEDGED - acks are bound to the text they endorse, exactly as VerificationRecords carry fixtureHash.\n\nDefinitions. Valid acknowledgment: requestedAt <= at <= asOf, compared - like every timestamp comparison in this protocol - as instants after UTC normalization, never lexically (violation is loud: E_BAD_ACK). Stale acknowledgment: valid, but criterionHash differs from the target criterion's current canonical hash; stale acks are ignored for effective decisions and listed in the result's stale field - an amendment resets endorsement visibly, never silently. Effective decision per roster implementer: the latest valid, non-stale acknowledgment by at as an instant, equal instants broken by greatest array index (last submitted). Lapsed: no effective decision and asOf > requestedAt + timeoutDays, where + timeoutDays means timeoutDays x 86400 seconds added to the UTC-normalized requestedAt instant, compared as instants - never calendar arithmetic (a wall-clock reading diverges across a DST transition and flips the verdict at the lapse boundary). The repo owner: the unique roster entry whose roles include repo-owner; the owner's effective decision is three-valued (ack, nak, none), none when the unique owner has no effective decision and also when zero entries carry the role (no tiebreak available); the multiple-owner case never reaches the predicates - it fails lint (E_MULTIPLE_OWNERS) and stops at guard G2.\n\nEvaluation. Three structural guards, each returning the full result object with the single guard code and stopping: G1 input fails the wire-format schema, including any requestedAt, acknowledgment at, or asOf that does not parse as an RFC 3339 date-time -> E_SCHEMA; G2 spec is not lint-valid -> E_SPEC_INVALID (without lint-validity, 'the target criterion' and 'the roster entry named X' are not well-defined - unstated preconditions are the divergence class felag exists to eliminate; fixture inputs are adversarial and need not be committed specs); G3 criterionId names no criterion record -> E_UNKNOWN_CRITERION. Otherwise errors is the sorted set of every holding predicate - all-applicable, never short-circuiting, E_VETOED and E_PENDING co-fire when both hold:\n\nE_NOT_PROPOSED: the target criterion's state is not proposed (promotion is not a cheaper deprecation or un-dispute). E_BAD_REQUEST: requestedAt > asOf as instants. E_NOT_ROSTER: requestedBy or any acknowledgment's implementer names no roster entry. E_BAD_ACK: any acknowledgment is invalid. E_MISSING_FIELD: to is known-bug and any of implementation, justification, expiresAt, attribution is absent. E_VETOED - for to active or known-bug: the owner's effective decision is nak, OR a non-owner's effective decision is nak and the owner's effective decision is nak or none (only an owner ack overrides; with no owner any nak stands); for to rejected: the owner's effective decision is nak. E_PENDING - for to active or known-bug: some roster implementer has neither an effective decision nor lapsed; for to rejected: no roster implementer's effective decision is ack.\n\naccepted iff errors is empty; outcome is ratified for accepted active/known-bug, rejected for accepted rejected, else null; lapsed and stale list roster names sorted ascending - liveness and amendment-resets are loud, never silent. Rejection is deliberately lighter than ratification: one effective ack from any roster implementer and no owner nak - ratification creates obligations for every implementer, rejection deletes an inert proposal that never gated anyone (history lives in git, re-proposing is one PR). Solo roster degenerates explicitly to repo-owner authority: one valid ack ratifies. known-bug is a ratification plus a waiver built entirely from input fields: it presupposes triage amended the proposed criterion to state the CORRECT behavior (editing a proposed criterion is an ordinary PR - proposed is inert and criterionHash staleness makes the amendment loud); the bug never becomes a MUST, the correct behavior does, with the divergence tracked as a kind known-bug waiver in the named implementation's ledger. The function returns a verdict; applying the activation or deletion to the interchange files is the caller's write, same as verify reports without mutating the ledger.",
+      "body": "Ratification as a total, deterministic, fixturable function of exactly (spec, transition, asOf) - the fixable half of the F6 governance-enforceability gap. Wire formats felag/promotion-input@0 and felag/promotion-result@0 (see schema). Every acknowledgment carries criterionHash: the CS9 hash of the criterion's canonical record line AS ACKNOWLEDGED - acks are bound to the text they endorse, exactly as VerificationRecords carry fixtureHash.\n\nDefinitions. Valid acknowledgment: requestedAt <= at <= asOf, compared - like every timestamp comparison in this protocol - as instants after UTC normalization, never lexically (violation is loud: E_BAD_ACK). Stale acknowledgment: valid, but criterionHash differs from the target criterion's current canonical hash; stale acks are ignored for effective decisions and listed in the result's stale field - an amendment resets endorsement visibly, never silently. Effective decision per roster implementer: the latest valid, non-stale acknowledgment by at as an instant, equal instants broken by greatest array index (last submitted). Lapsed: no effective decision and asOf > requestedAt + timeoutDays, where + timeoutDays means timeoutDays x 86400 seconds added to the UTC-normalized requestedAt instant, compared as instants - never calendar arithmetic (a wall-clock reading diverges across a DST transition and flips the verdict at the lapse boundary). The repo owner: the unique roster entry whose roles include repo-owner; the owner's effective decision is three-valued (ack, nak, none), none when the unique owner has no effective decision and also when zero entries carry the role (no tiebreak available); the multiple-owner case never reaches the predicates - it fails lint (E_MULTIPLE_OWNERS) and stops at guard G2.\n\nEvaluation. Three structural guards, each returning the full result object with the single guard code and stopping: G1 input fails the wire-format schema; every timestamp field - requestedAt, each acknowledgment's at, asOf, and a known-bug transition's expiresAt when present - must parse as an RFC 3339 date-time (parseable as defined in it-verification's Timestamps rule), else E_SCHEMA: an unparseable expiresAt slipping G1 would ratify a known-bug with a born-dead waiver; G2 spec is not lint-valid -> E_SPEC_INVALID (without lint-validity, 'the target criterion' and 'the roster entry named X' are not well-defined - unstated preconditions are the divergence class felag exists to eliminate; fixture inputs are adversarial and need not be committed specs); G3 criterionId names no criterion record -> E_UNKNOWN_CRITERION. Otherwise errors is the sorted set of every holding predicate - all-applicable, never short-circuiting, E_VETOED and E_PENDING co-fire when both hold:\n\nE_NOT_PROPOSED: the target criterion's state is not proposed (promotion is not a cheaper deprecation or un-dispute). E_BAD_REQUEST: requestedAt > asOf as instants. E_NOT_ROSTER: requestedBy or any acknowledgment's implementer names no roster entry. E_BAD_ACK: any acknowledgment is invalid. E_MISSING_FIELD: to is known-bug and any of implementation, justification, expiresAt, attribution is absent. E_VETOED - for to active or known-bug: the owner's effective decision is nak, OR a non-owner's effective decision is nak and the owner's effective decision is nak or none (only an owner ack overrides; with no owner any nak stands); for to rejected: the owner's effective decision is nak. E_PENDING - for to active or known-bug: some roster implementer has neither an effective decision nor lapsed; for to rejected: no roster implementer's effective decision is ack.\n\naccepted iff errors is empty; outcome is ratified for accepted active/known-bug, rejected for accepted rejected, else null; lapsed and stale list roster names sorted ascending - liveness and amendment-resets are loud, never silent. Rejection is deliberately lighter than ratification: one effective ack from any roster implementer and no owner nak - ratification creates obligations for every implementer, rejection deletes an inert proposal that never gated anyone (history lives in git, re-proposing is one PR). Solo roster degenerates explicitly to repo-owner authority: one valid ack ratifies. known-bug is a ratification plus a waiver built entirely from input fields: it presupposes triage amended the proposed criterion to state the CORRECT behavior (editing a proposed criterion is an ordinary PR - proposed is inert and criterionHash staleness makes the amendment loud); the bug never becomes a MUST, the correct behavior does, with the divergence tracked as a kind known-bug waiver in the named implementation's ledger. The function returns a verdict; applying the activation or deletion to the interchange files is the caller's write, same as verify reports without mutating the ledger.",
       "title": "The promotion protocol"
     },
     {
@@ -802,10 +807,13 @@
       "contractId": "c-author",
       "fixtures": [
         "fx-instant-ack",
-        "fx-instant-g1"
+        "fx-instant-ack-latest",
+        "fx-instant-bad-request",
+        "fx-instant-g1",
+        "fx-promo-knownbug-badexpiry"
       ],
       "force": "MUST",
-      "gherkin": "Given a transition whose acknowledgment, requestedAt, or asOf timestamps carry non-Z offsets\nWhen validity windows and effective decisions are evaluated\nThen requestedAt <= at <= asOf and latest-by-at are instant comparisons after UTC normalization, and a timestamp that does not parse as RFC 3339 fails the wire format at G1 with E_SCHEMA",
+      "gherkin": "Given transitions whose acknowledgment, requestedAt, asOf, or known-bug expiresAt timestamps carry non-Z offsets or do not parse\nWhen validity windows, effective decisions, and E_BAD_REQUEST are evaluated\nThen requestedAt <= at <= asOf, latest-by-at, and requestedAt > asOf are instant comparisons after UTC normalization, and any unparseable timestamp - expiresAt included - fails the wire format at G1 with E_SCHEMA",
       "itemId": "it-author-promotion",
       "source": "forethought",
       "state": "proposed",
@@ -1947,6 +1955,58 @@
         "conformanceVersion": "1.0.0",
         "criterionId": "ac1",
         "evidence": "runner output ref #1",
+        "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+        "fixtureId": "fx1",
+        "implementation": "impl-a",
+        "implementationVersion": "1.0.0",
+        "runner": "ci",
+        "verdict": "pass"
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-ingest-leapsecond",
+      "contractId": "c-verification",
+      "description": "A record at 2026-06-30T23:59:60Z: a leap second has no instant on the POSIX scale — unparseable, E_SCHEMA at ingest (ac-ver-instant-order).",
+      "expected": {
+        "accepted": false,
+        "errors": [
+          "E_SCHEMA"
+        ]
+      },
+      "format": "felag/record-ingest@0",
+      "input": {
+        "at": "2026-06-30T23:59:60Z",
+        "attribution": "ci@example run:1",
+        "conformanceVersion": "1.0.0",
+        "criterionId": "ac1",
+        "evidence": "runner output ref #1",
+        "fixtureId": "fx1",
+        "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+        "implementation": "impl-a",
+        "implementationVersion": "1.0.0",
+        "runner": "ci",
+        "verdict": "pass"
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-ingest-no-offset",
+      "contractId": "c-verification",
+      "description": "A record at 2026-06-12T15:00:00 with no offset: not RFC 3339 — E_SCHEMA. A parser reading it as host-local time makes the verdict depend on the box timezone (ac-ver-instant-order).",
+      "expected": {
+        "accepted": false,
+        "errors": [
+          "E_SCHEMA"
+        ]
+      },
+      "format": "felag/record-ingest@0",
+      "input": {
+        "at": "2026-06-12T15:00:00",
+        "attribution": "ci@example run:1",
+        "conformanceVersion": "1.0.0",
+        "criterionId": "ac1",
+        "evidence": "runner output ref #1",
         "fixtureId": "fx1",
         "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
         "implementation": "impl-a",
@@ -1963,6 +2023,100 @@
       "expected": {
         "accepted": true,
         "errors": [],
+        "lapsed": [],
+        "outcome": "ratified",
+        "stale": [],
+        "waiver": null
+      },
+      "format": "felag/promotion-input@0",
+      "input": {
+        "asOf": "2026-06-12T12:00:00Z",
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ],
+            "name": "mini",
+            "record": "preamble"
+          },
+          {
+            "body": "mini body",
+            "id": "it1",
+            "record": "item",
+            "title": "mini item"
+          },
+          {
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "id": "ac1",
+            "itemId": "it1",
+            "record": "criterion",
+            "source": "forethought",
+            "state": "proposed",
+            "type": "scenario"
+          },
+          {
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "id": "fx1",
+            "input": {
+              "x": 1
+            },
+            "record": "fixture"
+          }
+        ],
+        "transition": {
+          "acknowledgments": [
+            {
+              "at": "2026-06-12T13:30:00+02:00",
+              "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8",
+              "decision": "ack",
+              "implementer": "mini project"
+            }
+          ],
+          "criterionId": "ac1",
+          "requestedAt": "2026-06-12T10:00:00Z",
+          "requestedBy": "mini project",
+          "to": "active"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-instant-ack-latest",
+      "contractId": "c-author",
+      "description": "Two acks from the same implementer: a nak at 2026-06-12T14:00:00+02:00 (=12:00Z) and an ack at 12:30:00Z. Instant order makes the ack latest — ratified; lexical order makes the nak latest and wrongly vetoes (ac-promo-instant-window).",
+      "expected": {
+        "accepted": true,
+        "errors": [],
         "outcome": "ratified",
         "lapsed": [],
         "stale": [],
@@ -1970,7 +2124,7 @@
       },
       "format": "felag/promotion-input@0",
       "input": {
-        "asOf": "2026-06-12T12:00:00Z",
+        "asOf": "2026-06-12T13:00:00Z",
         "spec": [
           {
             "record": "preamble",
@@ -2041,11 +2195,106 @@
           "acknowledgments": [
             {
               "implementer": "mini project",
+              "decision": "nak",
+              "at": "2026-06-12T14:00:00+02:00",
+              "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8"
+            },
+            {
+              "implementer": "mini project",
               "decision": "ack",
-              "at": "2026-06-12T13:30:00+02:00",
+              "at": "2026-06-12T12:30:00Z",
               "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8"
             }
           ]
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-instant-bad-request",
+      "contractId": "c-author",
+      "description": "requestedAt 2026-06-12T15:00:00+02:00 (=13:00Z) against asOf 14:00:00Z: instant order says the request precedes asOf — only E_PENDING holds; lexical order wrongly adds E_BAD_REQUEST (ac-promo-instant-window).",
+      "expected": {
+        "accepted": false,
+        "errors": [
+          "E_PENDING"
+        ],
+        "outcome": null,
+        "lapsed": [],
+        "stale": [],
+        "waiver": null
+      },
+      "format": "felag/promotion-input@0",
+      "input": {
+        "asOf": "2026-06-12T14:00:00Z",
+        "spec": [
+          {
+            "record": "preamble",
+            "name": "mini",
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ]
+          },
+          {
+            "record": "item",
+            "id": "it1",
+            "body": "mini body",
+            "title": "mini item"
+          },
+          {
+            "record": "criterion",
+            "id": "ac1",
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "itemId": "it1",
+            "source": "forethought",
+            "state": "proposed",
+            "type": "scenario"
+          },
+          {
+            "record": "fixture",
+            "id": "fx1",
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "input": {
+              "x": 1
+            }
+          }
+        ],
+        "transition": {
+          "criterionId": "ac1",
+          "to": "active",
+          "requestedAt": "2026-06-12T15:00:00+02:00",
+          "requestedBy": "mini project",
+          "acknowledgments": []
         }
       }
     },
@@ -2070,6 +2319,117 @@
         "records": [
           {
             "at": "2026-06-12T16:00:00+02:00",
+            "attribution": "ci@example run:1",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "ac1",
+            "evidence": "runner output ref #1",
+            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+            "fixtureId": "fx1",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "ci",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-06-12T15:00:00Z",
+            "attribution": "ci@example run:1",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "ac1",
+            "evidence": "runner output ref #1",
+            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+            "fixtureId": "fx1",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "ci",
+            "verdict": "pass"
+          }
+        ],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ],
+            "name": "mini",
+            "record": "preamble"
+          },
+          {
+            "body": "mini body",
+            "id": "it1",
+            "record": "item",
+            "title": "mini item"
+          },
+          {
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "id": "ac1",
+            "itemId": "it1",
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "scenario"
+          },
+          {
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "id": "fx1",
+            "input": {
+              "x": 1
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-instant-d1-badstamp",
+      "contractId": "c-verification",
+      "description": "Two records reach D1 directly: at 'garbage' (fail) and 15:00:00Z (pass). The unparseable one is ignored like a stale one; the parseable pass wins — conforms (ac-ver-instant-order).",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [],
+        "failing": [],
+        "implementation": "impl-a",
+        "verdict": "conforms",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-12T23:00:00Z",
+        "implementation": "impl-a",
+        "records": [
+          {
+            "at": "garbage",
             "attribution": "ci@example run:1",
             "conformanceVersion": "1.0.0",
             "criterionId": "ac1",
@@ -2170,8 +2530,8 @@
         "errors": [
           "E_SCHEMA"
         ],
-        "outcome": null,
         "lapsed": [],
+        "outcome": null,
         "stale": [],
         "waiver": null
       },
@@ -2180,8 +2540,6 @@
         "asOf": "2026-06-12T12:00:00Z",
         "spec": [
           {
-            "record": "preamble",
-            "name": "mini",
             "conformanceVersion": "1.0.0",
             "contracts": [
               {
@@ -2203,17 +2561,17 @@
                   "repo-owner"
                 ]
               }
-            ]
+            ],
+            "name": "mini",
+            "record": "preamble"
           },
           {
-            "record": "item",
-            "id": "it1",
             "body": "mini body",
+            "id": "it1",
+            "record": "item",
             "title": "mini item"
           },
           {
-            "record": "criterion",
-            "id": "ac1",
             "class": "behavioral",
             "contractId": "c1",
             "fixtures": [
@@ -2221,46 +2579,48 @@
             ],
             "force": "MUST",
             "gherkin": "Given x\nWhen y\nThen z",
+            "id": "ac1",
             "itemId": "it1",
+            "record": "criterion",
             "source": "forethought",
             "state": "proposed",
             "type": "scenario"
           },
           {
-            "record": "fixture",
-            "id": "fx1",
             "contractId": "c1",
             "description": "mini fixture",
             "expected": {
               "y": 2
             },
             "format": "json",
+            "id": "fx1",
             "input": {
               "x": 1
-            }
+            },
+            "record": "fixture"
           }
         ],
         "transition": {
-          "criterionId": "ac1",
-          "to": "active",
-          "requestedAt": "not-a-timestamp",
-          "requestedBy": "mini project",
           "acknowledgments": [
             {
-              "implementer": "mini project",
-              "decision": "ack",
               "at": "2026-06-12T13:30:00+02:00",
-              "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8"
+              "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8",
+              "decision": "ack",
+              "implementer": "mini project"
             }
-          ]
+          ],
+          "criterionId": "ac1",
+          "requestedAt": "not-a-timestamp",
+          "requestedBy": "mini project",
+          "to": "active"
         }
       }
     },
     {
       "record": "fixture",
-      "id": "fx-instant-subsecond",
+      "id": "fx-instant-lowercase",
       "contractId": "c-verification",
-      "description": "Two records at the same instant spelled differently — 15:00:00Z (fail, first) and 15:00:00.000Z (pass, last): equal instants tie to the last submitted; lexical order calls Z greater than .000Z and fails (ac-ver-instant-order).",
+      "description": "A record at 2026-06-12t15:00:00z — lowercase t and z are valid RFC 3339 (case-insensitive ABNF literals): parseable, the record counts, conforms (ac-ver-instant-order).",
       "expected": {
         "advisory": [],
         "conformanceVersion": "1.0.0",
@@ -2276,20 +2636,7 @@
         "implementation": "impl-a",
         "records": [
           {
-            "at": "2026-06-12T15:00:00Z",
-            "attribution": "ci@example run:1",
-            "conformanceVersion": "1.0.0",
-            "criterionId": "ac1",
-            "evidence": "runner output ref #1",
-            "fixtureId": "fx1",
-            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
-            "implementation": "impl-a",
-            "implementationVersion": "1.0.0",
-            "runner": "ci",
-            "verdict": "fail"
-          },
-          {
-            "at": "2026-06-12T15:00:00.000Z",
+            "at": "2026-06-12t15:00:00z",
             "attribution": "ci@example run:1",
             "conformanceVersion": "1.0.0",
             "criterionId": "ac1",
@@ -2369,9 +2716,229 @@
     },
     {
       "record": "fixture",
+      "id": "fx-instant-subsecond",
+      "contractId": "c-verification",
+      "description": "Two records at the same instant spelled differently — 15:00:00Z (fail, first) and 15:00:00.000Z (pass, last): equal instants tie to the last submitted; lexical order calls Z greater than .000Z and fails (ac-ver-instant-order).",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [],
+        "failing": [],
+        "implementation": "impl-a",
+        "verdict": "conforms",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-12T23:00:00Z",
+        "implementation": "impl-a",
+        "records": [
+          {
+            "at": "2026-06-12T15:00:00Z",
+            "attribution": "ci@example run:1",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "ac1",
+            "evidence": "runner output ref #1",
+            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+            "fixtureId": "fx1",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "ci",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-06-12T15:00:00.000Z",
+            "attribution": "ci@example run:1",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "ac1",
+            "evidence": "runner output ref #1",
+            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+            "fixtureId": "fx1",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "ci",
+            "verdict": "pass"
+          }
+        ],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ],
+            "name": "mini",
+            "record": "preamble"
+          },
+          {
+            "body": "mini body",
+            "id": "it1",
+            "record": "item",
+            "title": "mini item"
+          },
+          {
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "id": "ac1",
+            "itemId": "it1",
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "scenario"
+          },
+          {
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "id": "fx1",
+            "input": {
+              "x": 1
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-instant-waiver",
       "contractId": "c-verification",
       "description": "A failing criterion with a waiver expiring 2026-06-13T00:00:00+12:00 (=06-12T12:00Z) at asOf 13:00Z: instant-expired, waives nothing, drifts; lexical comparison reads 06-13 > 06-12 and wrongly waives (ac-ver-instant-order).",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [],
+        "failing": [
+          "ac1"
+        ],
+        "implementation": "impl-a",
+        "verdict": "drifts",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-12T13:00:00Z",
+        "implementation": "impl-a",
+        "records": [
+          {
+            "at": "2026-06-12T00:00:00Z",
+            "attribution": "ci@example run:1",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "ac1",
+            "evidence": "runner output ref #1",
+            "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+            "fixtureId": "fx1",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "ci",
+            "verdict": "fail"
+          }
+        ],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ],
+            "name": "mini",
+            "record": "preamble"
+          },
+          {
+            "body": "mini body",
+            "id": "it1",
+            "record": "item",
+            "title": "mini item"
+          },
+          {
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "id": "ac1",
+            "itemId": "it1",
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "scenario"
+          },
+          {
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "id": "fx1",
+            "input": {
+              "x": 1
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": [
+          {
+            "attribution": "owner@mini",
+            "criterionId": "ac1",
+            "expiresAt": "2026-06-13T00:00:00+12:00",
+            "implementation": "impl-a",
+            "justification": "mini waiver",
+            "kind": "waiver"
+          }
+        ]
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-instant-waiver-badstamp",
+      "contractId": "c-verification",
+      "description": "A failing criterion with a waiver whose expiresAt is 'soon': unparseable means expired — fail closed, it waives nothing, drifts. A never-expires reading wrongly waives (ac-ver-instant-order).",
       "expected": {
         "advisory": [],
         "conformanceVersion": "1.0.0",
@@ -2471,7 +3038,7 @@
             "kind": "waiver",
             "justification": "mini waiver",
             "attribution": "owner@mini",
-            "expiresAt": "2026-06-13T00:00:00+12:00"
+            "expiresAt": "soon"
           }
         ]
       }
@@ -3598,6 +4165,106 @@
           "requestedAt": "2026-06-12T00:00:00Z",
           "requestedBy": "impl-a",
           "to": "active"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-promo-knownbug-badexpiry",
+      "contractId": "c-author",
+      "description": "A known-bug transition whose expiresAt is 'next sprint': unparseable — E_SCHEMA at G1. Ratifying it would create a born-dead waiver (ac-promo-instant-window).",
+      "expected": {
+        "accepted": false,
+        "errors": [
+          "E_SCHEMA"
+        ],
+        "outcome": null,
+        "lapsed": [],
+        "stale": [],
+        "waiver": null
+      },
+      "format": "felag/promotion-input@0",
+      "input": {
+        "asOf": "2026-06-12T14:00:00Z",
+        "spec": [
+          {
+            "record": "preamble",
+            "name": "mini",
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "mini contract",
+                "id": "c1"
+              }
+            ],
+            "exclusions": [],
+            "goals": [
+              "exercise the felag-core fixtures"
+            ],
+            "governance": {
+              "timeoutDays": 30
+            },
+            "implementers": [
+              {
+                "name": "mini project",
+                "roles": [
+                  "repo-owner"
+                ]
+              }
+            ]
+          },
+          {
+            "record": "item",
+            "id": "it1",
+            "body": "mini body",
+            "title": "mini item"
+          },
+          {
+            "record": "criterion",
+            "id": "ac1",
+            "class": "behavioral",
+            "contractId": "c1",
+            "fixtures": [
+              "fx1"
+            ],
+            "force": "MUST",
+            "gherkin": "Given x\nWhen y\nThen z",
+            "itemId": "it1",
+            "source": "forethought",
+            "state": "proposed",
+            "type": "scenario"
+          },
+          {
+            "record": "fixture",
+            "id": "fx1",
+            "contractId": "c1",
+            "description": "mini fixture",
+            "expected": {
+              "y": 2
+            },
+            "format": "json",
+            "input": {
+              "x": 1
+            }
+          }
+        ],
+        "transition": {
+          "criterionId": "ac1",
+          "to": "known-bug",
+          "requestedAt": "2026-06-12T10:00:00Z",
+          "requestedBy": "mini project",
+          "implementation": "impl-a",
+          "justification": "known divergence",
+          "attribution": "owner@mini",
+          "expiresAt": "next sprint",
+          "acknowledgments": [
+            {
+              "implementer": "mini project",
+              "decision": "ack",
+              "at": "2026-06-12T11:00:00Z",
+              "criterionHash": "sha256:daf7db7a45f99f0f6fe0e5f9cc5918321a4a0e4c564fdd41a254d3eeed0b4db8"
+            }
+          ]
         }
       }
     },
@@ -7678,14 +8345,14 @@
   "transition": {
     "criterionId": "ac-ver-instant-order",
     "to": "active",
-    "requestedAt": "2026-06-12T19:45:36.162Z",
+    "requestedAt": "2026-06-12T20:04:13.405Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-12T19:45:36.162Z",
-        "criterionHash": "sha256:1e0b366cc62fe36e10be255375929aec3daa0fae7d548c4a47da48ec343a4205"
+        "at": "2026-06-12T20:04:13.405Z",
+        "criterionHash": "sha256:26702e25a9bbbaa75c8d40d2bff1ce89c6892576fc48cbfb9b5fa0091721a4ce"
       }
     ]
   }
