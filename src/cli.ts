@@ -1,12 +1,44 @@
 #!/usr/bin/env node
-// felag CLI — thin shell over the library. Verbs at 0.1.0: lint, fmt, hash, verify.
+// felag CLI — thin shell over the library.
+// Verbs: lint, fmt, hash, verify, prime, audit, promote, tasks.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "./canonical.js";
 import { lint } from "./lint.js";
 import { verify } from "./verify.js";
+import { promote } from "./promotion.js";
+import { emitPrime } from "./prime.js";
+import { audit } from "./audit.js";
+import { TaskStore } from "./tasks/store.js";
+import { BeadsWorkLayer } from "./shims/beads.js";
+import type { WorkLayer } from "./tasks/layer.js";
+import type { TaskStatus } from "./tasks/store.js";
 import type { Criterion, Fixture, SpecRecord, VerifyInput } from "./records.js";
+
+function flagValue(args: string[], flag: string): string | undefined {
+  const i = args.indexOf(flag);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+
+// Work-layer selection: --store <file.json> (reference TaskStore persisted to
+// a JSON file) or --beads <dir> (the bd conformance shim). Returns the layer
+// plus a flush for the file-backed store.
+function loadLayer(args: string[]): { layer: WorkLayer; flush: () => void } | null {
+  const storeFile = flagValue(args, "--store");
+  if (storeFile) {
+    const store = existsSync(storeFile)
+      ? new TaskStore(JSON.parse(readFileSync(storeFile, "utf8")))
+      : new TaskStore();
+    return {
+      layer: store,
+      flush: () => writeFileSync(storeFile, JSON.stringify(store.snapshot(), null, 2) + "\n"),
+    };
+  }
+  const beadsDir = flagValue(args, "--beads");
+  if (beadsDir) return { layer: new BeadsWorkLayer(beadsDir), flush: () => {} };
+  return null;
+}
 
 function loadSpecDir(dir: string): SpecRecord[] {
   const records: SpecRecord[] = [];
@@ -81,7 +113,78 @@ switch (verb) {
     console.log(JSON.stringify(report, null, 2));
     process.exit(report.verdict === "drifts" ? 1 : 0);
   }
+  case "prime": {
+    // felag prime <spec-dir> — emit the author-class protocol brief.
+    console.log(emitPrime(loadSpecDir(args[0] ?? ".")));
+    process.exit(0);
+  }
+  case "audit": {
+    // felag audit <spec-dir> <records.jsonl> <implementation>
+    //   [--as-of <iso>] [--waivers <file>] [--store <file>|--beads <dir>]
+    const [dir, recordsFile, implementation] = args;
+    if (!dir || !recordsFile || !implementation) {
+      console.error(
+        "usage: felag audit <spec-dir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>] [--store <file>|--beads <dir>]",
+      );
+      process.exit(2);
+    }
+    const input: VerifyInput = {
+      asOf: flagValue(args, "--as-of") ?? new Date().toISOString(),
+      implementation,
+      records: readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)),
+      spec: loadSpecDir(dir),
+      waivers: (() => {
+        const f = flagValue(args, "--waivers");
+        return f ? JSON.parse(readFileSync(f, "utf8")) : [];
+      })(),
+    };
+    const wl = loadLayer(args);
+    const result = audit(input, wl?.layer);
+    wl?.flush();
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(0);
+  }
+  case "promote": {
+    // felag promote <spec-dir> <transition.json> [--as-of <iso>]
+    const [dir, transitionFile] = args;
+    if (!dir || !transitionFile) {
+      console.error("usage: felag promote <spec-dir> <transition.json> [--as-of <iso>]");
+      process.exit(2);
+    }
+    const result = promote({
+      asOf: flagValue(args, "--as-of") ?? new Date().toISOString(),
+      spec: loadSpecDir(dir),
+      transition: JSON.parse(readFileSync(transitionFile, "utf8")),
+    });
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.accepted ? 0 : 1);
+  }
+  case "tasks": {
+    // felag tasks <propose|transition|report> (--store <file>|--beads <dir>)
+    //   propose <proposal.json> | transition <taskRef> <status> | report
+    const sub = args[0];
+    const wl = loadLayer(args);
+    if (!wl || !["propose", "transition", "report"].includes(sub ?? "")) {
+      console.error(
+        "usage: felag tasks <propose <proposal.json>|transition <taskRef> <status>|report> (--store <file>|--beads <dir>)",
+      );
+      process.exit(2);
+    }
+    let result: unknown;
+    if (sub === "propose") {
+      result = wl.layer.propose(JSON.parse(readFileSync(args[1], "utf8")));
+    } else if (sub === "transition") {
+      result = wl.layer.transition(args[1], args[2] as TaskStatus);
+    } else {
+      result = wl.layer.report();
+    }
+    wl.flush();
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(0);
+  }
   default:
-    console.error("felag <lint|fmt|hash|verify> — felag/interchange + felag/verifier reference implementation");
+    console.error(
+      "felag <lint|fmt|hash|verify|prime|audit|promote|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
+    );
     process.exit(2);
 }
