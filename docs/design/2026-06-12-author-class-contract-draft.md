@@ -1,4 +1,4 @@
-# felag/author class contract — design draft v0.3
+# felag/author class contract — design draft v0.4
 
 *2026-06-12. Closes F7 of [compilation-findings-v0](compilation-findings-v0.md):
 `felag/author` is a conformance class with verbs (`author`, `excavate`,
@@ -17,7 +17,10 @@ timeout committed). v0.3 folds round 3 (G0 lint-validity guard — the
 totality claim was falsifiable via duplicate ids; acknowledgments bound to
 criterion text by hash; item-body normative text classified by versioning;
 role-edit governance honestly relabeled social; render audiences made
-genuinely distinct). Disposition tables at the end.*
+genuinely distinct). v0.4 folds round 4 (E_AMBIGUOUS_OWNER was dead code
+behind the G2 lint guard — removed, lint owns multi-owner; the two new
+lint criteria pinned state: proposed; it-governance pinned as NOT a prime
+protocol item). Disposition tables at the end.*
 
 ---
 
@@ -148,9 +151,13 @@ caller's write, same as verify reports without mutating the ledger.)
   `asOf > requestedAt + timeoutDays`.
 - **The owner's effective decision** is three-valued — `ack`, `nak`, or
   `none` (round 3, C3-7: prose gloss is not a definition). It is `none`
-  when the unique owner has no effective decision, **and also when no
-  unique owner exists** (zero or multiple `repo-owner` roles — no tiebreak
-  available; the multiple case additionally errors `E_AMBIGUOUS_OWNER`).
+  when the unique owner has no effective decision, and also when **zero**
+  roster entries carry the `repo-owner` role (no tiebreak available).
+  The **multiple-owner** case never reaches this definition: a
+  multi-owner roster fails lint (`E_MULTIPLE_OWNERS`) and is therefore
+  stopped at guard G2 (round 4: v0.3 carried a dead `E_AMBIGUOUS_OWNER`
+  predicate that G2 pre-empts — accretion residue from rounds 1 and 3,
+  now removed; multi-owner is structural and lint owns it).
 
 ### Evaluation
 
@@ -181,7 +188,6 @@ Otherwise `errors` = sorted set of every holding predicate:
 | `E_BAD_REQUEST` | `requestedAt > asOf` (temporally incoherent request; round 2 L-2) |
 | `E_NOT_ROSTER` | `requestedBy`, or any `acknowledgments[].implementer`, names no roster entry |
 | `E_BAD_ACK` | any acknowledgment is invalid (`at` outside `[requestedAt, asOf]`) — loud, never silently ignored |
-| `E_AMBIGUOUS_OWNER` | more than one roster entry carries role `repo-owner` |
 | `E_MISSING_FIELD` | `to = known-bug` and any of `implementation` / `justification` / `expiresAt` / `attribution` is absent |
 | `E_VETOED` | **to = active or known-bug:** the owner's effective decision is `nak`; OR a non-owner's effective decision is `nak` and the owner's effective decision is `nak` **or `none`** (three-valued, explicit: with no unique owner there is no tiebreak and any nak stands; only an owner `ack` overrides). **to = rejected:** the owner's effective decision is `nak` |
 | `E_PENDING` | **to = active or known-bug:** some roster implementer has neither an effective decision nor lapsed. **to = rejected:** no roster implementer's effective decision is `ack` (round 2, H-1: zero-ack rejection now has a defined code) |
@@ -197,8 +203,8 @@ restated for the reader):
 
 - **Ratification (active, known-bug)** — every roster implementer either
   effectively acks or lapses; a non-owner nak is overridden only by an
-  owner ack (deadlock tiebreak); the owner's nak is final; with no unique
-  owner there is no tiebreak and any nak stands. Solo roster degenerates
+  owner ack (deadlock tiebreak); the owner's nak is final; with no owner
+  there is no tiebreak and any nak stands. Solo roster degenerates
   to repo-owner authority: one valid ack ratifies (the current felag-core
   situation; degeneracy is contract, not accident).
 - **Rejection** — deliberately lighter: one effective ack from any roster
@@ -394,9 +400,15 @@ lint-shaped result. The emitted document must contain, verbatim
 (substring), the `body` of every **protocol item**, where a protocol item
 is defined mechanically as: **an item with at least one criterion whose
 `contractId` is `c-author`**. Missing body → `E_MISSING_PROTOCOL` naming
-the item. Judgment half: vendor-neutrality of any added framing — already
-covered by the existing `ac-class-vendor-neutral` judgment criterion;
-prime adds no new judgment surface.
+the item. To make the protocol-item set determinate (round 4: judgment
+criteria *may* carry a contractId, and 0.2.0 precedent is mixed):
+**it-governance's judgment criterion carries no `contractId`** —
+mirroring `ac-gate-dispute-resolution` — so **it-governance is NOT a
+prime protocol item**: its content is governance for spec maintainers,
+not implementation protocol; the four `it-author-*` items are the
+protocol set. Judgment half: vendor-neutrality of any added framing —
+already covered by the existing `ac-class-vendor-neutral` judgment
+criterion; prime adds no new judgment surface.
 
 ## 7. Landing strategy: one honest MAJOR, then proposed-state MINORs
 
@@ -485,11 +497,12 @@ definitions/guards/predicate-table as bodies); ~12 behavioral
 `state: proposed` criteria with fixtures across the **six** wire formats
 (promotion-input, promotion-result, author-output, excavate-output,
 render-inventory, prime-output — roughly ten `$defs` counting result
-shapes, each verb's result a **new** def whose `code` enum is the union
-of lint codes and the verb's own codes, NOT a reuse of the closed
-`lintResult` def; round 3, C3-8). Promotion needs the largest corpus:
+shapes; each **lint-shaped** result is a **new** def whose `code` enum is
+the union of lint codes and the verb's own codes, NOT a reuse of the
+closed `lintResult` def — render-inventory's result has no code enum;
+round 3 C3-8, round 4). Promotion needs the largest corpus:
 ratify-clean, lapse, nak-veto, owner-tiebreak, owner-nak-final,
-no-owner-nak-stands, multi-owner (`E_AMBIGUOUS_OWNER`),
+no-owner-nak-stands, multi-owner-spec (`E_SPEC_INVALID` at G2),
 conflicting-acks-latest-wins, same-at-tie (array index), bad-ack-window,
 **stale-ack-ignored-and-listed**, bad-request, rejected-single-ack,
 rejected-zero-acks (`E_PENDING`), known-bug-waiver,
@@ -499,13 +512,22 @@ criteria (conduct, stakeholder language, role-edit governance);
 acknowledgment schema carries required `criterionHash`; amend
 `ac-vers-major`/`ac-vers-minor-patch` (state distinction incl.
 SHOULD/MAY ratification + normative-text rule covering item bodies); lint
-gains `E_MULTIPLE_OWNERS` and `E_DUPLICATE_IMPLEMENTER` **each with its
-fixture** (state-independent fixture rule applies); update it-classes and
-the preamble exclusions (author exclusion shrinks to `--from-annotations`
-+ conduct + Profile/Binding rendering). Version: 0.2.0 → 1.0.0. felag-ts
-implements the validators (small pure functions) in a follow-up; until
-then felag-ts's declared classes (interchange, verifier) keep its verdict
-unaffected.
+gains `E_MULTIPLE_OWNERS` and `E_DUPLICATE_IMPLEMENTER`, **both landing
+`state: proposed` with fixtures** (round 4: if they landed active they
+would be new gating interchange MUSTs and felag-ts — which implements no
+owner check — would instantly drift; the promotion guard G2 does not wait
+on their ratification, it specifies the checks internally); it-governance
+also carries one reconciling sentence: `ac-gate-dispute-resolution`'s
+"roster's declared timeout" now means `governance.timeoutDays`. Update
+it-classes and the preamble exclusions (author exclusion shrinks to
+`--from-annotations` + conduct + Profile/Binding rendering). Version:
+0.2.0 → 1.0.0. Budget note: every promotion-input fixture embeds an
+entire lint-valid mini-spec (G1+G2 must pass to reach the predicates),
+and embedded proposed behavioral criteria need their own fixtures
+(`E_MISSING_FIXTURES` is state-independent) — the F10 nesting wrinkle,
+squared. felag-ts implements the validators (small pure functions) in a
+follow-up; until then felag-ts's declared classes (interchange, verifier)
+keep its verdict unaffected.
 
 ---
 
@@ -558,3 +580,14 @@ unaffected.
 | C3-8 format miscount; lintResult def reuse impossible | **Fixed** — six formats / ~10 `$defs`; union-enum result defs, stated in checklist |
 | C3-9 G2 result object underspecified | **Fixed** — all guards return the full result object, stated once |
 | C3-10 proposed SHOULD/MAY ratification unclassified | **Fixed** — MINOR, consistent with additive SHOULD/MAY |
+
+## Cold review round 4 — disposition
+
+| Finding | Disposition |
+|---|---|
+| `E_AMBIGUOUS_OWNER` dead code behind G2 (accretion residue rounds 1+3); §9 fixture uninstantiable | **Fixed** — predicate and result-enum entry removed; multi-owner is structural, lint/G2 owns it; fixture relabeled `multi-owner-spec → E_SPEC_INVALID`; zero-owner → `none` kept |
+| New lint criteria's `state` unpinned; §9's felag-ts sentence depends on it | **Fixed** — `E_MULTIPLE_OWNERS`/`E_DUPLICATE_IMPLEMENTER` criteria land `state: proposed`; G2 specifies the checks internally and does not wait on ratification |
+| it-governance's prime protocol-item status contingent | **Fixed** — its judgment criterion carries no contractId (mirrors ac-gate-dispute-resolution); it-governance is NOT a protocol item; the four it-author-* items are the protocol set |
+| §9 "union code enum" over-claims for render-inventory | **Fixed** — scoped to lint-shaped results |
+| Two "declared timeout" notions coexist | **Fixed** — it-governance reconciles ac-gate-dispute-resolution's prose to `governance.timeoutDays` |
+| Promotion fixtures embed lint-valid mini-specs (F10 squared) | **Acknowledged** — budget note in §9 |
