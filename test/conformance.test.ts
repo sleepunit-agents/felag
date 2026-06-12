@@ -7,7 +7,22 @@ import { describe, expect, it } from "vitest";
 import { fixtureHash, parse, serialize } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
-import type { Fixture, SpecRecord, VerifyInput } from "../src/records.js";
+import { promote } from "../src/promotion.js";
+import {
+  renderInventory,
+  validateAuthorOutput,
+  validateExcavateOutput,
+  validatePrimeOutput,
+} from "../src/author.js";
+import type {
+  AuthorOutputInput,
+  ExcavateOutputInput,
+  Fixture,
+  PrimeOutputInput,
+  RenderInventoryInput,
+  SpecRecord,
+  VerifyInput,
+} from "../src/records.js";
 
 const dir = join(__dirname, "..", "spec", "felag-core");
 const fixtures = readFileSync(join(dir, "fixtures.jsonl"), "utf8")
@@ -40,6 +55,26 @@ describe("felag-core fixture corpus", () => {
         }
         case "felag/verify-input@0": {
           expect(verify(fx.input as VerifyInput)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/promotion-input@0": {
+          expect(promote(fx.input)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/author-output@0": {
+          expect(validateAuthorOutput(fx.input as AuthorOutputInput)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/excavate-output@0": {
+          expect(validateExcavateOutput(fx.input as ExcavateOutputInput)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/render-inventory@0": {
+          expect(renderInventory(fx.input as RenderInventoryInput)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/prime-output@0": {
+          expect(validatePrimeOutput(fx.input as PrimeOutputInput)).toEqual(fx.expected);
           break;
         }
         default:
