@@ -40,6 +40,11 @@ function schemaValid(input: unknown): input is PromotionInput {
   ) {
     return false;
   }
+  // Timestamps are instants: strings that do not parse as RFC 3339
+  // date-times fail the wire format here at G1.
+  if (Number.isNaN(Date.parse(i.asOf as string)) || Number.isNaN(Date.parse(t.requestedAt as string))) {
+    return false;
+  }
   for (const a of t.acknowledgments as unknown[]) {
     if (a === null || typeof a !== "object" || Array.isArray(a)) return false;
     const ack = a as Record<string, unknown>;
@@ -47,6 +52,7 @@ function schemaValid(input: unknown): input is PromotionInput {
       typeof ack.implementer !== "string" ||
       (ack.decision !== "ack" && ack.decision !== "nak") ||
       typeof ack.at !== "string" ||
+      Number.isNaN(Date.parse(ack.at)) ||
       typeof ack.criterionHash !== "string"
     ) {
       return false;
@@ -89,9 +95,16 @@ export function promote(rawInput: unknown): PromotionResult {
   const owners = roster.filter((i) => i.roles.includes("repo-owner"));
   const owner = owners.length === 1 ? owners[0].name : null;
 
-  // Acknowledgment classification.
+  // Acknowledgment classification. Timestamp comparisons are instant
+  // comparisons after UTC normalization — never lexical string order, which
+  // diverges for non-Z offsets and differing sub-second precision.
   const currentHash = recordHash(criterion);
-  const valid = (a: Acknowledgment) => t.requestedAt <= a.at && a.at <= asOf;
+  const reqAt = Date.parse(t.requestedAt);
+  const asOfAt = Date.parse(asOf);
+  const valid = (a: Acknowledgment) => {
+    const at = Date.parse(a.at);
+    return reqAt <= at && at <= asOfAt;
+  };
   const isStale = (a: Acknowledgment) => valid(a) && a.criterionHash !== currentHash;
 
   // Effective decision per roster implementer: latest valid, non-stale ack
@@ -101,7 +114,7 @@ export function promote(rawInput: unknown): PromotionResult {
     let best: Acknowledgment | undefined;
     for (const a of t.acknowledgments) {
       if (a.implementer !== name || !valid(a) || isStale(a)) continue;
-      if (!best || a.at >= best.at) best = a; // >= : later index wins ties
+      if (!best || Date.parse(a.at) >= Date.parse(best.at)) best = a; // >= : later index wins equal instants
     }
     if (best) effective.set(name, best.decision);
   }
@@ -125,7 +138,7 @@ export function promote(rawInput: unknown): PromotionResult {
   const errors = new Set<string>();
 
   if (criterion.state !== "proposed") errors.add("E_NOT_PROPOSED");
-  if (t.requestedAt > asOf) errors.add("E_BAD_REQUEST");
+  if (reqAt > asOfAt) errors.add("E_BAD_REQUEST");
   if (
     !rosterNames.has(t.requestedBy) ||
     t.acknowledgments.some((a) => !rosterNames.has(a.implementer))

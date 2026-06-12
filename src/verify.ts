@@ -39,6 +39,9 @@ export function ingest(record: unknown): IngestResult {
     else if (typeof r[f] !== "string") errors.add("E_SCHEMA");
   }
   if (typeof r.verdict === "string" && !VERDICTS.has(r.verdict)) errors.add("E_BAD_VERDICT");
+  // Timestamps are instants: an at that does not parse as RFC 3339 cannot
+  // participate in D1's instant ordering — reject at the front door.
+  if (typeof r.at === "string" && Number.isNaN(Date.parse(r.at))) errors.add("E_SCHEMA");
   const sorted = [...errors].sort();
   return { accepted: sorted.length === 0, errors: sorted };
 }
@@ -61,15 +64,20 @@ function latestRecord(
   conformanceVersion: string,
 ): VerificationRecord | undefined {
   let best: VerificationRecord | undefined;
-  let bestIdx = -1;
+  let bestAt = Number.NaN;
   records.forEach((r, idx) => {
     if (r.criterionId !== criterionId) return;
     if (fixtureId !== undefined && r.fixtureId !== fixtureId) return;
     if (r.implementation !== implementation) return;
     if (r.conformanceVersion !== conformanceVersion) return;
-    if (!best || r.at > best.at || (r.at === best.at && idx > bestIdx)) {
+    // Instant order after UTC normalization, never lexical (non-Z offsets
+    // and sub-second precision diverge); unparseable ats are ignored.
+    // Equal instants tie to the last submitted (idx ascending).
+    const at = Date.parse(r.at);
+    if (Number.isNaN(at)) return;
+    if (!best || at >= bestAt) {
       best = r;
-      bestIdx = idx;
+      bestAt = at;
     }
   });
   return best;
@@ -115,7 +123,9 @@ export function verify(input: VerifyInput): ConformanceReport {
         w.criterionId === c.id &&
         w.implementation === input.implementation &&
         (w.kind === "waiver" || w.kind === "known-bug") &&
-        w.expiresAt > input.asOf,
+        // Instant comparison; an unparseable expiresAt is expired (fail
+        // closed — a malformed waiver waives nothing).
+        Date.parse(w.expiresAt) > Date.parse(input.asOf),
     );
     if (hasWaiver) waived.push(c.id);
     else failing.push(c.id);
