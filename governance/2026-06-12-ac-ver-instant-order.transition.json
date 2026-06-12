@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-ver-instant-order",
+  "to": "active",
+  "requestedAt": "2026-06-12T20:04:13.405Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-12T20:04:13.405Z",
+      "criterionHash": "sha256:26702e25a9bbbaa75c8d40d2bff1ce89c6892576fc48cbfb9b5fa0091721a4ce"
+    }
+  ]
+}

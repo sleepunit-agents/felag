@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-promo-instant-window",
+  "to": "active",
+  "requestedAt": "2026-06-12T20:04:13.405Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-12T20:04:13.405Z",
+      "criterionHash": "sha256:a38e10db96f1b8f1d6d740b69f4aea396d941ee91ae8eef4e7ef23f5723c2c16"
+    }
+  ]
+}
