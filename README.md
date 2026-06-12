@@ -14,20 +14,42 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-**spec/felag-core v0.1.0 is live, and the reference implementation conforms.**
-`felag-ts` (this repo: `src/`, the `felag/interchange` + `felag/verifier`
-classes) passes the full fixture corpus; its self-verification report lives in
-`verification/felag-ts.report.json` — verdict: `conforms`.
+**spec/felag-core 1.1.0 is live, and the reference implementation conforms.**
+All three conformance classes have contracts:
+
+- `felag/interchange` (contract `c-interchange`) — canonical JSONL, lint,
+  hashing, round-trip. Gating.
+- `felag/verifier` (contract `c-verification`) — VerificationRecord
+  ingestion, waivers, verdict derivation, reports. Gating.
+- `felag/author` (contract `c-author`) — the promotion protocol
+  (ratification as a total function), author/excavate output validation,
+  render audience projection, prime emission. **Criteria are
+  `state: proposed`**: published and fixtured, gating no one until ratified
+  — through the promotion protocol itself.
+
+`felag-ts` (this repo: `src/`) implements all of it and passes the full
+fixture corpus (69 fixtures — the spec IS the test suite), plus a seeded
+fuzz pass on the promotion function's totality claim. Self-verification
+report: `verification/felag-ts.report.json` — verdict `conforms`.
+A sibling conformance unit, `spec/felag-tasks` 0.1.0, specifies the work
+layer; its reference implementation and a beads shim both conform.
 
 ```bash
 npm install && npm test        # run the corpus (the spec IS the test suite)
 npm run self-verify            # emit VerificationRecords + conformance report
-npx tsx src/cli.ts lint spec/felag-core
+node dist/cli.js lint spec/felag-core   # the merge gate (+ orphan-fixture warnings)
 ```
 
-Design history: The design draft (v1, post cold-review) lives at
-[docs/design/2026-06-11-felag-design-draft-v1.md](docs/design/2026-06-11-felag-spec-format-design-draft.md).
-The first milestone is compiling that draft into the format it describes.
+Design history (drafts; the compiled spec records are normative):
+[design v1.2](docs/design/2026-06-11-felag-design-draft-v1.md) (core
+format), the
+[author-class contract v0.4](docs/design/2026-06-12-author-class-contract-draft.md)
+(five adversarial cold-review rounds — `scripts/cold-review.sh` is the
+harness), and the
+[compilation findings](docs/design/compilation-findings-v0.md).
+Next milestone: a real `felag/author` implementation, then ratifying the
+c-author criteria via `promote()` — the governance machinery's first
+end-to-end run is its own activation.
 
 ## Lineage
 

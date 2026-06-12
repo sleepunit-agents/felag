@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "./canonical.js";
 import { lint } from "./lint.js";
 import { verify } from "./verify.js";
-import type { Fixture, SpecRecord, VerifyInput } from "./records.js";
+import type { Criterion, Fixture, SpecRecord, VerifyInput } from "./records.js";
 
 function loadSpecDir(dir: string): SpecRecord[] {
   const records: SpecRecord[] = [];
@@ -22,7 +22,20 @@ const [, , verb, ...args] = process.argv;
 
 switch (verb) {
   case "lint": {
-    const result = lint(loadSpecDir(args[0] ?? "."));
+    const records = loadSpecDir(args[0] ?? ".");
+    const result = lint(records);
+    // Orphan-fixture warning (stderr only — the lintResult contract is
+    // unchanged): a committed fixture referenced by no criterion is a silent
+    // interop proof for nothing. This exact gap shipped prime half-compiled
+    // at 1.0.0; a criterion binding was missing and nothing flagged it.
+    const referenced = new Set(
+      records.flatMap((r) => (r.record === "criterion" ? (r as Criterion).fixtures : [])),
+    );
+    for (const r of records) {
+      if (r.record === "fixture" && !referenced.has((r as Fixture).id)) {
+        console.error(`warning: fixture ${(r as Fixture).id} is referenced by no criterion`);
+      }
+    }
     console.log(JSON.stringify(result, null, 2));
     process.exit(result.valid ? 0 : 1);
   }
