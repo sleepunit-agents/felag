@@ -2,7 +2,8 @@
 // felag CLI — thin shell over the library.
 // Verbs: lint, fmt, hash, verify, graduate, prime, audit, promote, tasks.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, watch } from "node:fs";
+import { createServer, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "./canonical.js";
 import { lint } from "./lint.js";
@@ -179,26 +180,92 @@ switch (verb) {
   }
   case "status": {
     // felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--as-of <iso>]
+    //   --serve [--port <n>]   live-reloading localhost dashboard (the watched board)
     // Records optional — without them every active criterion shows "unverified"
     // (still a useful spec view). Emits a self-contained HTML page.
-    const dir = args[0];
-    if (!dir || dir.startsWith("--")) {
-      console.error("usage: felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>]");
+    const serve = args.includes("--serve");
+    // Positionals are flag-free; value-flags consume their next token so a flag
+    // value (e.g. --target's id) is never mistaken for the spec-dir or records.
+    const VALUE_FLAGS = new Set(["--target", "--out", "--as-of", "--port"]);
+    const positional: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a)) i++; continue; }
+      positional.push(a);
+    }
+    const dir = positional[0];
+    if (!dir) {
+      console.error("usage: felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--serve [--port <n>]]");
       process.exit(2);
     }
-    const positional: string[] = [];
-    for (const a of args.slice(1)) { if (a.startsWith("--")) break; positional.push(a); }
-    const recordsFile = positional[0];
-    const implementation = positional[1];
-    const records = recordsFile
-      ? readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
-      : undefined;
-    const model = computeStatus(loadSpecDir(dir), {
-      records,
-      implementation,
-      asOf: flagValue(args, "--as-of"),
-      target: flagValue(args, "--target"),
-    });
+    const recordsFile = positional[1];
+    const implementation = positional[2];
+    const target = flagValue(args, "--target");
+    const asOf = flagValue(args, "--as-of");
+
+    // Build the model fresh from disk (so --serve always reflects current files).
+    const buildModel = () => {
+      const records = recordsFile && existsSync(recordsFile)
+        ? readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
+        : undefined;
+      return computeStatus(loadSpecDir(dir), { records, implementation, asOf, target });
+    };
+
+    if (serve) {
+      // The single persistent watched board: a dependency-free localhost server
+      // that re-reads the spec/records on every request and live-reloads open
+      // tabs (SSE) whenever spec.jsonl / fixtures.jsonl / the records file change.
+      const reload = `<script>new EventSource("/events").onmessage=function(){location.reload()};</script>`;
+      const page = () => renderStatusHTML(buildModel()).replace("</body>", `${reload}</body>`);
+
+      const clients = new Set<ServerResponse>();
+      const server = createServer((req, res) => {
+        if (req.url === "/events") {
+          res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+          res.write("retry: 1000\n\n");
+          clients.add(res);
+          req.on("close", () => clients.delete(res));
+          return;
+        }
+        try {
+          res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+          res.end(page());
+        } catch (e) {
+          res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+          res.end(`felag status build error: ${(e as Error).message}`);
+        }
+      });
+
+      // Debounced change → tell every open tab to reload. Watch the spec dir
+      // (spec.jsonl/fixtures.jsonl live there) and the records file if given.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const ping = () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => { for (const res of clients) res.write("data: reload\n\n"); }, 120);
+      };
+      try { watch(dir, ping); } catch { /* watch unsupported — manual refresh still works */ }
+      if (recordsFile) { try { watch(recordsFile, ping); } catch { /* file may be replaced atomically */ } }
+
+      const requested = Number(flagValue(args, "--port") ?? 0);
+      const announce = () => {
+        const addr = server.address();
+        const p = typeof addr === "object" && addr ? addr.port : requested;
+        console.error(`felag status --serve → http://127.0.0.1:${p}  (watching ${dir}${recordsFile ? " + " + recordsFile : ""}; Ctrl-C to stop)`);
+      };
+      server.on("error", (e: NodeJS.ErrnoException) => {
+        if (e.code === "EADDRINUSE" && requested) {
+          console.error(`port ${requested} in use — picking a free port`);
+          server.listen(0, "127.0.0.1", announce);
+        } else {
+          console.error(`felag status --serve failed: ${e.message}`);
+          process.exit(1);
+        }
+      });
+      server.listen(requested || 4747, "127.0.0.1", announce);
+      break; // keep the event loop alive; do not process.exit
+    }
+
+    const model = buildModel();
     const html = renderStatusHTML(model);
     const out = flagValue(args, "--out");
     if (out) {

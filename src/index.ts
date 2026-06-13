@@ -18,5 +18,5 @@ export type { StatusModel, CritView, CritStatus, StatusOptions } from "./status.
 export { TaskStore } from "./tasks/store.js";
 export { BeadsWorkLayer } from "./shims/beads.js";
 export type { WorkLayer } from "./tasks/layer.js";
-export { mcpDispatch, TOOL_NAMES } from "./mcp/dispatch.js";
+export { mcpDispatch, TOOL_NAMES, PRESENTATION_TOOL_NAMES } from "./mcp/dispatch.js";
 export type { McpCall, McpEnvelope, FsSnapshot } from "./mcp/dispatch.js";
