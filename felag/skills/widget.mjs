@@ -178,7 +178,8 @@ function styles(root) {
   #${root} .fw-toggle{display:inline-flex;gap:0;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);overflow:hidden;margin-bottom:0.6rem}
   #${root} .fw-toggle button{font:inherit;font-size:0.74rem;font-weight:400;padding:0.2rem 0.7rem;background:transparent;color:var(--color-text-secondary);border:0;cursor:pointer}
   #${root} .fw-toggle button[aria-pressed="true"]{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500}
-  #${root} .fw-section-title{font-size:0.8rem;font-weight:500;color:var(--color-text-primary);margin:0.7rem 0 0.3rem}
+  #${root} .fw-section{margin-bottom:1rem}
+  #${root} .fw-section-title{font-size:0.8rem;font-weight:500;color:var(--color-text-primary);margin:0.25rem 0 0.4rem}
   #${root} .fw-section-desc{font-size:0.74rem;color:var(--color-text-tertiary);margin:0 0 0.4rem}
   #${root} .fw-card{display:flex;gap:0.6rem;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:0.5rem 0.7rem;margin-bottom:0.4rem;background:var(--color-background-primary)}
   #${root} .fw-dot{width:0.55rem;height:0.55rem;border-radius:50%;flex:none;margin-top:0.3rem}
@@ -795,13 +796,8 @@ export function renderLintWidget(result, specName) {
 
   const summary = `${spec} — ${errors.length} lint error${errors.length === 1 ? "" : "s"}, ${orphans.length} orphan fixture${orphans.length === 1 ? "" : "s"}`;
 
-  const strip = `<div class="fw-strip">${
-    [
-      errors.length ? `<span class="fw-sum">${dot("error")}Errors <b>${errors.length}</b></span>` : "",
-      orphans.length ? `<span class="fw-sum">${dot("orphan")}Orphan fixtures <b>${orphans.length}</b></span>` : "",
-    ].join("")
-  }</div>`;
-
+  // No count strip: the section titles ("Errors 3", "Orphan fixtures 2")
+  // already carry the counts, so a strip above them is pure duplication.
   // An error card: the lint code as a badge + the ref it points at (a record
   // id, or "preamble"). Red dot — an error fails the gate.
   const errorSection = errors.length
@@ -839,7 +835,6 @@ export function renderLintWidget(result, specName) {
     <h2 class="sr-only">${esc(summary)}</h2>
     ${styles(root)}
     ${header}
-    ${strip}
     ${errorSection}
     ${orphanSection}
     ${reLint}
