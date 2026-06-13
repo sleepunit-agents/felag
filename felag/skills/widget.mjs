@@ -57,6 +57,27 @@ const VERDICT_BG = {
   unverified: "var(--color-background-secondary)",
 };
 
+// Review severity glyphs — the cold-review loop speaks CRITICAL / MAJOR / NIT,
+// not the conformance status vocabulary. Same data-glyph rule: the dot color is
+// a literal (a finding's severity is data), everything else is a CSS var. Colors
+// are reused from DOT so a CRITICAL reads as the same red the board paints a
+// blocked/disputed criterion, a MAJOR the same amber as drifting, a NIT gray.
+const SEVERITY = {
+  critical: { color: DOT.disputed, label: "Critical" },
+  major: { color: DOT.drifting, label: "Major" },
+  nit: { color: DOT.neutral, label: "Nit" },
+};
+const SEVERITY_ORDER = ["critical", "major", "nit"];
+
+// The review verdict pill: the cold-review loop's verdict is MERGE | REWORK
+// (REVISE is an alias some review rounds emit). MERGE is the green done-state,
+// REWORK the amber keep-going. Distinct from VERDICT_BG (conformance verdicts).
+const REVIEW_VERDICT_BG = {
+  merge: "var(--color-background-success)",
+  rework: "var(--color-background-warning)",
+  revise: "var(--color-background-warning)",
+};
+
 const esc = (s) =>
   String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 // For an HTML attribute value (we always quote attributes with ").
@@ -532,6 +553,125 @@ export function renderAuditWidget(result) {
   </div>`;
 }
 
+// --- review -------------------------------------------------------------
+
+// A severity dot. Same glyph shape as dot(), but keyed on the review severity
+// vocabulary (critical/major/nit) instead of conformance status. Unknown
+// severities fall back to the neutral gray so a view never throws.
+function severityDot(severity) {
+  const sev = SEVERITY[severity] ?? SEVERITY.nit;
+  return `<span class="fw-dot" style="background:${sev.color}" title="${attr(sev.label)}"></span>`;
+}
+
+// The review verdict pill: MERGE green / REWORK amber. Verdict is matched
+// case-insensitively; the pill shows the verdict's own word, uppercased.
+function reviewPill(verdict) {
+  const key = String(verdict ?? "").trim().toLowerCase();
+  const bg = REVIEW_VERDICT_BG[key] ?? VERDICT_BG.unverified;
+  return `<span class="fw-pill" style="background:${bg}">${esc(String(verdict ?? "unverified").toUpperCase())}</span>`;
+}
+
+// A cold-review finding card: a severity dot + the severity badge + an optional
+// ref badge + the finding text, with a single per-finding action — fold it into
+// the spec. The fold intent carries the ref when the finding has one (a stable
+// handle), else the finding text itself; either way it's a draft the human
+// reviews. "The round you write the sentence is the round you write the
+// fixture" — folding is a spec edit AND a fixture, same round.
+function reviewCard(f) {
+  const severity = String(f.severity ?? "nit").toLowerCase();
+  const sev = SEVERITY[severity] ?? SEVERITY.nit;
+  const ref = (f.ref ?? "").trim();
+  const handle = ref || (f.text ?? "").trim();
+  const refBadge = ref ? badge(ref) : "";
+  return `<div class="fw-card" data-severity="${attr(severity)}"${ref ? ` data-id="${attr(ref)}"` : ""}>
+    ${severityDot(severity)}
+    <div class="fw-card-body">
+      <div class="fw-card-head">
+        ${badge(sev.label)}${refBadge}
+      </div>
+      <p class="fw-section-desc" style="margin:0.1rem 0 0;color:var(--color-text-primary)">${esc(f.text ?? "")}</p>
+      <div class="fw-acts">
+        ${actionButton("Fold into spec", `fold ${handle} into the spec`, "git-merge")}
+      </div>
+    </div>
+  </div>`;
+}
+
+// From a cold-review round (the model the /felag review skill builds by parsing
+// scripts/cold-review.sh output): the round number, the verdict pill (MERGE
+// green / REWORK amber), and the findings as cards grouped by severity
+// (CRITICAL → MAJOR → NIT). Each finding folds into the spec; the whole round
+// offers Re-review, and — only on MERGE — Merge. A MERGE with no findings is a
+// one-line success state (the loop's terminal: nothing left to fold).
+export function renderReviewWidget(model) {
+  const root = `fw-review-${_wid++}`;
+  const m = model ?? {};
+  const specName = m.specName ?? "spec";
+  const round = m.round ?? 1;
+  const verdict = m.verdict ?? "unverified";
+  const findings = m.findings ?? [];
+  const isMerge = String(verdict).trim().toLowerCase() === "merge";
+
+  const header = `<div class="fw-header">
+      <span class="fw-name">${esc(specName)}</span>
+      <span class="fw-version">Round ${esc(round)}</span>
+      ${reviewPill(verdict)}
+    </div>`;
+
+  // MERGE with nothing left to fold → the loop's terminal success state.
+  if (isMerge && !findings.length) {
+    const summary = `${specName} round ${round} — MERGE, no findings`;
+    return `<div id="${root}" class="felag-widget">
+      <h2 class="sr-only">${esc(summary)}</h2>
+      ${styles(root)}
+      ${header}
+      <p class="fw-empty"><i class="ti ti-circle-check"></i> MERGE — cold review found nothing left to fold in round ${esc(round)}.</p>
+      <div class="fw-acts">
+        ${actionButton("Merge", `merge ${specName}`, "git-merge")}
+        ${actionButton("Re-review", `re-review ${specName}`, "refresh")}
+      </div>
+    </div>`;
+  }
+
+  // Count strip + sections, grouped by severity in CRITICAL → MAJOR → NIT order.
+  const counts = {};
+  for (const f of findings) {
+    const s = String(f.severity ?? "nit").toLowerCase();
+    counts[s] = (counts[s] ?? 0) + 1;
+  }
+  const summary = `${specName} round ${round} — ${String(verdict).toUpperCase()}, ${findings.length} finding${findings.length === 1 ? "" : "s"}`;
+
+  const strip = `<div class="fw-strip">${
+    SEVERITY_ORDER.filter((s) => counts[s])
+      .map((s) => `<span class="fw-sum">${severityDot(s)}${esc(SEVERITY[s].label)} <b>${counts[s]}</b></span>`)
+      .join("")
+  }</div>`;
+
+  const sections = SEVERITY_ORDER.filter((s) => counts[s]).map((s) => {
+    const cards = findings.filter((f) => String(f.severity ?? "nit").toLowerCase() === s)
+      .map(reviewCard).join("");
+    return `<div class="fw-section">
+      <div class="fw-section-title">${esc(SEVERITY[s].label)} <span class="fw-section-desc" style="display:inline">${counts[s]}</span></div>
+      ${cards}
+    </div>`;
+  }).join("");
+
+  const wholeActions = `<div class="fw-acts">
+    ${isMerge ? actionButton("Merge", `merge ${specName}`, "git-merge") : ""}
+    ${actionButton("Re-review", `re-review ${specName}`, "refresh")}
+  </div>`;
+
+  return `<div id="${root}" class="felag-widget">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    ${header}
+    <p class="fw-section-desc">${findings.length} finding${findings.length === 1 ? "" : "s"} from cold review round ${esc(round)}. Each button drafts the instruction; you review and send. The round you write the sentence is the round you write the fixture.</p>
+    ${strip}
+    ${sections}
+    ${wholeActions}
+  </div>`;
+}
+
 // Thin dispatcher so future skills stay one-liners (design: renderFelagWidget).
 export function renderFelagWidget(kind, model) {
   switch (kind) {
@@ -539,6 +679,7 @@ export function renderFelagWidget(kind, model) {
     case "review-queue": return renderReviewQueueWidget(model);
     case "verify": return renderVerifyWidget(model);
     case "audit": return renderAuditWidget(model);
+    case "review": return renderReviewWidget(model);
     default: throw new Error(`unknown felag widget kind: ${kind}`);
   }
 }
