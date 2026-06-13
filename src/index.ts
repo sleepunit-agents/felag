@@ -13,6 +13,8 @@ export {
 export { emitPrime } from "./prime.js";
 export { audit } from "./audit.js";
 export type { AuditResult } from "./audit.js";
+export { computeStatus, renderStatusHTML } from "./status.js";
+export type { StatusModel, CritView, CritStatus, StatusOptions } from "./status.js";
 export { TaskStore } from "./tasks/store.js";
 export { BeadsWorkLayer } from "./shims/beads.js";
 export type { WorkLayer } from "./tasks/layer.js";
