@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-gate-descriptive",
+  "to": "active",
+  "requestedAt": "2026-06-13T06:40:25.485Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T06:40:25.485Z",
+      "criterionHash": "sha256:e66a5d766c9fecfbdd3a8dea09403089a137a2cd3f4e703a903f26f92d00dfae"
+    }
+  ]
+}

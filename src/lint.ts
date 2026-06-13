@@ -14,7 +14,7 @@ import type {
 } from "./records.js";
 
 const RECORD_TYPES = new Set(["preamble", "item", "criterion", "fixture"]);
-const CRITERION_STATES = new Set(["proposed", "active", "deprecated", "disputed"]);
+const CRITERION_STATES = new Set(["proposed", "active", "deprecated", "disputed", "descriptive"]);
 const CRITERION_CLASSES = new Set(["behavioral", "judgment"]);
 const FORCES = new Set(["MUST", "SHOULD", "MAY"]);
 
