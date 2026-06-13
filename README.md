@@ -97,8 +97,9 @@ draft governance actions you review and send:
 - `/felag audit` — drift → a work plan
 - `/felag review` — the cold-review loop to a MERGE verdict, rounds + findings
 - `/felag render <audience>` — the audience projection (stakeholder / developer / verifier), switch lens in place
+- `/felag lint` — the merge gate as a panel: error cards (code + ref) and orphan-fixture warnings, or one green line when clean
 
-Install: copy `felag/skills/*` into your harness's skills dir. felag-core /
+All seven view verbs now pop an actionable panel. Install: copy `felag/skills/*` into your harness's skills dir. felag-core /
 felag-ts stay vendor-neutral; the skills are the "felag for Claude"
 distribution. (`/felag new` — the guided authoring interview — is the next
 skill; design in `docs/`.)
