@@ -35,12 +35,16 @@ const DOT = {
   upcoming: "#888780", drifting: "#BA7517", waived: "#7F77DD",
   proposed: "#BA7517", descriptive: "#7F77DD", disputed: "#E24B4A",
   deprecated: "#888780", unverified: "#888780", neutral: "#888780",
+  // lint diagnostics: an error reads the same red as a blocked criterion, an
+  // orphan-fixture warning the same amber as drifting.
+  error: "#E24B4A", orphan: "#BA7517",
 };
 const LABEL = {
   conforming: "Conforming", "in-flight": "In flight", blocked: "Blocked",
   upcoming: "Upcoming", drifting: "Drifting", waived: "Waived",
   proposed: "Proposed", descriptive: "Descriptive", disputed: "Disputed",
   deprecated: "Deprecated", unverified: "Unverified",
+  error: "Error", orphan: "Orphan fixture",
 };
 // Board column order — same ordering src/status.ts uses for the summary strip.
 const STATUS_ORDER = [
@@ -793,8 +797,8 @@ export function renderLintWidget(result, specName) {
 
   const strip = `<div class="fw-strip">${
     [
-      errors.length ? `<span class="fw-sum">${dot("disputed")}Errors <b>${errors.length}</b></span>` : "",
-      orphans.length ? `<span class="fw-sum">${dot("drifting")}Orphan fixtures <b>${orphans.length}</b></span>` : "",
+      errors.length ? `<span class="fw-sum">${dot("error")}Errors <b>${errors.length}</b></span>` : "",
+      orphans.length ? `<span class="fw-sum">${dot("orphan")}Orphan fixtures <b>${orphans.length}</b></span>` : "",
     ].join("")
   }</div>`;
 
@@ -803,8 +807,8 @@ export function renderLintWidget(result, specName) {
   const errorSection = errors.length
     ? `<div class="fw-section">
         <div class="fw-section-title">Errors <span class="fw-section-desc" style="display:inline">${errors.length}</span></div>
-        ${errors.map((e) => `<div class="fw-card" data-status="disputed" data-id="${attr(e.ref)}">
-          ${dot("disputed")}
+        ${errors.map((e) => `<div class="fw-card" data-status="error" data-id="${attr(e.ref)}">
+          ${dot("error")}
           <div class="fw-card-body">
             <div class="fw-card-head">
               ${badge(e.code)}<span class="fw-id">${esc(e.ref)}</span>
@@ -820,8 +824,8 @@ export function renderLintWidget(result, specName) {
     ? `<div class="fw-section">
         <div class="fw-section-title">Orphan fixtures <span class="fw-section-desc" style="display:inline">${orphans.length}</span></div>
         <p class="fw-section-desc">Committed fixtures referenced by no criterion — a warning, not a gate failure.</p>
-        ${orphans.map((id) => `<div class="fw-card" data-status="drifting" data-id="${attr(id)}">
-          ${dot("drifting")}
+        ${orphans.map((id) => `<div class="fw-card" data-status="orphan" data-id="${attr(id)}">
+          ${dot("orphan")}
           <div class="fw-card-body">
             <div class="fw-card-head">
               ${badge("orphan")}<span class="fw-id">${esc(id)}</span>
