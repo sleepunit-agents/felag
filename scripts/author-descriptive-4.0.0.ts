@@ -70,25 +70,30 @@ const gating = item("it-gating");
 amend(
   gating,
   "disputed (gates everyone except the disputing implementer; reported loudly everywhere). A disputed criterion carries dispute",
-  "disputed (gates everyone except the disputing implementer; reported loudly everywhere), and descriptive (recorded as true but deliberately not law: it never gates, renders marked non-normative wherever a non-active state is, and is terminal). A disputed criterion carries dispute",
+  "disputed (gates everyone except the disputing implementer; reported loudly everywhere), and descriptive (recorded as true but deliberately not law: it never gates, renders for every audience with its state field retained so it is never shown as ratified, and is terminal). A disputed criterion carries dispute",
 );
 // Append the lifecycle rationale paragraph after the dispute-attribution sentence.
 amend(
   gating,
   "'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).",
-  "'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nThe descriptive state (4.0.0) is the resting place for an observation that documents without legislating - honest archaeology (excavate) and known-but-ungated truths (authoring) both legitimately produce criteria that record how a system behaves while deliberately declining to make that behavior a MUST. Before 4.0.0 proposed carried both meanings - a candidate awaiting ratification AND a deliberate non-law - and a reader could not tell them apart; descriptive separates them. It never gates (it-gating's conjunction admits only active or disputed), it renders (non-deprecated, so every audience sees it; stakeholder marks it loudly as a non-active state, the render-side analog of refusing to assert bare conformance), and it is terminal: active is reachable only by ratifying a proposed criterion through the promotion protocol, never from descriptive, so promotion refuses a descriptive target exactly as it refuses any non-proposed one (E_NOT_PROPOSED). descriptive is reached by an ordinary committed edit, NOT a promotion transition - proposed and descriptive are both inert, gating no one, so re-designating one as the other changes no implementer's obligations and is not a ratification event (it-versioning); to revive a descriptive criterion as law an ordinary edit returns it to proposed and promotion ratifies it. State is orthogonal to source: a descriptive criterion may be discovered (excavate output, later designated) or forethought (authored as a known non-law). Excavate itself still emits only proposed (it-author-excavate X2) - it surfaces candidates, and designating one descriptive is a deliberate maintainer edit, never archaeology minting a terminal record.",
+  "'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nThe descriptive state (4.0.0) is the resting place for an observation that documents without legislating - honest archaeology (excavate) and known-but-ungated truths (authoring) both legitimately produce criteria that record how a system behaves while deliberately declining to make that behavior a MUST. Before 4.0.0 proposed carried both meanings - a candidate awaiting ratification AND a deliberate non-law - and a reader could not tell them apart; descriptive separates them. It never gates (it-gating's conjunction admits only active or disputed), it renders for every audience (non-deprecated) with its state field retained - so a non-active criterion is never presented as ratified, the render-side analog of refusing to assert bare conformance - and it is terminal: active is reachable only by ratifying a proposed criterion through the promotion protocol, never from descriptive, so promotion refuses a descriptive target exactly as it refuses any non-proposed one (E_NOT_PROPOSED). descriptive is reached by an ordinary committed edit, NOT a promotion transition - proposed and descriptive are both inert, gating no one, so re-designating one as the other changes no implementer's obligations and is not a ratification event (it-versioning); to revive a descriptive criterion as law an ordinary edit returns it to proposed and promotion ratifies it. State is orthogonal to source: a descriptive criterion may be discovered (excavate output, later designated) or forethought (authored as a known non-law). Excavate itself still emits only proposed (it-author-excavate X2) - it surfaces candidates, and designating one descriptive is a deliberate maintainer edit, never archaeology minting a terminal record.",
 );
 
 // ---------------------------------------------------------------------------
-// 3. New criterion (proposed; ratified through the promotion protocol).
-//    ac-gate-descriptive is the descriptive state's authority: it pins the
-//    load-bearing new law (never gates) on c-verification, and carries the
-//    schema-validity fixtures (descriptive across both provenances is lint-
-//    valid; the enum stays closed). Adding descriptive to the state enum is
-//    not a new lint RULE — it is the existing schema-validity mechanism over an
-//    extended enum — so it warrants no new it-lint criterion (which sits at the
-//    7-criteria budget by design), the same way none of the other four states
-//    carries a positive lint criterion of its own.
+// 3. New criteria (proposed; ratified through the promotion protocol). The
+//    descriptive state introduces obligations on TWO contracts, kept on TWO
+//    criteria so each class stays independently reimplementable (preamble goal:
+//    a stranger can reimplement any class and verify it against this spec):
+//      - ac-gate-descriptive (c-verification, it-gating): the load-bearing new
+//        law — descriptive never gates. Owns only the verify fixture, so the
+//        verifier class is satisfiable without implementing lint.
+//      - ac-int-state-enum (c-interchange, it-interchange): the structural
+//        schema rule — the criterion state field admits the lifecycle enum
+//        (now including descriptive, orthogonal to source) and lint rejects any
+//        other value (E_SCHEMA). A state-field validity rule is an interchange
+//        structural concern (c-interchange's declared scope), parallel to
+//        ac-int-payload-number's field-value rule; it goes in it-interchange,
+//        which has budget room, NOT it-lint (at the 7-criteria cap by design).
 // ---------------------------------------------------------------------------
 
 const acGateDescriptive: Criterion = {
@@ -102,11 +107,26 @@ const acGateDescriptive: Criterion = {
   state: "proposed",
   source: "forethought",
   gherkin:
-    "Given a spec carrying two descriptive MUST criteria - one source discovered with its provenance triplet, one source forethought - alongside a passing active criterion, none of the descriptive criteria carrying any record\nWhen verify derives conformance\nThen no descriptive criterion gates and the verdict is conforms, exactly as proposed and deprecated never gate (ac-gate-nonactive)\nAnd lint accepts both descriptive criteria - the descriptive state is orthogonal to source - while a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it",
-  fixtures: ["fx-lint-descriptive-valid", "fx-lint-unknown-state", "fx-verdict-descriptive-ignored"],
+    "Given a spec carrying two descriptive MUST criteria - one source discovered with its provenance triplet, one source forethought - alongside a passing active criterion, none of the descriptive criteria carrying any record\nWhen verify derives conformance\nThen no descriptive criterion gates and the verdict is conforms, exactly as proposed and deprecated never gate (ac-gate-nonactive)\nAnd the descriptive state composes with either source - state is orthogonal to provenance",
+  fixtures: ["fx-verdict-descriptive-ignored"],
 };
 
-// Splice ac-gate-descriptive at the end of it-gating's cluster (CS7 ordering).
+const acIntStateEnum: Criterion = {
+  record: "criterion",
+  id: "ac-int-state-enum",
+  itemId: "it-interchange",
+  contractId: "c-interchange",
+  type: "scenario",
+  class: "behavioral",
+  force: "MUST",
+  state: "proposed",
+  source: "forethought",
+  gherkin:
+    "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
+  fixtures: ["fx-lint-descriptive-valid", "fx-lint-unknown-state"],
+};
+
+// Splice each new criterion at the end of its item's cluster (CS7 ordering).
 function lastIndexOfCluster(itemId: string): number {
   let last = -1;
   spec.forEach((r, i) => {
@@ -117,6 +137,7 @@ function lastIndexOfCluster(itemId: string): number {
   if (last === -1) throw new Error(`cluster ${itemId} not found`);
   return last;
 }
+spec.splice(lastIndexOfCluster("it-interchange") + 1, 0, acIntStateEnum);
 spec.splice(lastIndexOfCluster("it-gating") + 1, 0, acGateDescriptive);
 
 // ---------------------------------------------------------------------------
@@ -317,7 +338,7 @@ if (!lintResult.valid) {
   console.error(JSON.stringify(lintResult, null, 2));
   throw new Error("lint failed");
 }
-const authorResult = validateAuthorOutput({ spec: all, new: ["ac-gate-descriptive"] });
+const authorResult = validateAuthorOutput({ spec: all, new: ["ac-gate-descriptive", "ac-int-state-enum"] });
 if (!authorResult.valid) {
   console.error(JSON.stringify(authorResult, null, 2));
   throw new Error("validateAuthorOutput failed");

@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T06:40:25.485Z",
+  "asOf": "2026-06-13T06:53:55.530Z",
   "spec": [
     {
       "record": "preamble",
@@ -112,6 +112,22 @@
       ],
       "force": "MUST",
       "gherkin": "Given interchange records whose fixture payloads carry finite JSON numbers, integer and non-integer alike\nWhen a conforming implementation parses any schema-valid spelling and writes canonical form\nThen every number emits as the ECMAScript serialization of its IEEE-754 double value - shortest round-trip, lexeme-independent, value not lexeme - and the output round-trips byte-identically",
+      "itemId": "it-interchange",
+      "source": "forethought",
+      "state": "active",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
+      "id": "ac-int-state-enum",
+      "class": "behavioral",
+      "contractId": "c-interchange",
+      "fixtures": [
+        "fx-lint-descriptive-valid",
+        "fx-lint-unknown-state"
+      ],
+      "force": "MUST",
+      "gherkin": "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
       "itemId": "it-interchange",
       "source": "forethought",
       "state": "active",
@@ -237,7 +253,7 @@
     {
       "record": "item",
       "id": "it-gating",
-      "body": "A criterion gates conformance only if all hold: force MUST, contractId set to a contract declared in the preamble, state active or disputed - a disputed criterion continues to gate every implementer except the disputer - and either class behavioral, or class judgment carrying a judgment object: a graduatable criterion (it-graduation). (Derived resolution: design v1.1 lists 'state: active' in the gating conjunction while also requiring disputed criteria to keep gating non-disputers; this spec resolves the contradiction by admitting both states and excluding the disputer.) Gate is a subset of the allowlist: a criterion about an undeclared surface cannot gate no matter how it is written.\n\nStates: proposed (exists in committed interchange, never gates; excavate's output state), active, deprecated (retired from gating, kept for history), disputed (gates everyone except the disputing implementer; reported loudly everywhere), and descriptive (recorded as true but deliberately not law: it never gates, renders marked non-normative wherever a non-active state is, and is terminal). A disputed criterion carries dispute: {by, reason, at} - 'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nThe descriptive state (4.0.0) is the resting place for an observation that documents without legislating - honest archaeology (excavate) and known-but-ungated truths (authoring) both legitimately produce criteria that record how a system behaves while deliberately declining to make that behavior a MUST. Before 4.0.0 proposed carried both meanings - a candidate awaiting ratification AND a deliberate non-law - and a reader could not tell them apart; descriptive separates them. It never gates (it-gating's conjunction admits only active or disputed), it renders (non-deprecated, so every audience sees it; stakeholder marks it loudly as a non-active state, the render-side analog of refusing to assert bare conformance), and it is terminal: active is reachable only by ratifying a proposed criterion through the promotion protocol, never from descriptive, so promotion refuses a descriptive target exactly as it refuses any non-proposed one (E_NOT_PROPOSED). descriptive is reached by an ordinary committed edit, NOT a promotion transition - proposed and descriptive are both inert, gating no one, so re-designating one as the other changes no implementer's obligations and is not a ratification event (it-versioning); to revive a descriptive criterion as law an ordinary edit returns it to proposed and promotion ratifies it. State is orthogonal to source: a descriptive criterion may be discovered (excavate output, later designated) or forethought (authored as a known non-law). Excavate itself still emits only proposed (it-author-excavate X2) - it surfaces candidates, and designating one descriptive is a deliberate maintainer edit, never archaeology minting a terminal record.\n\nJudgment-class criteria without a judgment object are advisory by construction - they appear in reports, never in the verdict, exactly as at 0.2.0. The judgment object is graduation intent: adding one to an active criterion changes every implementer's obligations (ac-vers-major's 'graduates a judgment criterion to gating' clause - MAJOR, a deliberate act, never an edit that slips through). A gating judgment criterion is satisfied iff the graduation function returns graduated for it over the verify input's judgmentRecords (D1J, it-graduation); unsatisfied it is waivable (D2) and otherwise drifts, exactly as a behavioral criterion with no passing record - gating that can be dodged by not submitting evidence is not gating. There is no judgment-specific verdict token: waivers already express sanctioned incompleteness, loudly, and a fourth token would weaken every existing report consumer. State transitions never re-judge: ratification and dispute change who gates, not what was judged - judgment evidence survives them by construction (the judgmentHash projection, it-judgment).",
+      "body": "A criterion gates conformance only if all hold: force MUST, contractId set to a contract declared in the preamble, state active or disputed - a disputed criterion continues to gate every implementer except the disputer - and either class behavioral, or class judgment carrying a judgment object: a graduatable criterion (it-graduation). (Derived resolution: design v1.1 lists 'state: active' in the gating conjunction while also requiring disputed criteria to keep gating non-disputers; this spec resolves the contradiction by admitting both states and excluding the disputer.) Gate is a subset of the allowlist: a criterion about an undeclared surface cannot gate no matter how it is written.\n\nStates: proposed (exists in committed interchange, never gates; excavate's output state), active, deprecated (retired from gating, kept for history), disputed (gates everyone except the disputing implementer; reported loudly everywhere), and descriptive (recorded as true but deliberately not law: it never gates, renders for every audience with its state field retained so it is never shown as ratified, and is terminal). A disputed criterion carries dispute: {by, reason, at} - 'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nThe descriptive state (4.0.0) is the resting place for an observation that documents without legislating - honest archaeology (excavate) and known-but-ungated truths (authoring) both legitimately produce criteria that record how a system behaves while deliberately declining to make that behavior a MUST. Before 4.0.0 proposed carried both meanings - a candidate awaiting ratification AND a deliberate non-law - and a reader could not tell them apart; descriptive separates them. It never gates (it-gating's conjunction admits only active or disputed), it renders for every audience (non-deprecated) with its state field retained - so a non-active criterion is never presented as ratified, the render-side analog of refusing to assert bare conformance - and it is terminal: active is reachable only by ratifying a proposed criterion through the promotion protocol, never from descriptive, so promotion refuses a descriptive target exactly as it refuses any non-proposed one (E_NOT_PROPOSED). descriptive is reached by an ordinary committed edit, NOT a promotion transition - proposed and descriptive are both inert, gating no one, so re-designating one as the other changes no implementer's obligations and is not a ratification event (it-versioning); to revive a descriptive criterion as law an ordinary edit returns it to proposed and promotion ratifies it. State is orthogonal to source: a descriptive criterion may be discovered (excavate output, later designated) or forethought (authored as a known non-law). Excavate itself still emits only proposed (it-author-excavate X2) - it surfaces candidates, and designating one descriptive is a deliberate maintainer edit, never archaeology minting a terminal record.\n\nJudgment-class criteria without a judgment object are advisory by construction - they appear in reports, never in the verdict, exactly as at 0.2.0. The judgment object is graduation intent: adding one to an active criterion changes every implementer's obligations (ac-vers-major's 'graduates a judgment criterion to gating' clause - MAJOR, a deliberate act, never an edit that slips through). A gating judgment criterion is satisfied iff the graduation function returns graduated for it over the verify input's judgmentRecords (D1J, it-graduation); unsatisfied it is waivable (D2) and otherwise drifts, exactly as a behavioral criterion with no passing record - gating that can be dodged by not submitting evidence is not gating. There is no judgment-specific verdict token: waivers already express sanctioned incompleteness, loudly, and a fourth token would weaken every existing report consumer. State transitions never re-judge: ratification and dispute change who gates, not what was judged - judgment evidence survives them by construction (the judgmentHash projection, it-judgment).",
       "title": "Gating and criterion states"
     },
     {
@@ -327,12 +343,10 @@
       "class": "behavioral",
       "contractId": "c-verification",
       "fixtures": [
-        "fx-lint-descriptive-valid",
-        "fx-lint-unknown-state",
         "fx-verdict-descriptive-ignored"
       ],
       "force": "MUST",
-      "gherkin": "Given a spec carrying two descriptive MUST criteria - one source discovered with its provenance triplet, one source forethought - alongside a passing active criterion, none of the descriptive criteria carrying any record\nWhen verify derives conformance\nThen no descriptive criterion gates and the verdict is conforms, exactly as proposed and deprecated never gate (ac-gate-nonactive)\nAnd lint accepts both descriptive criteria - the descriptive state is orthogonal to source - while a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it",
+      "gherkin": "Given a spec carrying two descriptive MUST criteria - one source discovered with its provenance triplet, one source forethought - alongside a passing active criterion, none of the descriptive criteria carrying any record\nWhen verify derives conformance\nThen no descriptive criterion gates and the verdict is conforms, exactly as proposed and deprecated never gate (ac-gate-nonactive)\nAnd the descriptive state composes with either source - state is orthogonal to provenance",
       "itemId": "it-gating",
       "source": "forethought",
       "state": "proposed",
@@ -15684,14 +15698,14 @@
   "transition": {
     "criterionId": "ac-gate-descriptive",
     "to": "active",
-    "requestedAt": "2026-06-13T06:40:25.485Z",
+    "requestedAt": "2026-06-13T06:53:55.530Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T06:40:25.485Z",
-        "criterionHash": "sha256:e66a5d766c9fecfbdd3a8dea09403089a137a2cd3f4e703a903f26f92d00dfae"
+        "at": "2026-06-13T06:53:55.530Z",
+        "criterionHash": "sha256:c3de21ba821bee77986de086047ecb55b39f267856b8c97a1b3b33e258400356"
       }
     ]
   }
