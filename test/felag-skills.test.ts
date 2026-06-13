@@ -11,6 +11,7 @@ import {
   renderReviewQueueWidget,
   renderVerifyWidget,
   renderAuditWidget,
+  renderReviewWidget,
 } from "../felag/skills/widget.mjs";
 
 // A small inline status model in the computeStatus shape.
@@ -241,6 +242,81 @@ describe("renderAuditWidget", () => {
   });
 
   it("has no leading-slash sendPrompt and no hardcoded text color", () => {
+    expect(fragment).not.toContain("sendPrompt('/");
+    expect(fragment).not.toMatch(/felag:\s*\//);
+    expect(fragment).not.toMatch(/color\s*:\s*#/i);
+  });
+});
+
+// A cold-review round (the model the /felag review skill builds by parsing
+// scripts/cold-review.sh output): a round number, a verdict, and findings
+// tagged critical/major/nit. Not a felag record shape — the review loop has its
+// own vocabulary (MERGE | REWORK; CRITICAL/MAJOR/NIT), distinct from
+// conformance status.
+const reworkRound = {
+  specName: "demo-spec",
+  round: 3,
+  verdict: "REWORK",
+  findings: [
+    { severity: "critical", text: "ac-crit's fixture passes a wrong impl.", ref: "ac-crit" },
+    { severity: "major", text: "Item 4 MUST is unenforceable from the text alone." },
+    { severity: "nit", text: "Typo in the governance preamble." },
+  ],
+};
+const mergeRound = {
+  specName: "demo-spec",
+  round: 5,
+  verdict: "MERGE",
+  findings: [],
+};
+
+describe("renderReviewWidget", () => {
+  const fragment: string = renderReviewWidget(reworkRound);
+
+  it("is a fragment opening with an sr-only h2", () => {
+    expect(fragment.startsWith("<!doctype")).toBe(false);
+    expect(fragment).toMatch(/^<div id="fw-review-\d+"[^>]*>\s*<h2 class="sr-only">/);
+  });
+
+  it("shows the round number and the verdict", () => {
+    expect(fragment).toContain("Round 3");
+    expect(fragment).toContain("REWORK");
+  });
+
+  it("groups findings by severity with severity dots and a count strip", () => {
+    expect(fragment).toContain("Critical");
+    expect(fragment).toContain("Major");
+    expect(fragment).toContain("Nit");
+    // severity dots are inline background glyphs, never text color.
+    expect(fragment).toMatch(/background:#[0-9A-Fa-f]{6}/);
+  });
+
+  it("contains every finding's text", () => {
+    for (const f of reworkRound.findings) expect(fragment).toContain(f.text);
+  });
+
+  it("each finding folds into the spec (ref when present, text otherwise)", () => {
+    expect(fragment).toContain("felag: fold ac-crit into the spec");
+    expect(fragment).toContain(
+      "felag: fold Item 4 MUST is unenforceable from the text alone. into the spec",
+    );
+  });
+
+  it("a REWORK round offers re-review but not merge", () => {
+    expect(fragment).toContain("felag: re-review demo-spec");
+    expect(fragment).not.toContain("felag: merge demo-spec");
+  });
+
+  it("a clean MERGE is a one-line success state offering merge", () => {
+    const merged: string = renderReviewWidget(mergeRound);
+    expect(merged).toContain("MERGE");
+    expect(merged).toContain("nothing left to fold");
+    expect(merged).toContain("felag: merge demo-spec");
+    expect(merged).not.toContain("Critical");
+  });
+
+  it("uses 0.5px borders, has no leading-slash sendPrompt, and no hardcoded text color", () => {
+    expect(fragment).toContain("0.5px");
     expect(fragment).not.toContain("sendPrompt('/");
     expect(fragment).not.toMatch(/felag:\s*\//);
     expect(fragment).not.toMatch(/color\s*:\s*#/i);
