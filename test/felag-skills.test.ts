@@ -432,9 +432,11 @@ describe("renderLintWidget", () => {
     expect(orphaned).toContain("fx-stray");
   });
 
-  it("shows the count strip for errors and orphan warnings", () => {
+  it("carries counts in the section titles, with no redundant strip chip", () => {
     expect(fragment).toContain("Errors");
     expect(fragment).toContain("Orphan fixtures");
+    expect(fragment).not.toContain('class="fw-strip"');
+    expect(fragment).not.toContain('class="fw-sum"');
   });
 
   it("shows every error's code and ref", () => {
