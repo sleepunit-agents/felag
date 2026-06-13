@@ -13,6 +13,7 @@ import {
   renderAuditWidget,
   renderReviewWidget,
   renderRenderWidget,
+  renderLintWidget,
 } from "../felag/skills/widget.mjs";
 
 // A small inline status model in the computeStatus shape.
@@ -380,6 +381,80 @@ describe("renderRenderWidget", () => {
       "developer",
     );
     expect(noName).toContain("felag: render the spec for verifier");
+  });
+
+  it("uses 0.5px borders, has no leading-slash sendPrompt, and no hardcoded text color", () => {
+    expect(fragment).toContain("0.5px");
+    expect(fragment).not.toContain("sendPrompt('/");
+    expect(fragment).not.toMatch(/felag:\s*\//);
+    expect(fragment).not.toMatch(/color\s*:\s*#/i);
+  });
+});
+
+// `felag lint` / felag_lint MCP result: {valid, errors:[{code,ref}],
+// orphanFixtures:[ids]}. Lint is the merge gate; the widget is diagnostic.
+const cleanLint = { valid: true, errors: [], orphanFixtures: [], spec: "felag-core" };
+const errorLint = {
+  valid: false,
+  errors: [
+    { code: "E_DUPLICATE_ID", ref: "ac-foo" },
+    { code: "E_MISSING_FIXTURES", ref: "ac-bar" },
+    { code: "E_MULTIPLE_OWNERS", ref: "preamble" },
+  ],
+  orphanFixtures: ["fx-stray", "fx-lonely"],
+  spec: "demo-spec",
+};
+
+describe("renderLintWidget", () => {
+  const fragment: string = renderLintWidget(errorLint, "demo-spec");
+
+  it("is a fragment opening with an sr-only h2", () => {
+    expect(fragment.startsWith("<!doctype")).toBe(false);
+    expect(fragment).toMatch(/^<div id="fw-lint-\d+"[^>]*>\s*<h2 class="sr-only">/);
+  });
+
+  it("a clean result is a single green one-liner, not empty sections", () => {
+    const clean: string = renderLintWidget(cleanLint, "felag-core");
+    expect(clean).toContain("lints clean");
+    expect(clean).toContain("ti-circle-check");
+    expect(clean).not.toContain("Errors");
+    expect(clean).not.toContain("Orphan fixtures");
+    expect(clean).toContain("felag: re-lint felag-core");
+  });
+
+  it("a valid-but-orphaned result is NOT clean — orphans still show", () => {
+    const orphaned: string = renderLintWidget(
+      { valid: true, errors: [], orphanFixtures: ["fx-stray"] },
+      "demo-spec",
+    );
+    expect(orphaned).not.toContain("lints clean");
+    expect(orphaned).toContain("Orphan fixtures");
+    expect(orphaned).toContain("fx-stray");
+  });
+
+  it("shows the count strip for errors and orphan warnings", () => {
+    expect(fragment).toContain("Errors");
+    expect(fragment).toContain("Orphan fixtures");
+  });
+
+  it("shows every error's code and ref", () => {
+    for (const e of errorLint.errors) {
+      expect(fragment).toContain(e.code);
+      expect(fragment).toContain(e.ref);
+    }
+  });
+
+  it("shows every orphan fixture id", () => {
+    for (const id of errorLint.orphanFixtures) expect(fragment).toContain(id);
+  });
+
+  it("offers a re-lint action naming the spec", () => {
+    expect(fragment).toContain("felag: re-lint demo-spec");
+  });
+
+  it("falls back to \"the spec\" when no spec name is given", () => {
+    const noName: string = renderLintWidget({ valid: false, errors: [{ code: "E_SCHEMA", ref: "x" }], orphanFixtures: [] });
+    expect(noName).toContain("felag: re-lint the spec");
   });
 
   it("uses 0.5px borders, has no leading-slash sendPrompt, and no hardcoded text color", () => {

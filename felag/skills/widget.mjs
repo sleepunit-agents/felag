@@ -746,6 +746,102 @@ export function renderRenderWidget(inventory, audience) {
   </div>`;
 }
 
+// --- lint ---------------------------------------------------------------
+
+// From `felag lint` / the felag_lint MCP tool (a {valid, errors, orphanFixtures}
+// result): lint is the merge gate, so this widget is DIAGNOSTIC — it reports,
+// it doesn't govern. A clean pass (valid AND no orphan fixtures) is a single
+// green one-liner, never empty sections. A failing/orphaned spec gets a count
+// strip (errors red, orphan warnings amber) then a card per error (code badge +
+// ref) and a muted card per orphan fixture. Orphan fixtures are WARNINGS, not
+// errors — a committed fixture referenced by no criterion (the CLI's stderr
+// warning) leaves `valid` true, so it shows but does not fail the gate.
+//
+// The lint result is vendor-neutral and carries no spec name; the skill may set
+// `result.spec` so the re-lint intent names the spec (graceful fallback to "the
+// spec", mirroring verify/render). The single optional action is a re-lint —
+// lint is diagnostic, there is nothing to govern from here.
+export function renderLintWidget(result, specName) {
+  const root = `fw-lint-${_wid++}`;
+  const r = result ?? {};
+  const spec = specName ?? r.spec ?? "the spec";
+  const errors = r.errors ?? [];
+  const orphans = r.orphanFixtures ?? [];
+  // valid reflects errors only; orphans are warnings. Clean = both empty.
+  const clean = (r.valid ?? errors.length === 0) && orphans.length === 0;
+
+  const header = `<div class="fw-header">
+      <span class="fw-name">${esc(spec)}</span>
+      <span class="fw-pill" style="background:var(--color-background-info)">Lint</span>
+    </div>`;
+
+  const reLint = `<div class="fw-acts">${actionButton("Re-lint", `re-lint ${spec}`, "refresh")}</div>`;
+
+  // Clean: one green line, no forced empty sections.
+  if (clean) {
+    const summary = `${spec} lints clean — no errors, no orphan fixtures`;
+    return `<div id="${root}" class="felag-widget">
+      <h2 class="sr-only">${esc(summary)}</h2>
+      ${styles(root)}
+      ${header}
+      <p class="fw-empty"><i class="ti ti-circle-check"></i> ${esc(spec)} lints clean — no errors, no orphan fixtures.</p>
+      ${reLint}
+    </div>`;
+  }
+
+  const summary = `${spec} — ${errors.length} lint error${errors.length === 1 ? "" : "s"}, ${orphans.length} orphan fixture${orphans.length === 1 ? "" : "s"}`;
+
+  const strip = `<div class="fw-strip">${
+    [
+      errors.length ? `<span class="fw-sum">${dot("disputed")}Errors <b>${errors.length}</b></span>` : "",
+      orphans.length ? `<span class="fw-sum">${dot("drifting")}Orphan fixtures <b>${orphans.length}</b></span>` : "",
+    ].join("")
+  }</div>`;
+
+  // An error card: the lint code as a badge + the ref it points at (a record
+  // id, or "preamble"). Red dot — an error fails the gate.
+  const errorSection = errors.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Errors <span class="fw-section-desc" style="display:inline">${errors.length}</span></div>
+        ${errors.map((e) => `<div class="fw-card" data-status="disputed" data-id="${attr(e.ref)}">
+          ${dot("disputed")}
+          <div class="fw-card-body">
+            <div class="fw-card-head">
+              ${badge(e.code)}<span class="fw-id">${esc(e.ref)}</span>
+            </div>
+          </div>
+        </div>`).join("")}
+      </div>`
+    : "";
+
+  // An orphan-fixture card: muted (a warning, not a gate failure). The fixture
+  // id is committed but referenced by no criterion — an interop proof for nothing.
+  const orphanSection = orphans.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Orphan fixtures <span class="fw-section-desc" style="display:inline">${orphans.length}</span></div>
+        <p class="fw-section-desc">Committed fixtures referenced by no criterion — a warning, not a gate failure.</p>
+        ${orphans.map((id) => `<div class="fw-card" data-status="drifting" data-id="${attr(id)}">
+          ${dot("drifting")}
+          <div class="fw-card-body">
+            <div class="fw-card-head">
+              ${badge("orphan")}<span class="fw-id">${esc(id)}</span>
+            </div>
+          </div>
+        </div>`).join("")}
+      </div>`
+    : "";
+
+  return `<div id="${root}" class="felag-widget">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    ${header}
+    ${strip}
+    ${errorSection}
+    ${orphanSection}
+    ${reLint}
+  </div>`;
+}
+
 // Thin dispatcher so future skills stay one-liners (design: renderFelagWidget).
 export function renderFelagWidget(kind, model) {
   switch (kind) {
@@ -755,6 +851,7 @@ export function renderFelagWidget(kind, model) {
     case "audit": return renderAuditWidget(model);
     case "review": return renderReviewWidget(model);
     case "render": return renderRenderWidget(model, model?.audience);
+    case "lint": return renderLintWidget(model, model?.spec);
     default: throw new Error(`unknown felag widget kind: ${kind}`);
   }
 }
