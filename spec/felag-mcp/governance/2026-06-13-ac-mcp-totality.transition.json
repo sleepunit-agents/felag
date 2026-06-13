@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-mcp-totality",
+  "to": "active",
+  "requestedAt": "2026-06-13T14:04:35.900Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T14:04:35.900Z",
+      "criterionHash": "sha256:006529eb42fc4d49c0bc9fbdbf5a243bdad871ef940591615f00fd1897e50e03"
+    }
+  ]
+}

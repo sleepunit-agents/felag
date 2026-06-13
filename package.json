@@ -5,7 +5,8 @@
   "type": "module",
   "license": "Apache-2.0",
   "bin": {
-    "felag": "./dist/cli.js"
+    "felag": "./dist/cli.js",
+    "felag-mcp": "./dist/mcp/bin.js"
   },
   "exports": {
     ".": "./dist/index.js"

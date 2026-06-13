@@ -20,6 +20,7 @@ steps:
     commands:
       - node dist/cli.js lint spec/felag-core
       - node dist/cli.js lint spec/felag-tasks
+      - node dist/cli.js lint spec/felag-mcp
     depends_on: [build]
 
   - name: test
