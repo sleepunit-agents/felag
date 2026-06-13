@@ -181,9 +181,14 @@ switch (verb) {
   case "status": {
     // felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--as-of <iso>]
     //   --serve [--port <n>]   live-reloading localhost dashboard (the watched board)
+    //   --json                 emit the computeStatus model as JSON to stdout
     // Records optional — without them every active criterion shows "unverified"
-    // (still a useful spec view). Emits a self-contained HTML page.
+    // (still a useful spec view). Emits a self-contained HTML page by default;
+    // --json emits the model instead so a presentation client (e.g. a Claude
+    // skill) gets the same projection without MCP wiring. status is excluded
+    // surface either way — no contract, no gate.
     const serve = args.includes("--serve");
+    const json = args.includes("--json");
     // Positionals are flag-free; value-flags consume their next token so a flag
     // value (e.g. --target's id) is never mistaken for the spec-dir or records.
     const VALUE_FLAGS = new Set(["--target", "--out", "--as-of", "--port"]);
@@ -195,7 +200,7 @@ switch (verb) {
     }
     const dir = positional[0];
     if (!dir) {
-      console.error("usage: felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--serve [--port <n>]]");
+      console.error("usage: felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--json] [--serve [--port <n>]]");
       process.exit(2);
     }
     const recordsFile = positional[1];
@@ -266,6 +271,10 @@ switch (verb) {
     }
 
     const model = buildModel();
+    if (json) {
+      console.log(JSON.stringify(model, null, 2));
+      process.exit(0);
+    }
     const html = renderStatusHTML(model);
     const out = flagValue(args, "--out");
     if (out) {
