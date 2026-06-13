@@ -73,7 +73,7 @@ admissible, today's or next year's.
 
 ```
 JudgmentRecord {
-  criterionId, criterionHash,            # REQUIRED binding to the line as judged
+  criterionId, judgmentHash,             # REQUIRED binding to the judgment projection
   kind: "calibration" | "target",
   fixtureId, fixtureHash,                # calibration only, both REQUIRED
   implementation, conformanceVersion,    # target only, both REQUIRED
@@ -90,14 +90,26 @@ calibration is a property of the judge, not of anyone's conduct. A
 under conformance version X, returned V. Keeping the kinds in one record
 type keeps ingestion, staleness, and instant-ordering mechanics single.
 
-Bindings are the staleness story, inherited whole from 2.0.0:
+Bindings are the staleness story, inherited from 2.0.0 with one deliberate
+narrowing (cold review round 1, finding 3):
 
-- `criterionHash` (CS9 of the criterion line as judged) is **required on
-  both kinds** — for a behavioral record the fixture is the contract and
-  fixtureHash binds it; for a judgment the *criterion text (rubric +
-  tolerance) is the contract*, so the criterion binding is the only
-  binding that matters. Amend the rubric and every old verdict goes stale,
-  loudly — the promotion ack's criterionHash mechanic, reused exactly.
+- `judgmentHash` is **required on both kinds** and binds the record to the
+  **judgment projection** — the CS9-style hash of the canonical
+  serialization of `{criterionId, rubric, text}`, exactly what the judge
+  was shown to judge against. Amend the rubric or the criterion text and
+  every old verdict goes stale, loudly. Deliberately NOT in the
+  projection: `state` and `dispute` (ratifying graduation intent must not
+  void the evidence that justified ratifying it, and a third party's
+  dispute must not stale a non-disputer's records — governance
+  transitions change who gates, not what was judged), `tolerance` (an
+  aggregation parameter re-evaluated on every graduation), `fixtures`
+  (anchors bind per-anchor through fixtureHash), and provenance. The
+  first design bound the full criterion line, which made ratification
+  and third-party disputes silently reset everyone's evidence — a cold
+  reviewer caught it; the projection fixes it. (The promotion ack's
+  criterionHash still binds the full line: an ack endorses the whole
+  record once; judgment evidence accumulates across governance
+  transitions.)
 - `fixtureHash` is **required on calibration records** (stricter than
   VerificationRecord, where it is optional): a calibration record's entire
   meaning is "this judge reproduces the known verdict on exactly this
@@ -309,6 +321,16 @@ in the records.
    infrastructure failure block graduation until another run lands.
    Fail-closed is the house stance; the remedy (run the judge again) is
    cheap.
+6. **Whole-input poisoning.** A record `ingestJudgment` rejects, anywhere
+   in a verify input's `judgmentRecords`, fails *every* gating judgment
+   criterion (graduate's G1 validates the full array). Chosen over
+   per-criterion filtering deliberately: a filter keyed on `criterionId`
+   silently drops corrupt records whose `criterionId` is itself garbage —
+   unattributable corruption must be loud everywhere, not quietly
+   discarded. Rejected records never reach a real ledger; the blast
+   radius only exists for callers who skip the ingest front door.
+   (Stated in D1J and pinned by the two-criterion cross-poisoning
+   fixture after cold review round 1.)
 
 ## Why this is MAJOR
 

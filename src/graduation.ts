@@ -36,7 +36,7 @@ const DEFAULT_TOLERANCE = { runs: 3, agreement: 3 };
 // Fields required on every JudgmentRecord regardless of kind.
 const COMMON_FIELDS = [
   "criterionId",
-  "criterionHash",
+  "judgmentHash",
   "kind",
   "judge",
   "verdict",
@@ -60,7 +60,7 @@ export function ingestJudgment(record: unknown): IngestResult {
   for (const f of COMMON_FIELDS) {
     if (!(f in r)) errors.add("E_MISSING_FIELD");
   }
-  for (const f of ["criterionId", "criterionHash", "evidence", "runner", "at", "attribution"]) {
+  for (const f of ["criterionId", "judgmentHash", "evidence", "runner", "at", "attribution"]) {
     if (f in r && typeof r[f] !== "string") errors.add("E_SCHEMA");
   }
   if ("kind" in r && !KINDS.has(r.kind as string)) errors.add("E_SCHEMA");
@@ -82,7 +82,7 @@ export function ingestJudgment(record: unknown): IngestResult {
       errors.add("E_SCHEMA");
     }
   }
-  if (typeof r.criterionHash === "string" && !HASH_RE.test(r.criterionHash)) errors.add("E_SCHEMA");
+  if (typeof r.judgmentHash === "string" && !HASH_RE.test(r.judgmentHash)) errors.add("E_SCHEMA");
   if ("fixtureHash" in r && typeof r.fixtureHash === "string" && !HASH_RE.test(r.fixtureHash)) {
     errors.add("E_SCHEMA");
   }
@@ -110,6 +110,36 @@ export function ingestJudgment(record: unknown): IngestResult {
  * doctrine: attribution stays opaque; judge is matching plumbing). */
 function judgeKey(judge: JudgeIdentity): string {
   return canonicalLine(judge);
+}
+
+/** The judgment projection hash: CS9 over the canonical serialization of
+ * {criterionId, rubric, text} — exactly what the judge was shown to judge
+ * against. Governance edits (state, dispute, tolerance, fixtures,
+ * provenance) never stale judgment evidence; text or rubric edits stale
+ * everything. */
+export function judgmentHash(criterion: Criterion): string {
+  return recordHash({
+    criterionId: criterion.id,
+    rubric: criterion.judgment?.rubric ?? "",
+    text: (criterion.type === "scenario" ? criterion.gherkin : criterion.item) ?? "",
+  });
+}
+
+/** Ascending by Unicode code point (CS4's order), not UTF-16 code units —
+ * they diverge above the BMP. */
+function cmpCodePoint(a: string, b: string): number {
+  const ai = a[Symbol.iterator]();
+  const bi = b[Symbol.iterator]();
+  for (;;) {
+    const av = ai.next();
+    const bv = bi.next();
+    if (av.done && bv.done) return 0;
+    if (av.done) return -1;
+    if (bv.done) return 1;
+    const ac = av.value.codePointAt(0)!;
+    const bc = bv.value.codePointAt(0)!;
+    if (ac !== bc) return ac - bc;
+  }
 }
 
 function fail(code: string): GraduationResult {
@@ -171,7 +201,7 @@ export function graduate(input: unknown): GraduationResult {
   if (criterion.judgment === undefined) return fail("E_NOT_GRADUATABLE");
 
   const tolerance = criterion.judgment.tolerance ?? DEFAULT_TOLERANCE;
-  const criterionHash = recordHash(criterion);
+  const currentHash = judgmentHash(criterion);
   const fixturesById = new Map(
     input.spec.filter((r): r is Fixture => r.record === "fixture").map((f) => [f.id, f]),
   );
@@ -198,13 +228,13 @@ export function graduate(input: unknown): GraduationResult {
     errors: [],
     basis,
     judges: [...judgeKeys.entries()]
-      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .sort((a, b) => cmpCodePoint(a[0], b[0]))
       .map(([key, judge]) => ({ admissible: adequate && admissibleKeys.has(key), judge })),
     window,
   });
 
   // Admissibility: judge J is admissible iff for EVERY anchor, J's latest
-  // non-stale calibration record (criterionHash current, fixtureHash equal to
+  // non-stale calibration record (judgmentHash current, fixtureHash equal to
   // the anchor's current canonical hash) has verdict equal to the anchor's
   // expected verdict. The bar is all anchors, exactly.
   const admissibleKeys = new Set<string>();
@@ -213,7 +243,7 @@ export function graduate(input: unknown): GraduationResult {
       let ok = true;
       for (const a of anchors) {
         const anchor = fixturesById.get(a.id) as Fixture;
-        const currentHash = recordHash(anchor);
+        const anchorHash = recordHash(anchor);
         const candidates = input.records
           .map((rec, idx) => ({ rec, idx }))
           .filter(
@@ -222,8 +252,8 @@ export function graduate(input: unknown): GraduationResult {
               rec.criterionId === input.criterionId &&
               rec.fixtureId === a.id &&
               judgeKey(rec.judge) === key &&
-              rec.criterionHash === criterionHash &&
-              rec.fixtureHash === currentHash,
+              rec.judgmentHash === currentHash &&
+              rec.fixtureHash === anchorHash,
           );
         const latest = latestBy(candidates);
         if (!latest || latest.verdict !== a.verdict) {
@@ -238,7 +268,7 @@ export function graduate(input: unknown): GraduationResult {
   if (!adequate) return result("corpus-inadequate", []);
   if (admissibleKeys.size === 0) return result("no-admissible-judge", []);
 
-  // Qualifying target records: matching tuple, criterionHash current,
+  // Qualifying target records: matching tuple, judgmentHash current,
   // parseable at, from an admissible judge.
   const qualifying = input.records
     .map((rec, idx) => ({ rec, idx }))
@@ -248,7 +278,7 @@ export function graduate(input: unknown): GraduationResult {
         rec.criterionId === input.criterionId &&
         rec.implementation === input.implementation &&
         rec.conformanceVersion === conformanceVersion &&
-        rec.criterionHash === criterionHash &&
+        rec.judgmentHash === currentHash &&
         !Number.isNaN(parseInstant(rec.at)) &&
         admissibleKeys.has(judgeKey(rec.judge)),
     );

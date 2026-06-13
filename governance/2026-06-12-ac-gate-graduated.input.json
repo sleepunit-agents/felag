@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T00:45:44.514Z",
+  "asOf": "2026-06-13T01:11:04.606Z",
   "spec": [
     {
       "record": "preamble",
@@ -236,7 +236,7 @@
     {
       "record": "item",
       "id": "it-gating",
-      "body": "A criterion gates conformance only if all hold: force MUST, contractId set to a contract declared in the preamble, state active or disputed - a disputed criterion continues to gate every implementer except the disputer - and either class behavioral, or class judgment carrying a judgment object: a graduatable criterion (it-graduation). (Derived resolution: design v1.1 lists 'state: active' in the gating conjunction while also requiring disputed criteria to keep gating non-disputers; this spec resolves the contradiction by admitting both states and excluding the disputer.) Gate is a subset of the allowlist: a criterion about an undeclared surface cannot gate no matter how it is written.\n\nStates: proposed (exists in committed interchange, never gates; excavate's output state), active, deprecated (retired from gating, kept for history), disputed (gates everyone except the disputing implementer; reported loudly everywhere). A disputed criterion carries dispute: {by, reason, at} - 'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nJudgment-class criteria without a judgment object are advisory by construction - they appear in reports, never in the verdict, exactly as at 0.2.0. The judgment object is graduation intent: adding one to an active criterion changes every implementer's obligations (ac-vers-major's 'graduates a judgment criterion to gating' clause - MAJOR, a deliberate act, never an edit that slips through). A gating judgment criterion is satisfied iff the graduation function returns graduated for it over the verify input's judgmentRecords (D1J, it-graduation); unsatisfied it is waivable (D2) and otherwise drifts, exactly as a behavioral criterion with no passing record - gating that can be dodged by not submitting evidence is not gating. There is no judgment-specific verdict token: waivers already express sanctioned incompleteness, loudly, and a fourth token would weaken every existing report consumer.",
+      "body": "A criterion gates conformance only if all hold: force MUST, contractId set to a contract declared in the preamble, state active or disputed - a disputed criterion continues to gate every implementer except the disputer - and either class behavioral, or class judgment carrying a judgment object: a graduatable criterion (it-graduation). (Derived resolution: design v1.1 lists 'state: active' in the gating conjunction while also requiring disputed criteria to keep gating non-disputers; this spec resolves the contradiction by admitting both states and excluding the disputer.) Gate is a subset of the allowlist: a criterion about an undeclared surface cannot gate no matter how it is written.\n\nStates: proposed (exists in committed interchange, never gates; excavate's output state), active, deprecated (retired from gating, kept for history), disputed (gates everyone except the disputing implementer; reported loudly everywhere). A disputed criterion carries dispute: {by, reason, at} - 'by' is the implementer roster name whose reports stop gating on it (derived: the design names no schema home for dispute attribution).\n\nJudgment-class criteria without a judgment object are advisory by construction - they appear in reports, never in the verdict, exactly as at 0.2.0. The judgment object is graduation intent: adding one to an active criterion changes every implementer's obligations (ac-vers-major's 'graduates a judgment criterion to gating' clause - MAJOR, a deliberate act, never an edit that slips through). A gating judgment criterion is satisfied iff the graduation function returns graduated for it over the verify input's judgmentRecords (D1J, it-graduation); unsatisfied it is waivable (D2) and otherwise drifts, exactly as a behavioral criterion with no passing record - gating that can be dodged by not submitting evidence is not gating. There is no judgment-specific verdict token: waivers already express sanctioned incompleteness, loudly, and a fourth token would weaken every existing report consumer. State transitions never re-judge: ratification and dispute change who gates, not what was judged - judgment evidence survives them by construction (the judgmentHash projection, it-judgment).",
       "title": "Gating and criterion states"
     },
     {
@@ -304,12 +304,17 @@
       "contractId": "c-verification",
       "fixtures": [
         "fx-verdict-graduated-conforms",
+        "fx-verdict-graduated-disputed-disputer",
+        "fx-verdict-graduated-disputed-evidence",
+        "fx-verdict-graduated-disputed-other",
         "fx-verdict-graduated-drifts",
         "fx-verdict-graduated-insufficient",
-        "fx-verdict-graduated-waived"
+        "fx-verdict-graduated-waived",
+        "fx-verdict-judgment-poisoned",
+        "fx-verdict-judgment-poisoned-cross"
       ],
       "force": "MUST",
-      "gherkin": "Given a spec with an active MUST judgment criterion carrying a judgment object and an adequate calibration corpus\nWhen the implementation's judgment records graduate it, the verdict is conforms\nAnd when they do not - insufficient evidence included - the criterion fails and the verdict is drifts, with an unexpired waiver yielding conforms-with-waivers and never bare conforms\nAnd judgment criteria that do not gate appear only in the advisory listing",
+      "gherkin": "Given a spec with an active MUST judgment criterion carrying a judgment object and an adequate calibration corpus\nWhen the implementation's judgment records graduate it, the verdict is conforms\nAnd when they do not - insufficient evidence included - the criterion fails and the verdict is drifts, with an unexpired waiver yielding conforms-with-waivers and never bare conforms\nAnd judgment criteria that do not gate appear only in the advisory listing\nAnd a judgment record rejected by ingestJudgment anywhere in the verify input fails every graduation at G1 - criteria whose own records are pristine included, fail closed\nAnd a disputed graduatable criterion gates everyone except the disputer, the dispute listed loudly, and the dispute itself stales no evidence",
       "itemId": "it-gating",
       "source": "forethought",
       "state": "proposed",
@@ -339,7 +344,7 @@
     {
       "record": "item",
       "id": "it-verification",
-      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, judgmentRecords, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl, and judgmentRecords (optional since 3.0.0, absent meaning empty) is the JudgmentRecord evidence for graduatable judgment criteria (it-judgment, it-graduation).\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. Parseable means exactly: RFC 3339 date-time with the T and Z designators case-insensitive (per its ABNF), a numeric offset or Z REQUIRED (a missing offset is not RFC 3339; a parser that reads it as host-local time makes the verdict depend on the box's timezone), and second 60 excluded - a leap second has no instant on the POSIX scale this contract normalizes to, so it is unparseable here, not mapped. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps). D1 deliberately has no asOf upper bound - a future-dated record still wins, because the ledger reports what was submitted; promotion bounds at <= asOf because acknowledgments are endorsements inside a deliberation window. The asymmetry is intended.\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the greatest array index - last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD1J (3.0.0). A gating judgment criterion (it-gating: graduatable, state active or disputed) is satisfied iff graduate({criterionId, implementation, records: the input's judgmentRecords, spec}) returns graduated (it-graduation). Records rejected by ingestJudgment never reach a ledger; a verify input carrying one anyway fails every judgment graduation at G1 - not graduated, fail closed. D2 and D3 apply to judgment criteria unchanged.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of judgment criteria that do not gate for this implementation (non-graduatable, or graduatable but not in a gating state) that have records, with their latest verdicts - advisory verdicts remain VerificationRecord-borne self-reports; gating judgment criteria appear in failing or waived like every other gating criterion, and the why lives in the graduation result.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
+      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, judgmentRecords, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl, and judgmentRecords (optional since 3.0.0, absent meaning empty) is the JudgmentRecord evidence for graduatable judgment criteria (it-judgment, it-graduation).\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. Parseable means exactly: RFC 3339 date-time with the T and Z designators case-insensitive (per its ABNF), a numeric offset or Z REQUIRED (a missing offset is not RFC 3339; a parser that reads it as host-local time makes the verdict depend on the box's timezone), and second 60 excluded - a leap second has no instant on the POSIX scale this contract normalizes to, so it is unparseable here, not mapped. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps). D1 deliberately has no asOf upper bound - a future-dated record still wins, because the ledger reports what was submitted; promotion bounds at <= asOf because acknowledgments are endorsements inside a deliberation window. The asymmetry is intended.\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the greatest array index - last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD1J (3.0.0). A gating judgment criterion (it-gating: graduatable, state active or disputed) is satisfied iff graduate({criterionId, implementation, records: the input's FULL judgmentRecords array, spec}) returns graduated (it-graduation). verify never pre-validates judgmentRecords against the wire schema - verify is total with no error channel, its preconditions are the caller's, exactly as for D1's records; the fail-closed path is graduate's G1, which validates the full array for every graduation: a record ingestJudgment rejects - whatever criterion it names - fails every gating judgment criterion in the spec, criteria whose own records are pristine included. Records rejected by ingestJudgment never reach a ledger; an input carrying one is corrupt evidence, loud everywhere, never filtered quietly. D2 and D3 apply to judgment criteria unchanged.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of judgment criteria that do not gate for this implementation (non-graduatable, or graduatable but not in a gating state) that have records, with their latest verdicts - advisory verdicts remain VerificationRecord-borne self-reports; gating judgment criteria appear in failing or waived like every other gating criterion, and the why lives in the graduation result.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
       "title": "VerificationRecord ingestion and verdict derivation"
     },
     {
@@ -462,7 +467,7 @@
     {
       "record": "item",
       "id": "it-judgment",
-      "body": "Judgment verification applies the verify stance to judgment: felag never runs the judge - judges run outside the boundary, by whatever harness the implementation chooses, and their verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords. A JudgmentRecord is {criterionId, criterionHash, kind: calibration|target, fixtureId?, fixtureHash?, implementation?, conformanceVersion?, judge, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}.\n\ncriterionHash - the CS9 hash of the criterion's canonical record line as judged - is required on BOTH kinds: for a behavioral check the fixture is the contract and fixtureHash binds it; for a judgment the criterion text (rubric and tolerance included) IS the contract, so the criterion binding is the one that matters. A record whose criterionHash differs from the criterion's current canonical hash is stale and ignored by graduation - amending a rubric resets the evidence loudly, never silently (the promotion ack's staleness mechanic, reused exactly).\n\nkind calibration requires fixtureId and fixtureHash and forbids implementation and conformanceVersion: calibration is a property of the judge, not of anyone's conduct. kind target requires implementation and conformanceVersion and forbids fixtureId and fixtureHash: the judge was shown the implementation's actual conduct, not an anchor. fixtureHash is required on calibration records - stricter than VerificationRecord, where it is optional - because a calibration record's entire meaning is 'this judge reproduces the known verdict on exactly this anchor'; an unbound calibration is meaningless, and an edited anchor must recalibrate every judge, fail closed.\n\njudge is {model}: structured matching plumbing, NOT attribution - the second kind of name in it-governance's two-kinds-of-names doctrine. Judge identity is the canonical serialization of the judge object, compared for byte equality only: the graduation function groups records by it and builds no other behavior on its value - never parsed, never ranked, no version arithmetic. Publishers encode model, version, and configuration in the model string; felag compares bytes. ac-ver-attribution-opaque continues to govern the free-form attribution field, which judgment records also carry. A pinned judge-configuration field was deliberately rejected: a spec that names admissible judges hard-depends on models (vendor-neutrality applied to judging itself) and dies with every deprecation; the calibration corpus replaces it - any judge that reproduces the known verdicts is admissible (it-graduation).\n\ningestJudgment reuses the ingest result format {accepted, errors:[code]} and its codes: E_MISSING_FIELD (a field required for the record's kind is absent), E_SCHEMA (wrong types, kind-forbidden fields present, malformed hashes or judge object, an at that does not parse per it-verification's instants rule), E_BAD_VERDICT (verdict outside pass|fail|unverifiable); errors sorted ascending.",
+      "body": "Judgment verification applies the verify stance to judgment: felag never runs the judge - judges run outside the boundary, by whatever harness the implementation chooses, and their verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords. A JudgmentRecord is {criterionId, judgmentHash, kind: calibration|target, fixtureId?, fixtureHash?, implementation?, conformanceVersion?, judge, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}.\n\njudgmentHash - required on BOTH kinds - binds a record to the judgment projection: 'sha256:' followed by the lowercase hex SHA-256 of the UTF-8 bytes of the canonical serialization (CS2, CS4, CS5) of the object {criterionId, rubric, text}, where criterionId is the criterion's id, rubric is its judgment.rubric, and text is its gherkin if type scenario, else its item. The projection is exactly what the judge was shown to judge against: the obligation text and the rubric. A record whose judgmentHash differs from the criterion's current projection hash is stale and ignored by graduation - amending the rubric or the criterion text resets the evidence loudly, never silently (the staleness mechanic of fixtureHash and the promotion ack's criterionHash, reused). Deliberately NOT in the projection: state and dispute (ratifying graduation intent must not void the evidence that justified ratifying it, and a third party's dispute must not stale a non-disputer's records - governance transitions change who gates, not what was judged), tolerance (an aggregation parameter re-evaluated on every graduation, not something the judge saw), fixtures (anchors bind per-anchor through fixtureHash, and admissibility is recomputed against the current corpus on every graduation), and the provenance fields. This is deliberately narrower than the promotion ack's criterionHash, which binds the full canonical line: an ack endorses the whole record once; judgment evidence accumulates across governance transitions.\n\nkind calibration requires fixtureId and fixtureHash and forbids implementation and conformanceVersion: calibration is a property of the judge, not of anyone's conduct. kind target requires implementation and conformanceVersion and forbids fixtureId and fixtureHash: the judge was shown the implementation's actual conduct, not an anchor. fixtureHash is required on calibration records - stricter than VerificationRecord, where it is optional - because a calibration record's entire meaning is 'this judge reproduces the known verdict on exactly this anchor'; an unbound calibration is meaningless, and an edited anchor must recalibrate every judge, fail closed.\n\njudge is {model}: structured matching plumbing, NOT attribution - the second kind of name in it-governance's two-kinds-of-names doctrine. Judge identity is the canonical serialization of the judge object, compared for byte equality only: the graduation function groups records by it and builds no other behavior on its value - never parsed, never ranked, no version arithmetic. Publishers encode model, version, and configuration in the model string; felag compares bytes. ac-ver-attribution-opaque continues to govern the free-form attribution field, which judgment records also carry. A pinned judge-configuration field was deliberately rejected: a spec that names admissible judges hard-depends on models (vendor-neutrality applied to judging itself) and dies with every deprecation; the calibration corpus replaces it - any judge that reproduces the known verdicts is admissible (it-graduation).\n\ningestJudgment reuses the ingest result format {accepted, errors:[code]} and its codes: E_MISSING_FIELD (a field required for the record's kind is absent), E_SCHEMA (wrong types, kind-forbidden fields present, a judgmentHash or fixtureHash that is not 'sha256:' plus 64 lowercase hex, a malformed judge object, an at that does not parse per it-verification's instants rule), E_BAD_VERDICT (verdict outside pass|fail|unverifiable); errors sorted ascending.",
       "title": "Judgment records"
     },
     {
@@ -471,6 +476,7 @@
       "class": "behavioral",
       "contractId": "c-verification",
       "fixtures": [
+        "fx-jud-ingest-bad-hash",
         "fx-jud-ingest-calibration",
         "fx-jud-ingest-invalid",
         "fx-jud-ingest-kind",
@@ -478,7 +484,7 @@
         "fx-jud-ingest-target"
       ],
       "force": "MUST",
-      "gherkin": "Given JudgmentRecords of kind calibration and kind target carrying all kind-required fields\nWhen ingestJudgment validates each, both are accepted\nAnd a record missing criterionHash, with a verdict outside pass|fail|unverifiable and a judge object carrying keys beyond model, is rejected naming all three defects\nAnd a calibration record carrying implementation or a target record carrying fixtureId is rejected with E_SCHEMA",
+      "gherkin": "Given JudgmentRecords of kind calibration and kind target carrying all kind-required fields\nWhen ingestJudgment validates each, both are accepted\nAnd a record missing judgmentHash, with a verdict outside pass|fail|unverifiable and a judge object carrying keys beyond model, is rejected naming all three defects\nAnd a calibration record carrying implementation or conformanceVersion, or a target record carrying fixtureId or fixtureHash, is rejected with E_SCHEMA alongside E_MISSING_FIELD for its absent kind-required fields\nAnd a judgmentHash that is not sha256: plus 64 lowercase hex is rejected with E_SCHEMA",
       "itemId": "it-judgment",
       "source": "forethought",
       "state": "active",
@@ -487,7 +493,7 @@
     {
       "record": "item",
       "id": "it-graduation",
-      "body": "Graduation is how a judgment criterion becomes gateable without felag ever judging: a total, deterministic, fixturable function of exactly (criterionId, implementation, records, spec) - the shape of promote and verify. The non-determinism (the judge model call) lives entirely in record production, outside the boundary; fixtures prove the function with synthetic judgment records, no live judge required.\n\nA criterion is graduatable iff it carries a judgment object {rubric, tolerance?} with tolerance {runs, agreement} defaulting to {runs: 3, agreement: 3} - the default is pinned in this wire format, not in any spec record (the criteriaPerItem pattern). Unanimity-of-3 as the default is deliberate: disagreement at n=3 means the rubric is ambiguous, and an ambiguous rubric should not gate; authors relax it deliberately. Lint enforces 2 x agreement > runs (E_BAD_TOLERANCE), so reproducible-pass and reproducible-fail are mutually exclusive by construction. A graduatable criterion's fixtures list IS its calibration corpus: anchor fixtures, format felag/judgment-anchor@0, input the artifact to judge (payload-opaque, whatever the rubric needs), expected exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"} - one key, those values. Anchor adequacy lives here, not in lint: lint never reads payloads (an interchange invariant), while interpreting payloads per format is what payload-consuming functions are for. Anchor quality - are the anchors discriminating? - is the spec author's judgment conduct, ac-author-conduct's jurisdiction, the same place rubric quality lives.\n\nWire formats felag/graduation-input@0 {criterionId, implementation, records, spec} and felag/graduation-result@0 {graduated, errors, basis, judges, window} (see schema). Guards, mirroring promotion - each returns the full result with the single guard code, basis null, judges and window empty, and stops: G1 the input fails the wire-format schema, every record acceptable to ingestJudgment and timestamps parseable per it-verification's instants rule (E_SCHEMA); G2 spec fails lint (E_SPEC_INVALID); G3 criterionId names no criterion record (E_UNKNOWN_CRITERION); G4 the named criterion carries no judgment object (E_NOT_GRADUATABLE).\n\nDefinitions. Judge identity: the canonical serialization of a record's judge object; equality is byte equality. Adequate corpus: the criterion's fixtures list is non-empty, every referenced anchor's expected parses as exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"}, and at least one anchor expects pass and at least one expects fail. The fail anchor is load-bearing: it is what kills the lazy always-pass judge, and it is why the agreement statistic needs no chance correction (a chance-corrected coefficient was rejected: floating-point statistics break fixture byte-equality across languages, and kappa is undefined at exactly the perfect agreement the protocol rewards). Admissible judge: judge J is admissible for criterion C iff C's corpus is adequate and for EVERY anchor in C.fixtures, the latest calibration record by J for (C.id, anchor id) whose criterionHash equals C's current canonical hash and whose fixtureHash equals the anchor's current canonical hash - instant order on at, equal instants tying to the greatest array index, D1's rule verbatim - exists and has verdict equal to the anchor's expected verdict. The bar is all anchors, exactly: the corpus is author-curated to be unambiguous, and a judge wrong on an unambiguous anchor is inadmissible (a pass-rate knob, if real corpora ever need one, is a MINOR addition). Qualifying record: a target record matching criterionId = C.id, the input's implementation, and conformanceVersion equal to the spec preamble's, whose criterionHash equals C's current canonical hash, whose at parses, and whose judge is admissible. Window: the latest tolerance.runs qualifying records by instant, equal instants tying to the greatest array index. Independence of runs is attested, not verified: records are self-reported, and their check is calibration against the public anchor corpus, not identity - the runner-integrity stance; a distinctJudges floor is deliberately deferred (MINOR-addable, tightening only criteria that opt in).\n\nDerivation, basis precedence (first that holds): corpus-inadequate; no-admissible-judge (adequate corpus, zero admissible judges among the input's records for C); insufficient-evidence (fewer than tolerance.runs qualifying records); then over the full window, counting passes p and fails f - unverifiable occupies its slot and counts toward neither (an abstention is evidence of non-reproducibility; fail closed, the malformed-waiver stance): satisfied iff p >= agreement, reproducible-fail iff f >= agreement (the judges agree the conduct violates - a conduct problem), else unreproducible (the judges split - a rubric problem; the basis names the remedy). graduated is true iff basis is satisfied.\n\nProvenance is derived and loud, never carried: the result's judges lists every distinct judge identity appearing in the input's records for C - calibration or target - as {admissible, judge}, sorted ascending by judge identity; window lists the selected target records as {at, judge, verdict} in selection order (instant ascending, ties by array index). Records carry only binding-shaped provenance (judge identity, criterionHash, fixtureHash); reproducibility stats and calibration evidence are recomputed from the ledger every time, the same reason promote recomputes effective decisions rather than trusting a tally field.\n\nGraduation is state-independent: it evaluates a proposed criterion identically to an active one - you test graduation before ratifying graduation intent. Whether the result gates anyone is it-gating's business; whether to ratify the intent is the promotion protocol's.",
+      "body": "Graduation is how a judgment criterion becomes gateable without felag ever judging: a total, deterministic, fixturable function of exactly (criterionId, implementation, records, spec) - the shape of promote and verify. The non-determinism (the judge model call) lives entirely in record production, outside the boundary; fixtures prove the function with synthetic judgment records, no live judge required.\n\nA criterion is graduatable iff it carries a judgment object {rubric, tolerance?} with tolerance {runs, agreement} defaulting to {runs: 3, agreement: 3} - the default is pinned in this wire format, not in any spec record (the criteriaPerItem pattern). Unanimity-of-3 as the default is deliberate: disagreement at n=3 means the rubric is ambiguous, and an ambiguous rubric should not gate; authors relax it deliberately. Lint enforces 2 x agreement > runs (E_BAD_TOLERANCE), so reproducible-pass and reproducible-fail are mutually exclusive by construction. A graduatable criterion's fixtures list IS its calibration corpus: anchor fixtures, format felag/judgment-anchor@0, input the artifact to judge (payload-opaque, whatever the rubric needs), expected exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"} - one key, those values. Anchor adequacy lives here, not in lint: lint never reads payloads (an interchange invariant), while interpreting payloads per format is what payload-consuming functions are for. Anchor quality - are the anchors discriminating? - is the spec author's judgment conduct, ac-author-conduct's jurisdiction, the same place rubric quality lives.\n\nWire formats felag/graduation-input@0 {criterionId, implementation, records, spec} and felag/graduation-result@0 {graduated, errors, basis, judges, window} (see schema). Guards, mirroring promotion - each returns the full result with the single guard code, basis null, judges and window empty, and stops: G1 the input fails the wire-format schema, every record acceptable to ingestJudgment and timestamps parseable per it-verification's instants rule (E_SCHEMA); G2 spec fails lint (E_SPEC_INVALID); G3 criterionId names no criterion record (E_UNKNOWN_CRITERION); G4 the named criterion carries no judgment object (E_NOT_GRADUATABLE).\n\nDefinitions. Judge identity: the canonical serialization of a record's judge object; equality is byte equality. Adequate corpus: the criterion's fixtures list is non-empty, every referenced anchor's expected parses as exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"}, and at least one anchor expects pass and at least one expects fail. The fail anchor is load-bearing: it is what kills the lazy always-pass judge, and it is why the agreement statistic needs no chance correction (a chance-corrected coefficient was rejected: floating-point statistics break fixture byte-equality across languages, and kappa is undefined at exactly the perfect agreement the protocol rewards). Admissible judge: judge J is admissible for criterion C iff C's corpus is adequate and for EVERY anchor in C.fixtures, the latest calibration record by J for (C.id, anchor id) whose judgmentHash equals C's current projection hash (it-judgment) and whose fixtureHash equals the anchor's current canonical hash - instant order on at, equal instants tying to the greatest array index, D1's rule verbatim - exists and has verdict equal to the anchor's expected verdict. The bar is all anchors, exactly: the corpus is author-curated to be unambiguous, and a judge wrong on an unambiguous anchor is inadmissible (a pass-rate knob, if real corpora ever need one, is a MINOR addition). Qualifying record: a target record matching criterionId = C.id, the input's implementation, and conformanceVersion equal to the spec preamble's, whose judgmentHash equals C's current projection hash, whose at parses, and whose judge is admissible. Window: the latest tolerance.runs qualifying records by instant, equal instants tying to the greatest array index. Independence of runs is attested, not verified: records are self-reported, and their check is calibration against the public anchor corpus, not identity - the runner-integrity stance; a distinctJudges floor is deliberately deferred (MINOR-addable, tightening only criteria that opt in).\n\nDerivation, basis precedence (first that holds): corpus-inadequate; no-admissible-judge (adequate corpus, zero admissible judges among the input's records for C - an input with no records at all included); insufficient-evidence (fewer than tolerance.runs qualifying records); then over the full window, counting passes p and fails f - unverifiable occupies its slot and counts toward neither (an abstention is evidence of non-reproducibility; fail closed, the malformed-waiver stance): satisfied iff p >= agreement, reproducible-fail iff f >= agreement (the judges agree the conduct violates - a conduct problem), else unreproducible (the judges split - a rubric problem; the basis names the remedy). graduated is true iff basis is satisfied.\n\nProvenance is derived and loud, never carried: the result's judges lists every distinct judge identity appearing in the input's records for C - calibration or target - as {admissible, judge}, sorted ascending by the Unicode code points of the judge identity's canonical serialization (CS4's order, never UTF-16 code-unit order); window lists the selected target records as {at, judge, verdict} in selection order (instant ascending, ties by array index), each at exactly as carried on the record, never normalized. The result's window is empty for every basis except satisfied, reproducible-fail, and unreproducible - the early bases select no window even when some records qualify. Records carry only binding-shaped provenance (judge identity, judgmentHash, fixtureHash); reproducibility stats and calibration evidence are recomputed from the ledger every time, the same reason promote recomputes effective decisions rather than trusting a tally field.\n\nGraduation is state-independent: it evaluates a proposed criterion identically to an active one - you test graduation before ratifying graduation intent, and the evidence survives ratification (the projection excludes state; it-judgment). Whether the result gates anyone is it-gating's business; whether to ratify the intent is the promotion protocol's.",
       "title": "The graduation function"
     },
     {
@@ -518,12 +524,14 @@
         "fx-grad-calibration-latest",
         "fx-grad-corpus-inadequate",
         "fx-grad-corpus-unusable",
+        "fx-grad-judges-order",
         "fx-grad-mixed-judges",
+        "fx-grad-no-records",
         "fx-grad-stale-calibration",
         "fx-grad-uncalibrated"
       ],
       "force": "MUST",
-      "gherkin": "Given a judgment criterion whose corpus carries pass and fail anchors\nWhen a judge's latest calibration records bound to the current criterion and anchor hashes match every anchor's expected verdict, the judge is admissible - a later correct calibration supersedes an earlier wrong one\nAnd when a judge fails any anchor or its only calibration is stale against the current hashes, the judge is inadmissible and its target records never qualify\nAnd when the corpus lacks a pass or fail anchor or any expected does not parse as a verdict, the basis is corpus-inadequate for every judge",
+      "gherkin": "Given a judgment criterion whose corpus carries pass and fail anchors\nWhen a judge's latest calibration records bound to the current projection and anchor hashes match every anchor's expected verdict, the judge is admissible - a later correct calibration supersedes an earlier wrong one\nAnd when a judge fails any anchor or its only calibration is stale against the current hashes, the judge is inadmissible and its target records never qualify\nAnd when the corpus lacks a pass or fail anchor or any expected does not parse as a verdict, the basis is corpus-inadequate for every judge\nAnd with an adequate corpus and zero admissible judges among the input's records - an input with no records at all included - the basis is no-admissible-judge\nAnd the result's judges list orders identities ascending by the Unicode code points of their canonical serialization",
       "itemId": "it-graduation",
       "source": "forethought",
       "state": "active",
@@ -542,7 +550,7 @@
         "fx-grad-window-latest"
       ],
       "force": "MUST",
-      "gherkin": "Given qualifying target records from admissible judges\nWhen the window is selected, it is the latest tolerance.runs records by instant after UTC normalization - a lexically greater but instant-earlier at never wins, equal instants tie to the greatest array index - and records with stale criterionHash or a conformanceVersion differing from the preamble's never enter\nAnd when fewer than tolerance.runs records qualify, the basis is insufficient-evidence",
+      "gherkin": "Given qualifying target records from admissible judges\nWhen the window is selected, it is the latest tolerance.runs records by instant after UTC normalization - a lexically greater but instant-earlier at never wins, equal instants tie to the greatest array index - and records with a stale judgmentHash or a conformanceVersion differing from the preamble's never enter\nAnd when fewer than tolerance.runs records qualify, the basis is insufficient-evidence and the result's window is empty",
       "itemId": "it-graduation",
       "source": "forethought",
       "state": "active",
@@ -2142,7 +2150,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -2150,6 +2157,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2157,7 +2165,6 @@
           {
             "at": "2026-05-02T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -2165,6 +2172,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -2172,7 +2180,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -2180,6 +2187,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2188,13 +2196,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2203,13 +2211,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2218,13 +2226,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2335,7 +2343,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:fd9dff7f42b5ff5d48ef7a52b71c83dc80eabbae74215e8b74f45cf3b0eb86d5",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -2343,6 +2350,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2350,7 +2358,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:fd9dff7f42b5ff5d48ef7a52b71c83dc80eabbae74215e8b74f45cf3b0eb86d5",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:3fe25d854ccf6ad9c6b1257282acc81c9824162767325b7f7f3218f28513f11f",
@@ -2358,6 +2365,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2366,13 +2374,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:fd9dff7f42b5ff5d48ef7a52b71c83dc80eabbae74215e8b74f45cf3b0eb86d5",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2381,13 +2389,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:fd9dff7f42b5ff5d48ef7a52b71c83dc80eabbae74215e8b74f45cf3b0eb86d5",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2396,13 +2404,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:fd9dff7f42b5ff5d48ef7a52b71c83dc80eabbae74215e8b74f45cf3b0eb86d5",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2513,7 +2521,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:b2d4bab733ad3a832b485cbc091e1d3b6aa8b27252a515e048ede1c95bc03589",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -2521,6 +2528,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -2528,7 +2536,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:b2d4bab733ad3a832b485cbc091e1d3b6aa8b27252a515e048ede1c95bc03589",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -2536,6 +2543,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2544,13 +2552,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:b2d4bab733ad3a832b485cbc091e1d3b6aa8b27252a515e048ede1c95bc03589",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2559,13 +2567,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:b2d4bab733ad3a832b485cbc091e1d3b6aa8b27252a515e048ede1c95bc03589",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2574,13 +2582,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:b2d4bab733ad3a832b485cbc091e1d3b6aa8b27252a515e048ede1c95bc03589",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2726,7 +2734,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -2734,6 +2741,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -2741,7 +2749,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -2749,6 +2756,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2757,13 +2765,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -2772,13 +2780,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2787,13 +2795,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2802,13 +2810,13 @@
             "at": "2026-06-04T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:4590dc7820be6652238cce2de52a93a2327f869040b24c1f19b4f71f31ce8958",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -2923,7 +2931,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -2931,6 +2938,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -2938,7 +2946,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -2946,6 +2953,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -2954,13 +2962,13 @@
             "at": "2026-06-01T13:00:00+02:00",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -2969,13 +2977,13 @@
             "at": "2026-06-01T12:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3061,6 +3069,145 @@
     },
     {
       "record": "fixture",
+      "id": "fx-grad-judges-order",
+      "contractId": "c-verification",
+      "description": "Two judges whose models differ above the BMP: the judges list orders ascending by Unicode code point of the canonical serialization - the U+E000 judge before the U+10000 judge. UTF-16 code-unit ordering reverses them.",
+      "expected": {
+        "basis": "no-admissible-judge",
+        "errors": [],
+        "graduated": false,
+        "judges": [
+          {
+            "admissible": false,
+            "judge": {
+              "model": "judge-"
+            }
+          },
+          {
+            "admissible": false,
+            "judge": {
+              "model": "judge-𐀀"
+            }
+          }
+        ],
+        "window": []
+      },
+      "format": "felag/graduation-input@0",
+      "input": {
+        "criterionId": "jc-1",
+        "implementation": "impl-a",
+        "records": [
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-𐀀"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-02T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          }
+        ],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 3,
+                "runs": 3
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-grad-mixed-judges",
       "contractId": "c-verification",
       "description": "Judge-a calibrated, judge-b lazy: judge-b's latest fail never qualifies, the window is judge-a's two passes - satisfied. Admitting the uncalibrated judge's records splits the window and refuses. Provenance lists both judges with computed admissibility.",
@@ -3107,7 +3254,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -3115,6 +3261,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -3122,7 +3269,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -3130,6 +3276,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -3137,7 +3284,6 @@
           {
             "at": "2026-05-01T00:02:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -3145,6 +3291,7 @@
             "judge": {
               "model": "judge-b"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -3152,7 +3299,6 @@
           {
             "at": "2026-05-01T00:03:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -3160,6 +3306,7 @@
             "judge": {
               "model": "judge-b"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -3168,13 +3315,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3183,13 +3330,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3198,13 +3345,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-b"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -3254,6 +3401,101 @@
               "tolerance": {
                 "agreement": 2,
                 "runs": 2
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-grad-no-records",
+      "contractId": "c-verification",
+      "description": "Adequate corpus, no records at all: zero admissible judges among the input's records - no-admissible-judge, judges and window empty. An implementation answering insufficient-evidence misreads the precedence.",
+      "expected": {
+        "basis": "no-admissible-judge",
+        "errors": [],
+        "graduated": false,
+        "judges": [],
+        "window": []
+      },
+      "format": "felag/graduation-input@0",
+      "input": {
+        "criterionId": "jc-1",
+        "implementation": "impl-a",
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 3,
+                "runs": 3
               }
             },
             "record": "criterion",
@@ -3400,7 +3642,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -3408,6 +3649,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -3415,7 +3657,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -3423,6 +3664,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -3431,13 +3673,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -3446,13 +3688,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -3461,13 +3703,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -3600,7 +3842,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -3608,6 +3849,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -3615,7 +3857,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -3623,6 +3864,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -3631,13 +3873,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3646,13 +3888,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3661,13 +3903,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -3870,13 +4112,13 @@
             "at": "yesterday",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4090,7 +4332,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -4098,6 +4339,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -4105,7 +4347,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:b0f81ae3ff9b14f495e300c46e18ad0c378dc1f795616653b1d8efc880c30976",
@@ -4113,6 +4354,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4121,13 +4363,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4136,13 +4378,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4151,13 +4393,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4245,7 +4487,7 @@
       "record": "fixture",
       "id": "fx-grad-stale-criterion",
       "contractId": "c-verification",
-      "description": "A target record whose criterionHash binds an amended (older) criterion line is stale and never qualifies: two current records remain - insufficient-evidence. Amending a rubric resets the evidence loudly.",
+      "description": "A target record whose judgmentHash binds an amended (older) criterion text is stale and never qualifies: two current records remain - insufficient-evidence, window empty even though records qualify. Amending the judged text resets the evidence loudly.",
       "expected": {
         "basis": "insufficient-evidence",
         "errors": [],
@@ -4268,7 +4510,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -4276,6 +4517,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -4283,7 +4525,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -4291,6 +4532,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4299,13 +4541,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:b13f7faeb25685706d6efc896cdd51b40cdd8fb5b96f03fcf984045922c32891",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:2fe4f2f4d2b2b600c33e06e44d59a59afa47cecd98933f4085cc8c3aafcb7748",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4314,13 +4556,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4329,13 +4571,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4423,7 +4665,7 @@
       "record": "fixture",
       "id": "fx-grad-tie-index",
       "contractId": "c-verification",
-      "description": "Equal instants under different offsets (12:00Z and 14:00+02:00) tie to the greatest array index - the later-submitted fail wins the window and the basis is reproducible-fail. A first-submitted tiebreak wrongly graduates.",
+      "description": "Equal instants under different offsets (12:00Z and 14:00+02:00) tie to the greatest array index - the later-submitted fail wins the window and the basis is reproducible-fail; the window entry carries the at exactly as recorded, never normalized. A first-submitted tiebreak wrongly graduates.",
       "expected": {
         "basis": "reproducible-fail",
         "errors": [],
@@ -4454,7 +4696,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -4462,6 +4703,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -4469,7 +4711,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -4477,6 +4718,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4485,13 +4727,13 @@
             "at": "2026-06-01T12:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4500,13 +4742,13 @@
             "at": "2026-06-01T14:00:00+02:00",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -4617,7 +4859,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -4625,6 +4866,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4632,7 +4874,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -4640,6 +4881,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4648,13 +4890,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4663,13 +4905,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4678,13 +4920,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4914,7 +5156,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -4922,6 +5163,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -4929,7 +5171,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -4937,6 +5178,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -4945,13 +5187,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -4960,13 +5202,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -4975,13 +5217,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5114,7 +5356,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -5122,6 +5363,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -5129,7 +5371,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -5137,6 +5378,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -5145,13 +5387,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5160,13 +5402,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5175,13 +5417,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5190,13 +5432,13 @@
             "at": "2026-06-04T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "unverifiable"
@@ -5307,7 +5549,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -5315,6 +5556,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -5322,7 +5564,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -5330,6 +5571,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -5338,13 +5580,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "0.9.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5353,13 +5595,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5368,13 +5610,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5500,7 +5742,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -5508,6 +5749,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -5515,7 +5757,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -5523,6 +5764,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -5531,13 +5773,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -5546,13 +5788,13 @@
             "at": "2026-06-02T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -5561,13 +5803,13 @@
             "at": "2026-06-03T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -5576,13 +5818,13 @@
             "at": "2026-06-04T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:23542b8bfa7cc44a7b458c9218b16d4fedfc1c903c6408199329edcc1697c391",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -6774,6 +7016,34 @@
     },
     {
       "record": "fixture",
+      "id": "fx-jud-ingest-bad-hash",
+      "contractId": "c-verification",
+      "description": "A judgmentHash that is not sha256: plus 64 lowercase hex is rejected with E_SCHEMA at the ledger's front door.",
+      "expected": {
+        "accepted": false,
+        "errors": [
+          "E_SCHEMA"
+        ]
+      },
+      "format": "felag/judgment-ingest@0",
+      "input": {
+        "at": "2026-06-01T00:00:00Z",
+        "attribution": "fixture",
+        "conformanceVersion": "1.0.0",
+        "criterionId": "jc-1",
+        "evidence": "target run",
+        "implementation": "impl-a",
+        "judge": {
+          "model": "judge-a"
+        },
+        "judgmentHash": "sha256:not-64-lowercase-hex",
+        "kind": "target",
+        "runner": "harness",
+        "verdict": "pass"
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-jud-ingest-calibration",
       "contractId": "c-verification",
       "description": "A calibration JudgmentRecord with all kind-required fields is accepted.",
@@ -6785,7 +7055,6 @@
       "input": {
         "at": "2026-06-01T00:00:00Z",
         "attribution": "fixture",
-        "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
         "criterionId": "jc-1",
         "evidence": "calibration run",
         "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -6793,6 +7062,7 @@
         "judge": {
           "model": "judge-a"
         },
+        "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
         "kind": "calibration",
         "runner": "harness",
         "verdict": "pass"
@@ -6802,7 +7072,7 @@
       "record": "fixture",
       "id": "fx-jud-ingest-invalid",
       "contractId": "c-verification",
-      "description": "Missing criterionHash, a verdict outside the enum, and a judge object with keys beyond model: all three defects named - E_BAD_VERDICT, E_MISSING_FIELD, E_SCHEMA.",
+      "description": "Missing judgmentHash, a verdict outside the enum, and a judge object with keys beyond model: all three defects named - E_BAD_VERDICT, E_MISSING_FIELD, E_SCHEMA.",
       "expected": {
         "accepted": false,
         "errors": [
@@ -6832,7 +7102,7 @@
       "record": "fixture",
       "id": "fx-jud-ingest-kind",
       "contractId": "c-verification",
-      "description": "A calibration record carrying implementation (kind-forbidden) and missing fixtureHash (kind-required): E_MISSING_FIELD and E_SCHEMA co-fire - calibration is a property of the judge, not of anyone's conduct.",
+      "description": "A calibration record carrying implementation AND conformanceVersion (both kind-forbidden) and missing fixtureHash (kind-required): E_MISSING_FIELD and E_SCHEMA co-fire - calibration is a property of the judge, not of anyone's conduct.",
       "expected": {
         "accepted": false,
         "errors": [
@@ -6844,7 +7114,7 @@
       "input": {
         "at": "2026-06-01T00:00:00Z",
         "attribution": "fixture",
-        "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
+        "conformanceVersion": "1.0.0",
         "criterionId": "jc-1",
         "evidence": "calibration run",
         "fixtureId": "anchor-pass",
@@ -6852,6 +7122,7 @@
         "judge": {
           "model": "judge-a"
         },
+        "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
         "kind": "calibration",
         "runner": "harness",
         "verdict": "pass"
@@ -6861,7 +7132,7 @@
       "record": "fixture",
       "id": "fx-jud-ingest-kind-target",
       "contractId": "c-verification",
-      "description": "A target record carrying fixtureId (kind-forbidden) and missing conformanceVersion (kind-required): E_MISSING_FIELD and E_SCHEMA co-fire.",
+      "description": "A target record carrying fixtureId AND fixtureHash (both kind-forbidden) and missing conformanceVersion (kind-required): E_MISSING_FIELD and E_SCHEMA co-fire.",
       "expected": {
         "accepted": false,
         "errors": [
@@ -6873,14 +7144,15 @@
       "input": {
         "at": "2026-06-01T00:00:00Z",
         "attribution": "fixture",
-        "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
         "criterionId": "jc-1",
         "evidence": "target run",
+        "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
         "fixtureId": "anchor-pass",
         "implementation": "impl-a",
         "judge": {
           "model": "judge-a"
         },
+        "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
         "kind": "target",
         "runner": "harness",
         "verdict": "pass"
@@ -6900,13 +7172,13 @@
         "at": "2026-06-01T00:00:00Z",
         "attribution": "fixture",
         "conformanceVersion": "1.0.0",
-        "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
         "criterionId": "jc-1",
         "evidence": "target run",
         "implementation": "impl-a",
         "judge": {
           "model": "judge-a"
         },
+        "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
         "kind": "target",
         "runner": "harness",
         "verdict": "pass"
@@ -11418,7 +11690,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -11426,6 +11697,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -11433,7 +11705,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -11441,6 +11712,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -11449,13 +11721,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -11568,6 +11840,372 @@
     },
     {
       "record": "fixture",
+      "id": "fx-verdict-graduated-disputed-disputer",
+      "contractId": "c-verification",
+      "description": "A disputed graduatable judgment criterion does not gate the disputer: with no judgment evidence at all the disputer still conforms, the dispute listed loudly.",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [
+          "jc-1"
+        ],
+        "failing": [],
+        "implementation": "impl-a",
+        "verdict": "conforms",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-10T00:00:00Z",
+        "implementation": "impl-a",
+        "judgmentRecords": [],
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "dispute": {
+              "at": "2026-06-05T00:00:00Z",
+              "by": "impl-a",
+              "reason": "rubric scope disputed"
+            },
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "disputed",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-verdict-graduated-disputed-evidence",
+      "contractId": "c-verification",
+      "description": "A third party's dispute stales no evidence: impl-b's records, gathered before the dispute, still graduate the now-disputed criterion - conforms, dispute listed loudly. An implementation binding the hash to the full criterion line (state and dispute included) wrongly drifts here.",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [
+          "jc-1"
+        ],
+        "failing": [],
+        "implementation": "impl-b",
+        "verdict": "conforms",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-10T00:00:00Z",
+        "implementation": "impl-b",
+        "judgmentRecords": [
+          {
+            "at": "2026-05-01T00:00:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
+            "fixtureId": "anchor-fail",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-05-01T00:01:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
+            "fixtureId": "anchor-pass",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-b",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          }
+        ],
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "dispute": {
+              "at": "2026-06-05T00:00:00Z",
+              "by": "impl-a",
+              "reason": "rubric scope disputed"
+            },
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "disputed",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-verdict-graduated-disputed-other",
+      "contractId": "c-verification",
+      "description": "The same disputed graduatable criterion gates every other implementer: impl-b with no judgment evidence drifts at it, the dispute listed loudly.",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [
+          "jc-1"
+        ],
+        "failing": [
+          "jc-1"
+        ],
+        "implementation": "impl-b",
+        "verdict": "drifts",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-10T00:00:00Z",
+        "implementation": "impl-b",
+        "judgmentRecords": [],
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "dispute": {
+              "at": "2026-06-05T00:00:00Z",
+              "by": "impl-a",
+              "reason": "rubric scope disputed"
+            },
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "disputed",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-verdict-graduated-drifts",
       "contractId": "c-verification",
       "description": "A gating judgment criterion whose window reproducibly fails: the criterion fails like any other gating criterion - verdict drifts, named in failing.",
@@ -11590,7 +12228,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -11598,6 +12235,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -11605,7 +12243,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -11613,6 +12250,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -11621,13 +12259,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:ba40abef50db0c893f0c45545615e8eb39d41a174c0f8e046c422a529ae57a25",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "fail"
@@ -11737,7 +12375,6 @@
           {
             "at": "2026-05-01T00:00:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
@@ -11745,6 +12382,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "fail"
@@ -11752,7 +12390,6 @@
           {
             "at": "2026-05-01T00:01:00Z",
             "attribution": "fixture",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "calibration run",
             "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
@@ -11760,6 +12397,7 @@
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "calibration",
             "runner": "harness",
             "verdict": "pass"
@@ -11768,13 +12406,13 @@
             "at": "2026-06-01T00:00:00Z",
             "attribution": "fixture",
             "conformanceVersion": "1.0.0",
-            "criterionHash": "sha256:afd8a674b88334c79c697c0a142f84bfa24178fb59466937d288c450ead62171",
             "criterionId": "jc-1",
             "evidence": "target run",
             "implementation": "impl-a",
             "judge": {
               "model": "judge-a"
             },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
             "kind": "target",
             "runner": "harness",
             "verdict": "pass"
@@ -12086,6 +12724,399 @@
             "id": "fx1",
             "input": {
               "x": 1
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-verdict-judgment-poisoned",
+      "contractId": "c-verification",
+      "description": "Evidence that would graduate the criterion plus one record ingestJudgment rejects (unparseable at): G1 fails the input through D1J - not graduated, drifts, fail closed. Filtering the bad record out and proceeding wrongly conforms.",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [],
+        "failing": [
+          "jc-1"
+        ],
+        "implementation": "impl-a",
+        "verdict": "drifts",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-10T00:00:00Z",
+        "implementation": "impl-a",
+        "judgmentRecords": [
+          {
+            "at": "2026-05-01T00:00:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
+            "fixtureId": "anchor-fail",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-05-01T00:01:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
+            "fixtureId": "anchor-pass",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "not-a-time",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          }
+        ],
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ],
+        "waivers": []
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-verdict-judgment-poisoned-cross",
+      "contractId": "c-verification",
+      "description": "Two gating judgment criteria, each with pristine graduating evidence, plus one rejected record naming only jc-2: the FULL judgmentRecords array is validated for every graduation, so BOTH criteria fail - drifts with failing [jc-1, jc-2]. An implementation that filters records per criterion before graduating wrongly conforms on jc-1.",
+      "expected": {
+        "advisory": [],
+        "conformanceVersion": "1.0.0",
+        "disputed": [],
+        "failing": [
+          "jc-1",
+          "jc-2"
+        ],
+        "implementation": "impl-a",
+        "verdict": "drifts",
+        "waived": []
+      },
+      "format": "felag/verify-input@0",
+      "input": {
+        "asOf": "2026-06-10T00:00:00Z",
+        "implementation": "impl-a",
+        "judgmentRecords": [
+          {
+            "at": "2026-05-01T00:00:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
+            "fixtureId": "anchor-fail",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-05-01T00:01:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
+            "fixtureId": "anchor-pass",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-05-01T00:00:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-2",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
+            "fixtureId": "anchor-fail",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:8d875b9581d40f644f03dc10d3cd7defdf8bd72046660890725ac549544cd3f4",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-05-01T00:01:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-2",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:e5fc75455b8dd5031f571b7c54d04c9ab04b389252f38c0ad35f453b4de2f0f3",
+            "fixtureId": "anchor-pass",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:8d875b9581d40f644f03dc10d3cd7defdf8bd72046660890725ac549544cd3f4",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-2",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:8d875b9581d40f644f03dc10d3cd7defdf8bd72046660890725ac549544cd3f4",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "not-a-time",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-2",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:8d875b9581d40f644f03dc10d3cd7defdf8bd72046660890725ac549544cd3f4",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          }
+        ],
+        "records": [],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-2",
+            "item": "While reporting conformance, the implementation shall state waiver expiry plainly.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Does the report state waiver expiry plainly?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
             },
             "record": "fixture"
           }
@@ -12953,14 +13984,14 @@
   "transition": {
     "criterionId": "ac-gate-graduated",
     "to": "active",
-    "requestedAt": "2026-06-13T00:45:44.514Z",
+    "requestedAt": "2026-06-13T01:11:04.606Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T00:45:44.514Z",
-        "criterionHash": "sha256:0ad3fe85463db9e4803d48831988bda4547e965e69ac4665dddb4164eec1777f"
+        "at": "2026-06-13T01:11:04.606Z",
+        "criterionHash": "sha256:723b820618b9d6f27f7455fdc6ce267e7ed35bbe5e9e204b87c988d05f73b5d2"
       }
     ]
   }

@@ -159,11 +159,13 @@ export interface VerifyInput {
  * VerificationRecord. kind calibration: the judge shown an anchor fixture
  * (fixtureId/fixtureHash required, implementation-free). kind target: the
  * judge shown an implementation's actual conduct (implementation and
- * conformanceVersion required). criterionHash binds both kinds to the
- * criterion line as judged. */
+ * conformanceVersion required). judgmentHash binds both kinds to the
+ * judgment projection — exactly what the judge was shown: {criterionId,
+ * rubric, text}. Governance edits (state, dispute, tolerance, fixtures)
+ * never stale evidence; text or rubric edits stale everything. */
 export interface JudgmentRecord {
   criterionId: string;
-  criterionHash: string; // required on BOTH kinds — the criterion text IS the contract
+  judgmentHash: string; // required on BOTH kinds — the judged text IS the contract
   kind: "calibration" | "target";
   fixtureId?: string; // calibration only (required there)
   fixtureHash?: string; // calibration only (required there)

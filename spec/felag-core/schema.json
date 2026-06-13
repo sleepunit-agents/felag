@@ -175,10 +175,10 @@
     },
     "judgmentRecord": {
       "type": "object",
-      "description": "A judge's verdict as recorded evidence — the judgment analog of VerificationRecord (it-judgment). criterionHash binds both kinds to the criterion line as judged. kind calibration: anchor-bound, implementation-free. kind target: conduct-bound, anchor-free.",
+      "description": "A judge's verdict as recorded evidence — the judgment analog of VerificationRecord (it-judgment). judgmentHash binds both kinds to the judgment projection {criterionId, rubric, text} — exactly what the judge was shown; governance edits (state, dispute, tolerance, fixtures) never stale evidence, text or rubric edits stale everything. kind calibration: anchor-bound, implementation-free. kind target: conduct-bound, anchor-free.",
       "properties": {
         "criterionId": {"$ref": "#/$defs/id"},
-        "criterionHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "judgmentHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
         "kind": {"enum": ["calibration", "target"]},
         "fixtureId": {"$ref": "#/$defs/id"},
         "fixtureHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
@@ -191,7 +191,7 @@
         "at": {"$ref": "#/$defs/timestamp"},
         "attribution": {"$ref": "#/$defs/attribution"}
       },
-      "required": ["criterionId", "criterionHash", "kind", "judge", "verdict", "evidence", "runner", "at", "attribution"],
+      "required": ["criterionId", "judgmentHash", "kind", "judge", "verdict", "evidence", "runner", "at", "attribution"],
       "additionalProperties": false,
       "allOf": [
         {

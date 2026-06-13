@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-gate-graduated",
   "to": "active",
-  "requestedAt": "2026-06-13T00:45:44.514Z",
+  "requestedAt": "2026-06-13T01:11:04.606Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T00:45:44.514Z",
-      "criterionHash": "sha256:0ad3fe85463db9e4803d48831988bda4547e965e69ac4665dddb4164eec1777f"
+      "at": "2026-06-13T01:11:04.606Z",
+      "criterionHash": "sha256:723b820618b9d6f27f7455fdc6ce267e7ed35bbe5e9e204b87c988d05f73b5d2"
     }
   ]
 }

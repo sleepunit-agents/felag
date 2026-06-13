@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-lint-tolerance",
   "to": "active",
-  "requestedAt": "2026-06-13T00:45:44.493Z",
+  "requestedAt": "2026-06-13T01:11:04.580Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T00:45:44.493Z",
+      "at": "2026-06-13T01:11:04.580Z",
       "criterionHash": "sha256:8891b736b8e8071d200764df0341ca1836a541776a071b3883ab0f857ee9e6ed"
     }
   ]
