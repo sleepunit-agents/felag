@@ -194,6 +194,9 @@ function styles(root) {
   #${root} .fw-empty{font-size:0.74rem;color:var(--color-text-tertiary);padding:0.5rem 0}
   #${root} .fw-detail{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0.7rem 0.9rem;background:var(--color-background-primary)}
   #${root} .fw-meta{font-size:0.74rem;color:var(--color-text-tertiary);margin:0.3rem 0}
+  #${root} .fw-chips{display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.2rem 0 0.5rem}
+  #${root} .fw-chip{font-family:ui-monospace,monospace;font-size:0.7rem;padding:0.1rem 0.45rem;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary)}
+  #${root} .fw-chip-out{font-family:ui-monospace,monospace;font-size:0.7rem;padding:0.1rem 0.45rem;border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-tertiary);border:0.5px dashed var(--color-border-secondary);text-decoration:line-through}
   </style>`;
 }
 
@@ -672,6 +675,77 @@ export function renderReviewWidget(model) {
   </div>`;
 }
 
+// --- render -------------------------------------------------------------
+
+// The three audiences felag projects a spec for, in visibility-ramp order:
+// stakeholder (least) → developer → verifier (everything). Each is a DISTINCT
+// server-side projection, so the audience toggle re-renders via sendPrompt
+// rather than switching a client-side pane (unlike status's Spec⟷Board toggle,
+// which holds both datasets) — a render widget carries one audience's inventory
+// at a time. The desc is the one-line "what this audience sees".
+const AUDIENCES = [
+  { key: "stakeholder", label: "Stakeholder", desc: "what a non-implementer sees — items and active criteria; no fixtures, no internal fields." },
+  { key: "developer", label: "Developer", desc: "the build view — items, criteria, and fixtures; every field visible." },
+  { key: "verifier", label: "Verifier", desc: "the full record — everything, including deprecated criteria." },
+];
+
+// From `felag render <spec> --audience <a>` (a RenderInventory: {included,
+// excludedFields}): an audience toggle, the included record ids as a compact
+// chip list, and the excludedFields as muted "hidden from this audience" chips.
+// The inventory is vendor-neutral and carries no spec name; the skill may set
+// `inventory.spec` so the re-render intents name the spec (graceful fallback to
+// "the spec", mirroring verify's `implementation`). The audience buttons DRAFT a
+// re-render — each audience is a fresh projection, not a client-side pane swap.
+export function renderRenderWidget(inventory, audience) {
+  const root = `fw-render-${_wid++}`;
+  const inv = inventory ?? {};
+  const included = inv.included ?? [];
+  const excluded = inv.excludedFields ?? [];
+  const spec = inv.spec ?? "the spec";
+  const aud = String(audience ?? "stakeholder").toLowerCase();
+  const meta = AUDIENCES.find((a) => a.key === aud) ?? AUDIENCES[0];
+  const who = meta.label.toLowerCase();
+
+  const summary = `${spec} render for ${who} — ${included.length} record${included.length === 1 ? "" : "s"} included, ${excluded.length} field${excluded.length === 1 ? "" : "s"} hidden`;
+
+  // Audience toggle: a segmented control, current audience pressed. Every button
+  // drafts a re-render (no leading slash — a slash would trip command parsing);
+  // the pressed one re-drafts its own audience, the others switch.
+  const toggle = `<div class="fw-toggle" role="group" aria-label="Audience">
+    ${AUDIENCES.map((a) =>
+      `<button type="button" data-aud="${a.key}" aria-pressed="${a.key === aud}" onclick="${attr(`sendPrompt('felag: render ${jsStr(spec)} for ${a.key}')`)}">${esc(a.label)}</button>`,
+    ).join("")}
+  </div>`;
+
+  const includedChips = included.length
+    ? `<div class="fw-chips">${included.map((id) => `<span class="fw-chip">${esc(id)}</span>`).join("")}</div>`
+    : `<p class="fw-empty">No records included for this audience.</p>`;
+
+  const excludedSection = excluded.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Hidden from this audience <span class="fw-section-desc" style="display:inline">${excluded.length}</span></div>
+        <p class="fw-section-desc">Fields projected out for ${esc(who)}s — present in the record, withheld from this view.</p>
+        <div class="fw-chips">${excluded.map((f) => `<span class="fw-chip-out">${esc(f)}</span>`).join("")}</div>
+      </div>`
+    : `<p class="fw-section-desc"><i class="ti ti-eye"></i> Every field is visible to ${esc(who)}s — nothing projected out.</p>`;
+
+  return `<div id="${root}" class="felag-widget">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    <div class="fw-header">
+      <span class="fw-name">${esc(spec)}</span>
+      <span class="fw-pill" style="background:var(--color-background-info)">Render</span>
+    </div>
+    ${toggle}
+    <p class="fw-section-desc">${esc(meta.desc)}</p>
+    <div class="fw-section">
+      <div class="fw-section-title">Included <span class="fw-section-desc" style="display:inline">${included.length}</span></div>
+      ${includedChips}
+    </div>
+    ${excludedSection}
+  </div>`;
+}
+
 // Thin dispatcher so future skills stay one-liners (design: renderFelagWidget).
 export function renderFelagWidget(kind, model) {
   switch (kind) {
@@ -680,6 +754,7 @@ export function renderFelagWidget(kind, model) {
     case "verify": return renderVerifyWidget(model);
     case "audit": return renderAuditWidget(model);
     case "review": return renderReviewWidget(model);
+    case "render": return renderRenderWidget(model, model?.audience);
     default: throw new Error(`unknown felag widget kind: ${kind}`);
   }
 }

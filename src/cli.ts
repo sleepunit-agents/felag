@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // felag CLI — thin shell over the library.
-// Verbs: lint, fmt, hash, verify, graduate, prime, audit, promote, tasks.
+// Verbs: lint, fmt, hash, verify, graduate, prime, audit, render, promote, tasks.
 
 import { readFileSync, writeFileSync, existsSync, watch } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
@@ -11,13 +11,14 @@ import { verify } from "./verify.js";
 import { graduate } from "./graduation.js";
 import { promote } from "./promotion.js";
 import { emitPrime } from "./prime.js";
+import { renderInventory } from "./author.js";
 import { audit } from "./audit.js";
 import { computeStatus, renderStatusHTML } from "./status.js";
 import { TaskStore } from "./tasks/store.js";
 import { BeadsWorkLayer } from "./shims/beads.js";
 import type { WorkLayer } from "./tasks/layer.js";
 import type { TaskStatus } from "./tasks/store.js";
-import type { Criterion, Fixture, SpecRecord, VerifyInput } from "./records.js";
+import type { Criterion, Fixture, RenderInventoryInput, SpecRecord, VerifyInput } from "./records.js";
 
 function flagValue(args: string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -119,6 +120,35 @@ switch (verb) {
   case "prime": {
     // felag prime <spec-dir> — emit the author-class protocol brief.
     console.log(emitPrime(loadSpecDir(args[0] ?? ".")));
+    process.exit(0);
+  }
+  case "render": {
+    // felag render <spec-dir> --audience <stakeholder|developer|verifier> [--json]
+    // Audience content projection — emits the RenderInventory ({included,
+    // excludedFields}) as JSON. render is excluded surface (no contract, no
+    // gate); the JSON lets a presentation client (a Claude skill) get the
+    // projection without MCP wiring. JSON is the only output shape, so --json is
+    // accepted but a harmless no-op — there for muscle-memory parity with
+    // `felag status --json`.
+    const VALUE_FLAGS = new Set(["--audience"]);
+    const positional: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a)) i++; continue; }
+      positional.push(a);
+    }
+    const dir = positional[0] ?? ".";
+    const audience = flagValue(args, "--audience");
+    const AUDIENCES = new Set(["stakeholder", "developer", "verifier"]);
+    if (!audience || !AUDIENCES.has(audience)) {
+      console.error("usage: felag render <spec-dir> --audience <stakeholder|developer|verifier> [--json]");
+      process.exit(2);
+    }
+    const inventory = renderInventory({
+      spec: loadSpecDir(dir),
+      audience: audience as RenderInventoryInput["audience"],
+    });
+    console.log(JSON.stringify(inventory, null, 2));
     process.exit(0);
   }
   case "audit": {
