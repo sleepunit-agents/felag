@@ -87,14 +87,67 @@ amend(
 //      - ac-gate-descriptive (c-verification, it-gating): the load-bearing new
 //        law — descriptive never gates. Owns only the verify fixture, so the
 //        verifier class is satisfiable without implementing lint.
-//      - ac-int-state-enum (c-interchange, it-interchange): the structural
-//        schema rule — the criterion state field admits the lifecycle enum
-//        (now including descriptive, orthogonal to source) and lint rejects any
-//        other value (E_SCHEMA). A state-field validity rule is an interchange
-//        structural concern (c-interchange's declared scope), parallel to
-//        ac-int-payload-number's field-value rule; it goes in it-interchange,
-//        which has budget room, NOT it-lint (at the 7-criteria cap by design).
+//      - ac-lint-state-enum (c-interchange, it-lint): the lint rule — the
+//        criterion state field admits the lifecycle enum (now including
+//        descriptive, orthogonal to source) and lint rejects any other value
+//        (E_SCHEMA). E_SCHEMA is it-lint's documented domain; its fixtures are
+//        felag/lint-input@0, so it belongs in it-lint with every other lint
+//        criterion, NOT in it-interchange (which is canonical serialization and
+//        defers field validity to the schema).
+//    it-lint sits at the 7-criteria budget cap, so we first CONSOLIDATE the two
+//    proposed roster-integrity criteria (ac-lint-multiple-owners +
+//    ac-lint-duplicate-implementer) into one ac-lint-roster — both proposed,
+//    both presupposed by promotion's roster resolution, already described as a
+//    pair in it-lint's body — freeing the slot honestly (it-lint stays at 7).
 // ---------------------------------------------------------------------------
+
+function lastIndexOfCluster(itemId: string): number {
+  let last = -1;
+  spec.forEach((r, i) => {
+    if ((r.record === "item" && r.id === itemId) || (r.record === "criterion" && (r as Criterion).itemId === itemId)) {
+      last = i;
+    }
+  });
+  if (last === -1) throw new Error(`cluster ${itemId} not found`);
+  return last;
+}
+
+// Remove the two proposed roster criteria (consolidated below).
+for (const id of ["ac-lint-multiple-owners", "ac-lint-duplicate-implementer"]) {
+  const i = spec.findIndex((r) => r.record === "criterion" && r.id === id);
+  if (i === -1) throw new Error(`${id} not found`);
+  spec.splice(i, 1);
+}
+
+const acLintRoster: Criterion = {
+  record: "criterion",
+  id: "ac-lint-roster",
+  itemId: "it-lint",
+  contractId: "c-interchange",
+  type: "scenario",
+  class: "behavioral",
+  force: "MUST",
+  state: "proposed",
+  source: "forethought",
+  gherkin:
+    "Given a preamble whose roster carries the repo-owner role on more than one entry\nWhen lint runs\nThen the spec is rejected with E_MULTIPLE_OWNERS (ref preamble)\nAnd given a preamble whose roster contains two entries with the same name, the spec is rejected with E_DUPLICATE_IMPLEMENTER naming the duplicated name",
+  fixtures: ["fx-lint-multiple-owners", "fx-lint-duplicate-implementer"],
+};
+
+const acLintStateEnum: Criterion = {
+  record: "criterion",
+  id: "ac-lint-state-enum",
+  itemId: "it-lint",
+  contractId: "c-interchange",
+  type: "scenario",
+  class: "behavioral",
+  force: "MUST",
+  state: "proposed",
+  source: "forethought",
+  gherkin:
+    "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
+  fixtures: ["fx-lint-descriptive-valid", "fx-lint-unknown-state"],
+};
 
 const acGateDescriptive: Criterion = {
   record: "criterion",
@@ -111,33 +164,9 @@ const acGateDescriptive: Criterion = {
   fixtures: ["fx-verdict-descriptive-ignored"],
 };
 
-const acIntStateEnum: Criterion = {
-  record: "criterion",
-  id: "ac-int-state-enum",
-  itemId: "it-interchange",
-  contractId: "c-interchange",
-  type: "scenario",
-  class: "behavioral",
-  force: "MUST",
-  state: "proposed",
-  source: "forethought",
-  gherkin:
-    "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
-  fixtures: ["fx-lint-descriptive-valid", "fx-lint-unknown-state"],
-};
-
-// Splice each new criterion at the end of its item's cluster (CS7 ordering).
-function lastIndexOfCluster(itemId: string): number {
-  let last = -1;
-  spec.forEach((r, i) => {
-    if ((r.record === "item" && r.id === itemId) || (r.record === "criterion" && (r as Criterion).itemId === itemId)) {
-      last = i;
-    }
-  });
-  if (last === -1) throw new Error(`cluster ${itemId} not found`);
-  return last;
-}
-spec.splice(lastIndexOfCluster("it-interchange") + 1, 0, acIntStateEnum);
+// Splice at the end of each item's cluster (CS7 ordering); it-lint precedes
+// it-gating, recompute after each insertion.
+spec.splice(lastIndexOfCluster("it-lint") + 1, 0, acLintRoster, acLintStateEnum);
 spec.splice(lastIndexOfCluster("it-gating") + 1, 0, acGateDescriptive);
 
 // ---------------------------------------------------------------------------
@@ -338,7 +367,7 @@ if (!lintResult.valid) {
   console.error(JSON.stringify(lintResult, null, 2));
   throw new Error("lint failed");
 }
-const authorResult = validateAuthorOutput({ spec: all, new: ["ac-gate-descriptive", "ac-int-state-enum"] });
+const authorResult = validateAuthorOutput({ spec: all, new: ["ac-gate-descriptive", "ac-lint-state-enum", "ac-lint-roster"] });
 if (!authorResult.valid) {
   console.error(JSON.stringify(authorResult, null, 2));
   throw new Error("validateAuthorOutput failed");

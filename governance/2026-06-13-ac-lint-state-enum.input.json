@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T06:53:55.524Z",
+  "asOf": "2026-06-13T07:10:00.483Z",
   "spec": [
     {
       "record": "preamble",
@@ -118,22 +118,6 @@
       "type": "scenario"
     },
     {
-      "record": "criterion",
-      "id": "ac-int-state-enum",
-      "class": "behavioral",
-      "contractId": "c-interchange",
-      "fixtures": [
-        "fx-lint-descriptive-valid",
-        "fx-lint-unknown-state"
-      ],
-      "force": "MUST",
-      "gherkin": "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
-      "itemId": "it-interchange",
-      "source": "forethought",
-      "state": "proposed",
-      "type": "scenario"
-    },
-    {
       "record": "item",
       "id": "it-lint",
       "body": "lint is the merge gate of the interchange class: schema validity, unique ids across all records, declared-contract membership, the fixture rule, and version-bump consistency. Closed-world scope is enforced structurally: the preamble's contracts are the allowlist, and a criterion referencing a contractId not declared there is invalid. A criterion with no contractId is not an error: it is advisory by construction and can never gate.\n\nLint result format (derived during compilation; the design defines no tool output formats): {\"valid\": boolean, \"errors\": [{\"code\", \"ref\"}]} with errors sorted ascending by (code, ref) and ref naming the offending record id. Error codes at 1.0.0: E_SCHEMA (record fails the JSON Schema), E_DUPLICATE_ID, E_UNDECLARED_CONTRACT, E_MISSING_FIXTURES, E_UNKNOWN_FIXTURE (a fixtures entry names no fixture record), and the roster checks E_DUPLICATE_IMPLEMENTER (two roster entries share a name; ref is the duplicated name) and E_MULTIPLE_OWNERS (more than one roster entry carries the repo-owner role; ref is 'preamble') - roster-reference resolution and the promotion tiebreak both presuppose them. At 3.0.0: E_BAD_TOLERANCE - a judgment object's tolerance violating 2 x agreement > runs, or carrying agreement > runs, naming the criterion (the first would let reproducible-pass and reproducible-fail hold at once; the second is unreachable - a window of runs records can never carry more than runs agreeing verdicts; the schema constrains runs and agreement to integers >= 1, lint enforces both cross-field rules). E_MISSING_FIXTURES extends to graduation intent: a judgment criterion carrying a judgment object with an empty fixtures list is invalid - its fixtures are its calibration corpus (it-graduation), and a graduation bar with no anchors is bare assertion wearing a rubric.",
@@ -191,36 +175,6 @@
     },
     {
       "record": "criterion",
-      "id": "ac-lint-multiple-owners",
-      "class": "behavioral",
-      "contractId": "c-interchange",
-      "fixtures": [
-        "fx-lint-multiple-owners"
-      ],
-      "force": "MUST",
-      "gherkin": "Given a preamble whose roster carries the repo-owner role on more than one entry\nWhen lint runs\nThen the spec is rejected with E_MULTIPLE_OWNERS",
-      "itemId": "it-lint",
-      "source": "forethought",
-      "state": "proposed",
-      "type": "scenario"
-    },
-    {
-      "record": "criterion",
-      "id": "ac-lint-duplicate-implementer",
-      "class": "behavioral",
-      "contractId": "c-interchange",
-      "fixtures": [
-        "fx-lint-duplicate-implementer"
-      ],
-      "force": "MUST",
-      "gherkin": "Given a preamble whose roster contains two entries with the same name\nWhen lint runs\nThen the spec is rejected with E_DUPLICATE_IMPLEMENTER naming the duplicated name",
-      "itemId": "it-lint",
-      "source": "forethought",
-      "state": "proposed",
-      "type": "scenario"
-    },
-    {
-      "record": "criterion",
       "id": "ac-lint-tolerance",
       "class": "behavioral",
       "contractId": "c-interchange",
@@ -248,6 +202,38 @@
       "itemId": "it-lint",
       "source": "forethought",
       "state": "active",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
+      "id": "ac-lint-roster",
+      "class": "behavioral",
+      "contractId": "c-interchange",
+      "fixtures": [
+        "fx-lint-multiple-owners",
+        "fx-lint-duplicate-implementer"
+      ],
+      "force": "MUST",
+      "gherkin": "Given a preamble whose roster carries the repo-owner role on more than one entry\nWhen lint runs\nThen the spec is rejected with E_MULTIPLE_OWNERS (ref preamble)\nAnd given a preamble whose roster contains two entries with the same name, the spec is rejected with E_DUPLICATE_IMPLEMENTER naming the duplicated name",
+      "itemId": "it-lint",
+      "source": "forethought",
+      "state": "proposed",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
+      "id": "ac-lint-state-enum",
+      "class": "behavioral",
+      "contractId": "c-interchange",
+      "fixtures": [
+        "fx-lint-descriptive-valid",
+        "fx-lint-unknown-state"
+      ],
+      "force": "MUST",
+      "gherkin": "Given criterion records in state descriptive carrying source discovered and source forethought\nWhen lint validates the spec\nThen it is accepted - the state field admits descriptive, orthogonal to source\nAnd a criterion whose state is outside the lifecycle enum is rejected with E_SCHEMA naming it - the enum stays closed",
+      "itemId": "it-lint",
+      "source": "forethought",
+      "state": "proposed",
       "type": "scenario"
     },
     {
@@ -15696,16 +15682,16 @@
     }
   ],
   "transition": {
-    "criterionId": "ac-int-state-enum",
+    "criterionId": "ac-lint-state-enum",
     "to": "active",
-    "requestedAt": "2026-06-13T06:53:55.524Z",
+    "requestedAt": "2026-06-13T07:10:00.483Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T06:53:55.524Z",
-        "criterionHash": "sha256:ecccf1ea90369696c52e04819b7200d00714bd7c70d00d0e2e4cde36a0c6c0b4"
+        "at": "2026-06-13T07:10:00.483Z",
+        "criterionHash": "sha256:abb3bf7dc97d363b6286aef6927cbc4a1a5b6830880597a7eb28b04819de2652"
       }
     ]
   }

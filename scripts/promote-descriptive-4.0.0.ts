@@ -14,7 +14,7 @@ import type { Criterion, PromotionInput, SpecRecord } from "../src/records.js";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 const govDir = join(import.meta.dirname, "..", "governance");
 const DATE = "2026-06-13";
-const ORDER = ["ac-int-state-enum", "ac-gate-descriptive"];
+const ORDER = ["ac-lint-state-enum", "ac-gate-descriptive"];
 
 for (const criterionId of ORDER) {
   const spec = parse(readFileSync(join(dir, "spec.jsonl"), "utf8"));
