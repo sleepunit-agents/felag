@@ -96,6 +96,7 @@ draft governance actions you review and send:
 - `/felag verify` — the conformance report
 - `/felag audit` — drift → a work plan
 - `/felag review` — the cold-review loop to a MERGE verdict, rounds + findings
+- `/felag render <audience>` — the audience projection (stakeholder / developer / verifier), switch lens in place
 
 Install: copy `felag/skills/*` into your harness's skills dir. felag-core /
 felag-ts stay vendor-neutral; the skills are the "felag for Claude"
