@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { fixtureHash, parse, serialize } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
+import { graduate, ingestJudgment } from "../src/graduation.js";
 import { promote } from "../src/promotion.js";
 import {
   renderInventory,
@@ -59,6 +60,14 @@ describe("felag-core fixture corpus", () => {
         }
         case "felag/promotion-input@0": {
           expect(promote(fx.input)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/judgment-ingest@0": {
+          expect(ingestJudgment(fx.input)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/graduation-input@0": {
+          expect(graduate(fx.input)).toEqual(fx.expected);
           break;
         }
         case "felag/author-output@0": {

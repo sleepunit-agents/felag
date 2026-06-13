@@ -64,7 +64,20 @@ export interface Criterion {
   contractId?: string;
   fixtures: string[];
   dispute?: Dispute;
-  judgment?: { rubric: string; judgeConfig: string; reproducibility: string };
+  judgment?: Judgment;
+}
+
+/** Graduation intent (3.0.0): a judgment criterion carrying this object is
+ * graduatable — its fixtures list is its calibration corpus. tolerance
+ * defaults to {runs: 3, agreement: 3}, pinned in the graduation wire format. */
+export interface Judgment {
+  rubric: string;
+  tolerance?: Tolerance;
+}
+
+export interface Tolerance {
+  runs: number; // >= 1, integer
+  agreement: number; // >= 1, integer; lint enforces 2*agreement > runs
 }
 
 export interface Fixture {
@@ -137,6 +150,60 @@ export interface VerifyInput {
   records: VerificationRecord[];
   spec: SpecRecord[];
   waivers?: Waiver[];
+  judgmentRecords?: JudgmentRecord[]; // optional since 3.0.0; absent means empty
+}
+
+// ---- judgment verification (c-verification, 3.0.0) ----
+
+/** A judge's verdict as recorded evidence — the judgment analog of
+ * VerificationRecord. kind calibration: the judge shown an anchor fixture
+ * (fixtureId/fixtureHash required, implementation-free). kind target: the
+ * judge shown an implementation's actual conduct (implementation and
+ * conformanceVersion required). criterionHash binds both kinds to the
+ * criterion line as judged. */
+export interface JudgmentRecord {
+  criterionId: string;
+  criterionHash: string; // required on BOTH kinds — the criterion text IS the contract
+  kind: "calibration" | "target";
+  fixtureId?: string; // calibration only (required there)
+  fixtureHash?: string; // calibration only (required there)
+  implementation?: string; // target only (required there)
+  conformanceVersion?: string; // target only (required there)
+  judge: JudgeIdentity;
+  verdict: Verdict;
+  evidence: string;
+  runner: string;
+  at: string;
+  attribution: string;
+}
+
+/** Structured matching plumbing, NOT attribution: compared by canonical
+ * serialization equality only — never parsed, never ranked. */
+export interface JudgeIdentity {
+  model: string;
+}
+
+export type GraduationBasis =
+  | "satisfied"
+  | "reproducible-fail"
+  | "unreproducible"
+  | "insufficient-evidence"
+  | "no-admissible-judge"
+  | "corpus-inadequate";
+
+export interface GraduationInput {
+  criterionId: string;
+  implementation: string;
+  records: JudgmentRecord[];
+  spec: SpecRecord[];
+}
+
+export interface GraduationResult {
+  graduated: boolean;
+  errors: string[]; // guard codes; empty past the guards
+  basis: GraduationBasis | null; // null iff a guard fired
+  judges: { admissible: boolean; judge: JudgeIdentity }[]; // sorted by judge identity
+  window: { at: string; judge: JudgeIdentity; verdict: Verdict }[]; // selection order
 }
 
 // ---- felag/author class wire formats (c-author, proposed at 1.0.0) ----
