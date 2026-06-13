@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-fmt-roundtrip",
   "to": "active",
-  "requestedAt": "2026-06-13T14:18:20.972Z",
+  "requestedAt": "2026-06-13T14:30:23.976Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:18:20.972Z",
+      "at": "2026-06-13T14:30:23.976Z",
       "criterionHash": "sha256:554bedaff12c361574fb4dbdd0d64060891bfdc68b98e7c6db84091e9e946068"
     }
   ]

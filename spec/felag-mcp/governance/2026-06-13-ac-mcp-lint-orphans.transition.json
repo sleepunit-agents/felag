@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-mcp-lint-orphans",
   "to": "active",
-  "requestedAt": "2026-06-13T14:18:20.971Z",
+  "requestedAt": "2026-06-13T14:30:23.975Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:18:20.971Z",
-      "criterionHash": "sha256:25e4a1dd3ea4199118790d4097fdb73081314ccead40f854c280cec6e72f42d2"
+      "at": "2026-06-13T14:30:23.975Z",
+      "criterionHash": "sha256:d885c9dd25d682351d9bb8f1e5462d126359f18f16bec13ce9cfa4245657a9d5"
     }
   ]
 }

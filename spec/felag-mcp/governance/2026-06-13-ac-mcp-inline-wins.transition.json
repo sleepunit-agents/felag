@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-mcp-inline-wins",
   "to": "active",
-  "requestedAt": "2026-06-13T14:18:20.966Z",
+  "requestedAt": "2026-06-13T14:30:23.970Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:18:20.966Z",
-      "criterionHash": "sha256:18aa364a4b511b512e62b5a0a74070d0cb408cf252dbcd2061a3535a37e8fd63"
+      "at": "2026-06-13T14:30:23.970Z",
+      "criterionHash": "sha256:43edc0da1240b7ea99620996603196ae758b4a914bc7f0687e10a1300c92c008"
     }
   ]
 }

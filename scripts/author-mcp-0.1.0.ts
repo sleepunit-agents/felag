@@ -83,7 +83,7 @@ const items: Item[] = [
     id: "it-mcp-dispatch",
     title: "Dispatch and the result envelope",
     body:
-      "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
+      "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, asOf/transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nTwo partition rules a stranger needs to reproduce the codes exactly. Ordering: required-input presence is checked BEFORE spec-source resolution, so when a call lacks both a required scalar (e.g. asOf) AND a spec source, E_BAD_INPUT precedes E_NO_SPEC_SOURCE/E_SPEC_NOT_FOUND. Nullity: for a required input, a JSON null is treated as absent (E_BAD_INPUT), identically to a missing key — a present null is never forwarded to a verb.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
   },
   {
     record: "item",
@@ -156,8 +156,15 @@ const criteria: Criterion[] = [
     id: "ac-mcp-bad-input",
     itemId: "it-mcp-dispatch",
     gherkin:
-      "Given a tool call missing one of its REQUIRED inputs (felag_verify with a spec but no implementation; felag_fmt with neither records nor text; felag_render with a spec but no audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
-    fixtures: ["fx-mcp-bad-input-verify", "fx-mcp-bad-input-fmt", "fx-mcp-bad-input-render"],
+      "Given a tool call missing one of its REQUIRED inputs (verify with a spec but no implementation; fmt with neither records nor text; render with a spec but no audience; promote with a spec and transition but no asOf; render with an explicit null audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, a JSON null counts as absent, and E_BAD_INPUT precedes spec-source codes when a required scalar and the spec source are both absent (felag_verify with no inputs at all)\nAnd this is distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
+    fixtures: [
+      "fx-mcp-bad-input-verify",
+      "fx-mcp-bad-input-fmt",
+      "fx-mcp-bad-input-render",
+      "fx-mcp-bad-input-promote",
+      "fx-mcp-bad-input-null",
+      "fx-mcp-bad-input-precedence",
+    ],
   }),
 
   // it-mcp-resolve
@@ -165,8 +172,8 @@ const criteria: Criterion[] = [
     id: "ac-mcp-inline-wins",
     itemId: "it-mcp-resolve",
     gherkin:
-      "Given a call carrying BOTH inline records (a valid spec) and a specDir whose snapshot files are broken\nWhen the tool resolves its spec\nThen the inline records are used and the specDir is not consulted — the result reflects the inline spec, not a parse error",
-    fixtures: ["fx-mcp-inline-wins"],
+      "Given a call carrying BOTH an inline spec (valid) and a specDir whose snapshot files are broken\nWhen the tool resolves its spec\nThen the inline spec is used and the specDir is not consulted — the result reflects the inline spec, not a parse error\nAnd given an inline `spec` that is NOT a JSON array (treated as absent) alongside a valid specDir, resolution falls through to the path",
+    fixtures: ["fx-mcp-inline-wins", "fx-mcp-spec-nonarray"],
   }),
   crit({
     id: "ac-mcp-path-load",
@@ -209,8 +216,8 @@ const criteria: Criterion[] = [
     id: "ac-mcp-lint-orphans",
     itemId: "it-mcp-tools",
     gherkin:
-      "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated",
-    fixtures: ["fx-mcp-lint-orphans"],
+      "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated\nAnd given a lint-INVALID spec (a duplicate criterion id) the core errors flow through UNCHANGED under {valid:false, errors:[...]} while orphanFixtures is still computed — the adapter never short-circuits the orphan scan on an invalid spec",
+    fixtures: ["fx-mcp-lint-orphans", "fx-mcp-lint-errors"],
   }),
   crit({
     id: "ac-mcp-hash-shape",
@@ -394,9 +401,9 @@ fx(
 );
 fx(
   "fx-mcp-envelope-validate-author",
-  "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:[] over a valid mini spec -> valid).",
-  { call: { tool: "felag_validate_author", input: { spec: miniSpec, new: [] } } },
-  { ok: true, result: validateAuthorOutput({ spec: miniSpec, new: [] }) },
+  "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:['ac1'] over a valid mini spec, ac1 source forethought -> valid). The non-empty `new` exercises the field routing — an adapter that dropped or misrouted `new` would not be caught by an empty list.",
+  { call: { tool: "felag_validate_author", input: { spec: miniSpec, new: ["ac1"] } } },
+  { ok: true, result: validateAuthorOutput({ spec: miniSpec, new: ["ac1"] }) },
 );
 fx(
   "fx-mcp-envelope-validate-excavate",
@@ -446,6 +453,24 @@ fx(
   { call: { tool: "felag_render", input: { spec: miniSpec } } },
   { ok: false, error: "E_BAD_INPUT" },
 );
+fx(
+  "fx-mcp-bad-input-promote",
+  "felag_promote with a spec and transition but NO asOf returns {ok:false, error:'E_BAD_INPUT'}. asOf is required (the pure function has no server clock) — a stranger omitting this check would forward asOf:undefined to promote and get ok:true/E_SCHEMA instead.",
+  { call: { tool: "felag_promote", input: { spec: miniSpec, transition: promoteTransition } } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
+fx(
+  "fx-mcp-bad-input-null",
+  "felag_render with an explicit null audience returns {ok:false, error:'E_BAD_INPUT'} — a JSON null counts as absent for a required input; a present null is never forwarded to the verb (which would throw on undefined and yield E_LIB).",
+  { call: { tool: "felag_render", input: { spec: miniSpec, audience: null } } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
+fx(
+  "fx-mcp-bad-input-precedence",
+  "felag_verify with NO inputs at all (neither the required scalars nor a spec source) returns {ok:false, error:'E_BAD_INPUT'}, not E_NO_SPEC_SOURCE — required-input presence is checked before spec-source resolution, so E_BAD_INPUT wins when both are absent.",
+  { call: { tool: "felag_verify", input: {} } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
 
 // --- ac-mcp-inline-wins: inline spec used, broken specDir ignored ---
 fx(
@@ -454,6 +479,18 @@ fx(
   {
     call: { tool: "felag_lint", input: { spec: miniSpec, specDir: "spec/decoy" } },
     fs: { "spec/decoy/spec.jsonl": "{ broken interchange" },
+  },
+  { ok: true, result: { valid: true, errors: [], orphanFixtures: [] } },
+);
+fx(
+  "fx-mcp-spec-nonarray",
+  "A felag_lint call whose inline `spec` is a string (not a JSON array) alongside a valid specDir: the non-array spec is treated as ABSENT and resolution falls through to the path, which loads and lints valid. An impl treating any truthy `spec` as present would mis-handle this.",
+  {
+    call: { tool: "felag_lint", input: { spec: "not an array", specDir: "spec/mini" } },
+    fs: {
+      "spec/mini/spec.jsonl": serialize([miniPreamble, miniItem, miniCriterion]),
+      "spec/mini/fixtures.jsonl": serialize([miniFixture]),
+    },
   },
   { ok: true, result: { valid: true, errors: [], orphanFixtures: [] } },
 );
@@ -512,6 +549,19 @@ fx(
   { call: { tool: "felag_lint", input: { spec: [...miniSpec, orphanFixture2, orphanFixture] } } },
   { ok: true, result: { valid: true, errors: [], orphanFixtures: ["fx-orphan-a", "fx-orphan-b"] } },
 );
+{
+  // A lint-INVALID spec (ac1 duplicated): the core's errors must flow through
+  // the envelope unchanged AND orphanFixtures is still computed. felag_lint
+  // returns ok:true (the tool ran) with result.valid:false.
+  const dupSpec: SpecRecord[] = [miniPreamble, miniItem, miniCriterion, { ...miniCriterion }, miniFixture, orphanFixture];
+  const dupLint = lint(dupSpec);
+  fx(
+    "fx-mcp-lint-errors",
+    "felag_lint over a lint-INVALID spec (a duplicate criterion id) returns ok:true (the tool ran) with result {valid:false, errors:[core errors UNCHANGED], orphanFixtures:[still computed]}. An adapter that mangled errors, or short-circuited the orphan scan when valid:false, diverges. The error code is felag-core's; the adapter only carries it.",
+    { call: { tool: "felag_lint", input: { spec: dupSpec } } },
+    { ok: true, result: { valid: dupLint.valid, errors: dupLint.errors, orphanFixtures: ["fx-orphan-a"] } },
+  );
+}
 
 // --- ac-mcp-hash-shape: fixtures only, two out of order -> ascending; + fixtureId narrowing ---
 fx(

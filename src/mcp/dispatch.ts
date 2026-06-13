@@ -113,10 +113,10 @@ function orphanFixtures(spec: SpecRecord[]): string[] {
   const referenced = new Set(
     spec.flatMap((r) => (r.record === "criterion" ? (r as Criterion).fixtures : [])),
   );
-  return spec
+  const ids = spec
     .filter((r): r is Fixture => r.record === "fixture" && !referenced.has((r as Fixture).id))
-    .map((f) => f.id)
-    .sort();
+    .map((f) => f.id);
+  return [...new Set(ids)].sort(); // a SET, per it-mcp-tools (dedup a duplicated id)
 }
 
 function buildVerifyInput(input: Record<string, unknown>, fs: FsSnapshot): VerifyInput {
@@ -221,6 +221,11 @@ export const TOOL_NAMES = Object.keys(HANDLERS);
 /** Total dispatch: route the call, wrap success as {ok:true,result}, map any
  * thrown McpError to its code and any other throw to E_LIB. Never throws. */
 export function mcpDispatch(call: McpCall, fs: FsSnapshot = {}): McpEnvelope {
+  // Totality is absolute, including outside the typed {tool,input} domain: a
+  // null/non-object call never throws past this point.
+  if (call === null || typeof call !== "object") {
+    return { ok: false, error: "E_BAD_INPUT", detail: "call must be an object { tool, input }" };
+  }
   const handler = HANDLERS[call.tool];
   if (!handler) {
     return { ok: false, error: "E_UNKNOWN_TOOL", detail: `no such tool: ${call.tool}` };

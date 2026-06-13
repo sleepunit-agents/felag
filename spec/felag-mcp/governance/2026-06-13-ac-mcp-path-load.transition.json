@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-path-load",
   "to": "active",
-  "requestedAt": "2026-06-13T14:18:20.967Z",
+  "requestedAt": "2026-06-13T14:30:23.971Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:18:20.967Z",
+      "at": "2026-06-13T14:30:23.971Z",
       "criterionHash": "sha256:31dadc86d4f69d28e56bda039355caab4255e5bf11813bbea46036569fc4dbab"
     }
   ]

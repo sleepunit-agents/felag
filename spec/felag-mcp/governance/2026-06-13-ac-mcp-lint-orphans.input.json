@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T14:18:20.971Z",
+  "asOf": "2026-06-13T14:30:23.975Z",
   "spec": [
     {
       "record": "preamble",
@@ -39,7 +39,7 @@
     {
       "record": "item",
       "id": "it-mcp-dispatch",
-      "body": "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
+      "body": "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, asOf/transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nTwo partition rules a stranger needs to reproduce the codes exactly. Ordering: required-input presence is checked BEFORE spec-source resolution, so when a call lacks both a required scalar (e.g. asOf) AND a spec source, E_BAD_INPUT precedes E_NO_SPEC_SOURCE/E_SPEC_NOT_FOUND. Nullity: for a required input, a JSON null is treated as absent (E_BAD_INPUT), identically to a missing key — a present null is never forwarded to a verb.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
       "title": "Dispatch and the result envelope"
     },
     {
@@ -115,10 +115,13 @@
       "fixtures": [
         "fx-mcp-bad-input-verify",
         "fx-mcp-bad-input-fmt",
-        "fx-mcp-bad-input-render"
+        "fx-mcp-bad-input-render",
+        "fx-mcp-bad-input-promote",
+        "fx-mcp-bad-input-null",
+        "fx-mcp-bad-input-precedence"
       ],
       "force": "MUST",
-      "gherkin": "Given a tool call missing one of its REQUIRED inputs (felag_verify with a spec but no implementation; felag_fmt with neither records nor text; felag_render with a spec but no audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
+      "gherkin": "Given a tool call missing one of its REQUIRED inputs (verify with a spec but no implementation; fmt with neither records nor text; render with a spec but no audience; promote with a spec and transition but no asOf; render with an explicit null audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, a JSON null counts as absent, and E_BAD_INPUT precedes spec-source codes when a required scalar and the spec source are both absent (felag_verify with no inputs at all)\nAnd this is distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
       "itemId": "it-mcp-dispatch",
       "source": "forethought",
       "state": "active",
@@ -130,10 +133,11 @@
       "class": "behavioral",
       "contractId": "c-mcp",
       "fixtures": [
-        "fx-mcp-inline-wins"
+        "fx-mcp-inline-wins",
+        "fx-mcp-spec-nonarray"
       ],
       "force": "MUST",
-      "gherkin": "Given a call carrying BOTH inline records (a valid spec) and a specDir whose snapshot files are broken\nWhen the tool resolves its spec\nThen the inline records are used and the specDir is not consulted — the result reflects the inline spec, not a parse error",
+      "gherkin": "Given a call carrying BOTH an inline spec (valid) and a specDir whose snapshot files are broken\nWhen the tool resolves its spec\nThen the inline spec is used and the specDir is not consulted — the result reflects the inline spec, not a parse error\nAnd given an inline `spec` that is NOT a JSON array (treated as absent) alongside a valid specDir, resolution falls through to the path",
       "itemId": "it-mcp-resolve",
       "source": "forethought",
       "state": "active",
@@ -220,10 +224,11 @@
       "class": "behavioral",
       "contractId": "c-mcp",
       "fixtures": [
-        "fx-mcp-lint-orphans"
+        "fx-mcp-lint-orphans",
+        "fx-mcp-lint-errors"
       ],
       "force": "MUST",
-      "gherkin": "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated",
+      "gherkin": "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated\nAnd given a lint-INVALID spec (a duplicate criterion id) the core errors flow through UNCHANGED under {valid:false, errors:[...]} while orphanFixtures is still computed — the adapter never short-circuits the orphan scan on an invalid spec",
       "itemId": "it-mcp-tools",
       "source": "forethought",
       "state": "proposed",
@@ -287,6 +292,185 @@
         "call": {
           "input": {},
           "tool": "felag_fmt"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-bad-input-null",
+      "contractId": "c-mcp",
+      "description": "felag_render with an explicit null audience returns {ok:false, error:'E_BAD_INPUT'} — a JSON null counts as absent for a required input; a present null is never forwarded to the verb (which would throw on undefined and yield E_LIB).",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "audience": null,
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_render"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-bad-input-precedence",
+      "contractId": "c-mcp",
+      "description": "felag_verify with NO inputs at all (neither the required scalars nor a spec source) returns {ok:false, error:'E_BAD_INPUT'}, not E_NO_SPEC_SOURCE — required-input presence is checked before spec-source resolution, so E_BAD_INPUT wins when both are absent.",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {},
+          "tool": "felag_verify"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-bad-input-promote",
+      "contractId": "c-mcp",
+      "description": "felag_promote with a spec and transition but NO asOf returns {ok:false, error:'E_BAD_INPUT'}. asOf is required (the pure function has no server clock) — a stranger omitting this check would forward asOf:undefined to promote and get ok:true/E_SCHEMA instead.",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ],
+            "transition": {
+              "acknowledgments": [],
+              "criterionId": "ac1",
+              "requestedAt": "2026-01-01T00:00:00Z",
+              "requestedBy": "impl-a",
+              "to": "active"
+            }
+          },
+          "tool": "felag_promote"
         }
       }
     },
@@ -1001,7 +1185,7 @@
       "record": "fixture",
       "id": "fx-mcp-envelope-validate-author",
       "contractId": "c-mcp",
-      "description": "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:[] over a valid mini spec -> valid).",
+      "description": "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:['ac1'] over a valid mini spec, ac1 source forethought -> valid). The non-empty `new` exercises the field routing — an adapter that dropped or misrouted `new` would not be caught by an empty list.",
       "expected": {
         "ok": true,
         "result": {
@@ -1013,7 +1197,9 @@
       "input": {
         "call": {
           "input": {
-            "new": [],
+            "new": [
+              "ac1"
+            ],
             "spec": [
               {
                 "conformanceVersion": "1.0.0",
@@ -1614,6 +1800,118 @@
     },
     {
       "record": "fixture",
+      "id": "fx-mcp-lint-errors",
+      "contractId": "c-mcp",
+      "description": "felag_lint over a lint-INVALID spec (a duplicate criterion id) returns ok:true (the tool ran) with result {valid:false, errors:[core errors UNCHANGED], orphanFixtures:[still computed]}. An adapter that mangled errors, or short-circuited the orphan scan when valid:false, diverges. The error code is felag-core's; the adapter only carries it.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "errors": [
+            {
+              "code": "E_DUPLICATE_ID",
+              "ref": "ac1"
+            }
+          ],
+          "orphanFixtures": [
+            "fx-orphan-a"
+          ],
+          "valid": false
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              },
+              {
+                "contractId": "c1",
+                "description": "referenced by no criterion",
+                "expected": {},
+                "format": "json",
+                "id": "fx-orphan-a",
+                "input": {},
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_lint"
+        }
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-mcp-lint-orphans",
       "contractId": "c-mcp",
       "description": "felag_lint over a lint-valid spec carrying TWO fixtures referenced by no criterion, supplied out of id order (fx-orphan-b before fx-orphan-a): {valid:true, errors:[], orphanFixtures:['fx-orphan-a','fx-orphan-b']}. Orphans are in-band warnings (valid stays true) and the ascending order is discriminated — an impl that never sorts, or promoted an orphan to a lint error, diverges.",
@@ -1801,6 +2099,34 @@
     },
     {
       "record": "fixture",
+      "id": "fx-mcp-spec-nonarray",
+      "contractId": "c-mcp",
+      "description": "A felag_lint call whose inline `spec` is a string (not a JSON array) alongside a valid specDir: the non-array spec is treated as ABSENT and resolution falls through to the path, which loads and lints valid. An impl treating any truthy `spec` as present would mis-handle this.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "errors": [],
+          "orphanFixtures": [],
+          "valid": true
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": "not an array",
+            "specDir": "spec/mini"
+          },
+          "tool": "felag_lint"
+        },
+        "fs": {
+          "spec/mini/fixtures.jsonl": "{\"record\":\"fixture\",\"id\":\"fx1\",\"contractId\":\"c1\",\"description\":\"mini fixture\",\"expected\":{\"y\":2},\"format\":\"json\",\"input\":{\"x\":1}}\n",
+          "spec/mini/spec.jsonl": "{\"record\":\"preamble\",\"conformanceVersion\":\"1.0.0\",\"contracts\":[{\"description\":\"mini contract\",\"id\":\"c1\"}],\"exclusions\":[],\"goals\":[\"exercise the felag-mcp fixtures\"],\"implementers\":[{\"name\":\"impl-a\",\"roles\":[\"repo-owner\"]}],\"name\":\"mini\"}\n{\"record\":\"item\",\"id\":\"it1\",\"body\":\"mini body\",\"title\":\"mini item\"}\n{\"record\":\"criterion\",\"id\":\"ac1\",\"class\":\"behavioral\",\"contractId\":\"c1\",\"fixtures\":[\"fx1\"],\"force\":\"MUST\",\"gherkin\":\"Given x\\nWhen y\\nThen z\",\"itemId\":\"it1\",\"source\":\"forethought\",\"state\":\"active\",\"type\":\"scenario\"}\n"
+        }
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-mcp-spec-not-found",
       "contractId": "c-mcp",
       "description": "A felag_lint call naming a specDir whose interchange files are absent from the snapshot returns {ok:false, error:'E_SPEC_NOT_FOUND'} — distinct from E_NO_SPEC_SOURCE (a path WAS given; nothing was there).",
@@ -1840,14 +2166,14 @@
   "transition": {
     "criterionId": "ac-mcp-lint-orphans",
     "to": "active",
-    "requestedAt": "2026-06-13T14:18:20.971Z",
+    "requestedAt": "2026-06-13T14:30:23.975Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T14:18:20.971Z",
-        "criterionHash": "sha256:25e4a1dd3ea4199118790d4097fdb73081314ccead40f854c280cec6e72f42d2"
+        "at": "2026-06-13T14:30:23.975Z",
+        "criterionHash": "sha256:d885c9dd25d682351d9bb8f1e5462d126359f18f16bec13ce9cfa4245657a9d5"
       }
     ]
   }
