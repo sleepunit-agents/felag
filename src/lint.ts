@@ -130,13 +130,14 @@ export function lint(records: SpecRecord[]): LintResult {
         errors.push({ code: "E_MISSING_FIXTURES", ref: c.id });
       }
       // 3.0.0: without strict majority, reproducible-pass and reproducible-fail
-      // could hold at once.
+      // could hold at once; agreement above runs is unreachable — a window of
+      // runs records can never carry more than runs agreeing verdicts.
       const tol = c.judgment?.tolerance;
       if (
         tol !== undefined &&
         Number.isInteger(tol.runs) &&
         Number.isInteger(tol.agreement) &&
-        2 * tol.agreement <= tol.runs
+        (2 * tol.agreement <= tol.runs || tol.agreement > tol.runs)
       ) {
         errors.push({ code: "E_BAD_TOLERANCE", ref: c.id });
       }

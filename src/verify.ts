@@ -156,14 +156,14 @@ export function verify(input: VerifyInput): ConformanceReport {
   // D4: disputed criteria are listed for every implementation — loud everywhere.
   const disputed = criteria.filter((c) => c.state === "disputed").map((c) => c.id);
 
-  // D4: advisory — judgment criteria that do NOT gate for this implementation
-  // (non-graduatable, or graduatable but not in a gating state) that have
-  // records, with their latest verdicts. Gating judgment criteria live in
-  // failing/waived like any other gating criterion.
+  // D4: advisory — NON-GRADUATABLE judgment criteria (no judgment object)
+  // that have records, with their latest VerificationRecord-borne verdicts.
+  // Graduatable criteria never appear here: gating ones live in
+  // failing/waived; non-gating ones have the graduation result as their own
+  // diagnostic surface.
   const advisory: { criterionId: string; verdict: VerificationRecord["verdict"] }[] = [];
   for (const c of criteria) {
-    if (c.class !== "judgment") continue;
-    if (gates(c, declared, input.implementation)) continue;
+    if (c.class !== "judgment" || c.judgment !== undefined) continue;
     const latest = latestRecord(input.records, c.id, undefined, input.implementation, conformanceVersion);
     if (latest) advisory.push({ criterionId: c.id, verdict: latest.verdict });
   }

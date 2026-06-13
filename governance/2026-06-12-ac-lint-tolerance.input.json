@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T01:11:04.580Z",
+  "asOf": "2026-06-13T01:31:07.399Z",
   "spec": [
     {
       "record": "preamble",
@@ -26,7 +26,7 @@
         "CLI output formatting, log formats, error-message wording, latency, pagination order, and render aesthetics: observable but undeclared, therefore non-core.",
         "Cross-person claim visibility: removed, not deferred.",
         "felag/author residue at 1.0.0: the author --from-annotations round-trip (requires an annotation format that does not exist yet); interview conduct (a dialog, not an artifact — judgment permanently, by the same reasoning that verify is a ledger); Profile and Binding rendering (those artifacts ship with implementations; rendering them waits for their formats to become contract surface).",
-        "Judge execution: felag never calls a judge model, hosts a rubric prompt, or schedules judge runs; judgment verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords, and the independence of judge runs is attested by the records, not verified — the runner-integrity stance applied to judging. (The judgment-gating exclusion that stood from 1.0.0 was removed at 3.0.0: the graduation bar it required — reproducibility tolerance, calibration-corpus judge substitution, verdict provenance — is it-graduation.)",
+        "Judge execution: felag never calls a judge model, hosts a rubric prompt, or schedules judge runs; judgment verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords, and the independence of judge runs is attested by the records, not verified — the runner-integrity stance applied to judging. Target verdicts are calibrated attestation, not third-party-reproducible checks: only calibration records are publicly checkable against the anchor corpus (it-judgment states the asymmetry plainly). (The judgment-gating exclusion that stood from 1.0.0 was removed at 3.0.0: the graduation bar it required — reproducibility tolerance, calibration-corpus judge substitution, verdict provenance — is it-graduation.)",
         "Interchange residue at 2.0.0: CS6 writer refusal of finite-JSON, non-finite-double numerals is normative but unfixturable in interchange - the corpus cannot canonically carry the value whose refusal it would pin; the obligation rides on prose and implementation tests, not fixtures."
       ],
       "goals": [
@@ -120,7 +120,7 @@
     {
       "record": "item",
       "id": "it-lint",
-      "body": "lint is the merge gate of the interchange class: schema validity, unique ids across all records, declared-contract membership, the fixture rule, and version-bump consistency. Closed-world scope is enforced structurally: the preamble's contracts are the allowlist, and a criterion referencing a contractId not declared there is invalid. A criterion with no contractId is not an error: it is advisory by construction and can never gate.\n\nLint result format (derived during compilation; the design defines no tool output formats): {\"valid\": boolean, \"errors\": [{\"code\", \"ref\"}]} with errors sorted ascending by (code, ref) and ref naming the offending record id. Error codes at 1.0.0: E_SCHEMA (record fails the JSON Schema), E_DUPLICATE_ID, E_UNDECLARED_CONTRACT, E_MISSING_FIXTURES, E_UNKNOWN_FIXTURE (a fixtures entry names no fixture record), and the roster checks E_DUPLICATE_IMPLEMENTER (two roster entries share a name; ref is the duplicated name) and E_MULTIPLE_OWNERS (more than one roster entry carries the repo-owner role; ref is 'preamble') - roster-reference resolution and the promotion tiebreak both presuppose them. At 3.0.0: E_BAD_TOLERANCE - a judgment object's tolerance violating 2 x agreement > runs, naming the criterion (without strict majority, reproducible-pass and reproducible-fail could hold at once; the schema constrains runs and agreement to integers >= 1, lint enforces the cross-field majority rule). E_MISSING_FIXTURES extends to graduation intent: a judgment criterion carrying a judgment object with an empty fixtures list is invalid - its fixtures are its calibration corpus (it-graduation), and a graduation bar with no anchors is bare assertion wearing a rubric.",
+      "body": "lint is the merge gate of the interchange class: schema validity, unique ids across all records, declared-contract membership, the fixture rule, and version-bump consistency. Closed-world scope is enforced structurally: the preamble's contracts are the allowlist, and a criterion referencing a contractId not declared there is invalid. A criterion with no contractId is not an error: it is advisory by construction and can never gate.\n\nLint result format (derived during compilation; the design defines no tool output formats): {\"valid\": boolean, \"errors\": [{\"code\", \"ref\"}]} with errors sorted ascending by (code, ref) and ref naming the offending record id. Error codes at 1.0.0: E_SCHEMA (record fails the JSON Schema), E_DUPLICATE_ID, E_UNDECLARED_CONTRACT, E_MISSING_FIXTURES, E_UNKNOWN_FIXTURE (a fixtures entry names no fixture record), and the roster checks E_DUPLICATE_IMPLEMENTER (two roster entries share a name; ref is the duplicated name) and E_MULTIPLE_OWNERS (more than one roster entry carries the repo-owner role; ref is 'preamble') - roster-reference resolution and the promotion tiebreak both presuppose them. At 3.0.0: E_BAD_TOLERANCE - a judgment object's tolerance violating 2 x agreement > runs, or carrying agreement > runs, naming the criterion (the first would let reproducible-pass and reproducible-fail hold at once; the second is unreachable - a window of runs records can never carry more than runs agreeing verdicts; the schema constrains runs and agreement to integers >= 1, lint enforces both cross-field rules). E_MISSING_FIXTURES extends to graduation intent: a judgment criterion carrying a judgment object with an empty fixtures list is invalid - its fixtures are its calibration corpus (it-graduation), and a graduation bar with no anchors is bare assertion wearing a rubric.",
       "title": "Structural validation and scope enforcement (lint)"
     },
     {
@@ -209,10 +209,11 @@
       "class": "behavioral",
       "contractId": "c-interchange",
       "fixtures": [
-        "fx-lint-bad-tolerance"
+        "fx-lint-bad-tolerance",
+        "fx-lint-tolerance-unreachable"
       ],
       "force": "MUST",
-      "gherkin": "Given a criterion whose judgment object carries tolerance with 2 x agreement <= runs\nWhen lint runs\nThen the spec is rejected with E_BAD_TOLERANCE naming the criterion",
+      "gherkin": "Given a criterion whose judgment object carries tolerance with 2 x agreement <= runs, or with agreement > runs\nWhen lint runs\nThen the spec is rejected with E_BAD_TOLERANCE naming the criterion",
       "itemId": "it-lint",
       "source": "forethought",
       "state": "proposed",
@@ -314,7 +315,7 @@
         "fx-verdict-judgment-poisoned-cross"
       ],
       "force": "MUST",
-      "gherkin": "Given a spec with an active MUST judgment criterion carrying a judgment object and an adequate calibration corpus\nWhen the implementation's judgment records graduate it, the verdict is conforms\nAnd when they do not - insufficient evidence included - the criterion fails and the verdict is drifts, with an unexpired waiver yielding conforms-with-waivers and never bare conforms\nAnd judgment criteria that do not gate appear only in the advisory listing\nAnd a judgment record rejected by ingestJudgment anywhere in the verify input fails every graduation at G1 - criteria whose own records are pristine included, fail closed\nAnd a disputed graduatable criterion gates everyone except the disputer, the dispute listed loudly, and the dispute itself stales no evidence",
+      "gherkin": "Given a spec with an active MUST judgment criterion carrying a judgment object and an adequate calibration corpus\nWhen the implementation's judgment records graduate it, the verdict is conforms\nAnd when they do not - insufficient evidence included - the criterion fails and the verdict is drifts, with an unexpired waiver yielding conforms-with-waivers and never bare conforms\nAnd non-graduatable judgment criteria with records appear in the advisory listing - graduatable criteria, gating or not, never do\nAnd a judgment record rejected by ingestJudgment anywhere in the verify input fails every graduation at G1 - criteria whose own records are pristine included, fail closed\nAnd a disputed graduatable criterion gates everyone except the disputer, the dispute listed loudly, and the dispute itself stales no evidence",
       "itemId": "it-gating",
       "source": "forethought",
       "state": "proposed",
@@ -344,7 +345,7 @@
     {
       "record": "item",
       "id": "it-verification",
-      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, judgmentRecords, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl, and judgmentRecords (optional since 3.0.0, absent meaning empty) is the JudgmentRecord evidence for graduatable judgment criteria (it-judgment, it-graduation).\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. Parseable means exactly: RFC 3339 date-time with the T and Z designators case-insensitive (per its ABNF), a numeric offset or Z REQUIRED (a missing offset is not RFC 3339; a parser that reads it as host-local time makes the verdict depend on the box's timezone), and second 60 excluded - a leap second has no instant on the POSIX scale this contract normalizes to, so it is unparseable here, not mapped. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps). D1 deliberately has no asOf upper bound - a future-dated record still wins, because the ledger reports what was submitted; promotion bounds at <= asOf because acknowledgments are endorsements inside a deliberation window. The asymmetry is intended.\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the greatest array index - last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD1J (3.0.0). A gating judgment criterion (it-gating: graduatable, state active or disputed) is satisfied iff graduate({criterionId, implementation, records: the input's FULL judgmentRecords array, spec}) returns graduated (it-graduation). verify never pre-validates judgmentRecords against the wire schema - verify is total with no error channel, its preconditions are the caller's, exactly as for D1's records; the fail-closed path is graduate's G1, which validates the full array for every graduation: a record ingestJudgment rejects - whatever criterion it names - fails every gating judgment criterion in the spec, criteria whose own records are pristine included. Records rejected by ingestJudgment never reach a ledger; an input carrying one is corrupt evidence, loud everywhere, never filtered quietly. D2 and D3 apply to judgment criteria unchanged.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of judgment criteria that do not gate for this implementation (non-graduatable, or graduatable but not in a gating state) that have records, with their latest verdicts - advisory verdicts remain VerificationRecord-borne self-reports; gating judgment criteria appear in failing or waived like every other gating criterion, and the why lives in the graduation result.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
+      "body": "verify is a ledger, not a runner: checks run outside felag by whatever runner the implementation's Binding names; the runner submits VerificationRecords. A record is {criterionId, fixtureId?, fixtureHash?, implementation, implementationVersion, conformanceVersion, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}; all fields except fixtureId and fixtureHash are required (derived: the design marks only those two optional). Records are self-reported; their check is reproducibility against the public fixture corpus, not identity. Ingest result format (derived): {\"accepted\": boolean, \"errors\": [code]} with codes sorted ascending; codes at 1.0.0: E_MISSING_FIELD, E_BAD_VERDICT, E_SCHEMA.\n\nVerdict derivation (derived; the design gives the verdict tokens and waiver semantics but not the algorithm). Inputs: the spec's records, an implementation name, its VerificationRecords, its waiver ledger, and an evaluation instant asOf (derived: waiver expiry makes verdicts time-dependent and the design names no evaluation clock). For fixture exchange this input is one JSON object {asOf, implementation, judgmentRecords, records, spec, waivers} where spec is the concatenated parsed records of spec.jsonl and fixtures.jsonl, and judgmentRecords (optional since 3.0.0, absent meaning empty) is the JudgmentRecord evidence for graduatable judgment criteria (it-judgment, it-graduation).\nTimestamps. Every timestamp in this contract - a record's at, a waiver's expiresAt, asOf - is an RFC 3339 date-time, and every comparison between timestamps is an instant comparison after UTC normalization, never lexical string order: lexical order diverges from instant order for non-Z offsets and for differing sub-second precision, and equal instants are ties. Parseable means exactly: RFC 3339 date-time with the T and Z designators case-insensitive (per its ABNF), a numeric offset or Z REQUIRED (a missing offset is not RFC 3339; a parser that reads it as host-local time makes the verdict depend on the box's timezone), and second 60 excluded - a leap second has no instant on the POSIX scale this contract normalizes to, so it is unparseable here, not mapped. ingest rejects a record whose at does not parse (E_SCHEMA); a record reaching D1 with an unparseable at is ignored, like a stale one. asOf is the caller's evaluation instant; well-formedness is the caller's precondition (the promotion protocol, which has an error channel, instead G1-rejects unparseable timestamps). D1 deliberately has no asOf upper bound - a future-dated record still wins, because the ledger reports what was submitted; promotion bounds at <= asOf because acknowledgments are endorsements inside a deliberation window. The asymmetry is intended.\nD1. A gating criterion (see it-gating) is satisfied if for every fixture it references, the latest record by 'at' (instant order; equal instants tie to the greatest array index - last submitted) matching (criterionId, fixtureId, implementation, conformanceVersion) has verdict pass; a record whose fixtureHash is present and differs from the referenced fixture's current canonical hash is stale and ignored.\nD1J (3.0.0). A gating judgment criterion (it-gating: graduatable, state active or disputed) is satisfied iff graduate({criterionId, implementation, records: the input's FULL judgmentRecords array, spec}) returns graduated (it-graduation). verify never pre-validates judgmentRecords against the wire schema - verify is total with no error channel, its preconditions are the caller's, exactly as for D1's records; the fail-closed path is graduate's G1, which validates the full array for every graduation: a record ingestJudgment rejects - whatever criterion it names - fails every gating judgment criterion in the spec, criteria whose own records are pristine included. Records rejected by ingestJudgment never reach a ledger; an input carrying one is corrupt evidence, loud everywhere, never filtered quietly. D2 and D3 apply to judgment criteria unchanged.\nD2. An unsatisfied gating criterion with an unexpired waiver (waiver.expiresAt > asOf as instants, matching criterionId and implementation, kind waiver or known-bug) is waived; an expired waiver is a failure again and is not listed as waived. A waiver whose expiresAt does not parse is expired - fail closed, a malformed waiver waives nothing.\nD3. Verdict: drifts if any gating criterion is neither satisfied nor waived; otherwise conforms-with-waivers if any criterion is waived; otherwise conforms. An implementation with active waivers never reports bare conforms.\nD4. The report lists failing, waived, and disputed criterion ids (disputed criteria are listed for every implementation - loud everywhere) and an advisory listing of NON-GRADUATABLE judgment criteria - those without a judgment object - that have records, with their latest verdicts; advisory verdicts are VerificationRecord-borne self-reports. Graduatable judgment criteria never appear in advisory: when they gate they appear in failing or waived like every other gating criterion, and when they do not gate (proposed or deprecated state, or disputed for the disputer) their judgment evidence does not bear on this report at all - the graduation result is its own diagnostic surface.\nD5. Report format (derived): {advisory: [{criterionId, verdict}], conformanceVersion, disputed: [id], failing: [id], implementation, verdict: conforms|conforms-with-waivers|drifts, waived: [id]}; id lists sorted ascending.\nD6. Waivers are per-implementation and live in the implementation's ledger, not the spec repo: {criterionId, implementation, kind: waiver|known-bug, justification, attribution, expiresAt}.",
       "title": "VerificationRecord ingestion and verdict derivation"
     },
     {
@@ -467,7 +468,7 @@
     {
       "record": "item",
       "id": "it-judgment",
-      "body": "Judgment verification applies the verify stance to judgment: felag never runs the judge - judges run outside the boundary, by whatever harness the implementation chooses, and their verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords. A JudgmentRecord is {criterionId, judgmentHash, kind: calibration|target, fixtureId?, fixtureHash?, implementation?, conformanceVersion?, judge, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}.\n\njudgmentHash - required on BOTH kinds - binds a record to the judgment projection: 'sha256:' followed by the lowercase hex SHA-256 of the UTF-8 bytes of the canonical serialization (CS2, CS4, CS5) of the object {criterionId, rubric, text}, where criterionId is the criterion's id, rubric is its judgment.rubric, and text is its gherkin if type scenario, else its item. The projection is exactly what the judge was shown to judge against: the obligation text and the rubric. A record whose judgmentHash differs from the criterion's current projection hash is stale and ignored by graduation - amending the rubric or the criterion text resets the evidence loudly, never silently (the staleness mechanic of fixtureHash and the promotion ack's criterionHash, reused). Deliberately NOT in the projection: state and dispute (ratifying graduation intent must not void the evidence that justified ratifying it, and a third party's dispute must not stale a non-disputer's records - governance transitions change who gates, not what was judged), tolerance (an aggregation parameter re-evaluated on every graduation, not something the judge saw), fixtures (anchors bind per-anchor through fixtureHash, and admissibility is recomputed against the current corpus on every graduation), and the provenance fields. This is deliberately narrower than the promotion ack's criterionHash, which binds the full canonical line: an ack endorses the whole record once; judgment evidence accumulates across governance transitions.\n\nkind calibration requires fixtureId and fixtureHash and forbids implementation and conformanceVersion: calibration is a property of the judge, not of anyone's conduct. kind target requires implementation and conformanceVersion and forbids fixtureId and fixtureHash: the judge was shown the implementation's actual conduct, not an anchor. fixtureHash is required on calibration records - stricter than VerificationRecord, where it is optional - because a calibration record's entire meaning is 'this judge reproduces the known verdict on exactly this anchor'; an unbound calibration is meaningless, and an edited anchor must recalibrate every judge, fail closed.\n\njudge is {model}: structured matching plumbing, NOT attribution - the second kind of name in it-governance's two-kinds-of-names doctrine. Judge identity is the canonical serialization of the judge object, compared for byte equality only: the graduation function groups records by it and builds no other behavior on its value - never parsed, never ranked, no version arithmetic. Publishers encode model, version, and configuration in the model string; felag compares bytes. ac-ver-attribution-opaque continues to govern the free-form attribution field, which judgment records also carry. A pinned judge-configuration field was deliberately rejected: a spec that names admissible judges hard-depends on models (vendor-neutrality applied to judging itself) and dies with every deprecation; the calibration corpus replaces it - any judge that reproduces the known verdicts is admissible (it-graduation).\n\ningestJudgment reuses the ingest result format {accepted, errors:[code]} and its codes: E_MISSING_FIELD (a field required for the record's kind is absent), E_SCHEMA (wrong types, kind-forbidden fields present, a judgmentHash or fixtureHash that is not 'sha256:' plus 64 lowercase hex, a malformed judge object, an at that does not parse per it-verification's instants rule), E_BAD_VERDICT (verdict outside pass|fail|unverifiable); errors sorted ascending.",
+      "body": "Judgment verification applies the verify stance to judgment: felag never runs the judge - judges run outside the boundary, by whatever harness the implementation chooses, and their verdicts arrive as JudgmentRecords exactly as conformance checks arrive as VerificationRecords. A JudgmentRecord is {criterionId, judgmentHash, kind: calibration|target, fixtureId?, fixtureHash?, implementation?, conformanceVersion?, judge, verdict: pass|fail|unverifiable, evidence, runner, at, attribution}. One asymmetry stated plainly: a target verdict is attested evidence, weaker than a behavioral VerificationRecord. A behavioral record's check is reproducibility against the public fixture corpus - anyone can re-run the fixture and check the verdict. A target JudgmentRecord judges conduct that is in no corpus: only the judge's calibration is third-party-checkable; the target verdict is reproducible only by whoever can observe the conduct. Judgment gating is therefore calibrated attestation, and ratifying graduation intent accepts that bar - the runner-integrity trust model, applied to a sparser evidence stream.\n\njudgmentHash - required on BOTH kinds - binds a record to the judgment projection: 'sha256:' followed by the lowercase hex SHA-256 of the UTF-8 bytes of the canonical serialization (CS2, CS4, CS5) of the object {criterionId, rubric, text}, where criterionId is the criterion's id, rubric is its judgment.rubric, and text is its gherkin if type scenario, else its item. The projection is exactly what the judge was shown to judge against: the obligation text and the rubric. A record whose judgmentHash differs from the criterion's current projection hash is stale and ignored by graduation - amending the rubric or the criterion text resets the evidence loudly, never silently (the staleness mechanic of fixtureHash and the promotion ack's criterionHash, reused). Deliberately NOT in the projection: state and dispute (ratifying graduation intent must not void the evidence that justified ratifying it, and a third party's dispute must not stale a non-disputer's records - governance transitions change who gates, not what was judged), tolerance (an aggregation parameter re-evaluated on every graduation, not something the judge saw), fixtures (anchors bind per-anchor through fixtureHash, and admissibility is recomputed against the current corpus on every graduation), and the provenance fields. This is deliberately narrower than the promotion ack's criterionHash, which binds the full canonical line: an ack endorses the whole record once; judgment evidence accumulates across governance transitions.\n\nkind calibration requires fixtureId and fixtureHash and forbids implementation and conformanceVersion: calibration is a property of the judge, not of anyone's conduct. kind target requires implementation and conformanceVersion and forbids fixtureId and fixtureHash: the judge was shown the implementation's actual conduct, not an anchor. fixtureHash is required on calibration records - stricter than VerificationRecord, where it is optional - because a calibration record's entire meaning is 'this judge reproduces the known verdict on exactly this anchor'; an unbound calibration is meaningless, and an edited anchor must recalibrate every judge, fail closed.\n\njudge is {model}: structured matching plumbing, NOT attribution - the second kind of name in it-governance's two-kinds-of-names doctrine. Judge identity is the canonical serialization (CS2, CS4, CS5) of the judge object, compared for byte equality only: the graduation function groups records by it and builds no other behavior on its value - never parsed, never ranked, no version arithmetic. Publishers encode model, version, and configuration in the model string; felag compares bytes. ac-ver-attribution-opaque continues to govern the free-form attribution field, which judgment records also carry. A pinned judge-configuration field was deliberately rejected: a spec that names admissible judges hard-depends on models (vendor-neutrality applied to judging itself) and dies with every deprecation; the calibration corpus replaces it - any judge that reproduces the known verdicts is admissible (it-graduation).\n\ningestJudgment reuses the ingest result format {accepted, errors:[code]} and its codes: E_MISSING_FIELD (a field required for the record's kind is absent), E_SCHEMA (wrong types, kind-forbidden fields present, a judgmentHash or fixtureHash that is not 'sha256:' plus 64 lowercase hex, a malformed judge object, an at that does not parse per it-verification's instants rule - the schema's date-time format is annotation, not assertion; parseability is this prose rule, fixture-pinned), E_BAD_VERDICT (verdict outside pass|fail|unverifiable); errors sorted ascending.",
       "title": "Judgment records"
     },
     {
@@ -493,7 +494,7 @@
     {
       "record": "item",
       "id": "it-graduation",
-      "body": "Graduation is how a judgment criterion becomes gateable without felag ever judging: a total, deterministic, fixturable function of exactly (criterionId, implementation, records, spec) - the shape of promote and verify. The non-determinism (the judge model call) lives entirely in record production, outside the boundary; fixtures prove the function with synthetic judgment records, no live judge required.\n\nA criterion is graduatable iff it carries a judgment object {rubric, tolerance?} with tolerance {runs, agreement} defaulting to {runs: 3, agreement: 3} - the default is pinned in this wire format, not in any spec record (the criteriaPerItem pattern). Unanimity-of-3 as the default is deliberate: disagreement at n=3 means the rubric is ambiguous, and an ambiguous rubric should not gate; authors relax it deliberately. Lint enforces 2 x agreement > runs (E_BAD_TOLERANCE), so reproducible-pass and reproducible-fail are mutually exclusive by construction. A graduatable criterion's fixtures list IS its calibration corpus: anchor fixtures, format felag/judgment-anchor@0, input the artifact to judge (payload-opaque, whatever the rubric needs), expected exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"} - one key, those values. Anchor adequacy lives here, not in lint: lint never reads payloads (an interchange invariant), while interpreting payloads per format is what payload-consuming functions are for. Anchor quality - are the anchors discriminating? - is the spec author's judgment conduct, ac-author-conduct's jurisdiction, the same place rubric quality lives.\n\nWire formats felag/graduation-input@0 {criterionId, implementation, records, spec} and felag/graduation-result@0 {graduated, errors, basis, judges, window} (see schema). Guards, mirroring promotion - each returns the full result with the single guard code, basis null, judges and window empty, and stops: G1 the input fails the wire-format schema, every record acceptable to ingestJudgment and timestamps parseable per it-verification's instants rule (E_SCHEMA); G2 spec fails lint (E_SPEC_INVALID); G3 criterionId names no criterion record (E_UNKNOWN_CRITERION); G4 the named criterion carries no judgment object (E_NOT_GRADUATABLE).\n\nDefinitions. Judge identity: the canonical serialization of a record's judge object; equality is byte equality. Adequate corpus: the criterion's fixtures list is non-empty, every referenced anchor's expected parses as exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"}, and at least one anchor expects pass and at least one expects fail. The fail anchor is load-bearing: it is what kills the lazy always-pass judge, and it is why the agreement statistic needs no chance correction (a chance-corrected coefficient was rejected: floating-point statistics break fixture byte-equality across languages, and kappa is undefined at exactly the perfect agreement the protocol rewards). Admissible judge: judge J is admissible for criterion C iff C's corpus is adequate and for EVERY anchor in C.fixtures, the latest calibration record by J for (C.id, anchor id) whose judgmentHash equals C's current projection hash (it-judgment) and whose fixtureHash equals the anchor's current canonical hash - instant order on at, equal instants tying to the greatest array index, D1's rule verbatim - exists and has verdict equal to the anchor's expected verdict. The bar is all anchors, exactly: the corpus is author-curated to be unambiguous, and a judge wrong on an unambiguous anchor is inadmissible (a pass-rate knob, if real corpora ever need one, is a MINOR addition). Qualifying record: a target record matching criterionId = C.id, the input's implementation, and conformanceVersion equal to the spec preamble's, whose judgmentHash equals C's current projection hash, whose at parses, and whose judge is admissible. Window: the latest tolerance.runs qualifying records by instant, equal instants tying to the greatest array index. Independence of runs is attested, not verified: records are self-reported, and their check is calibration against the public anchor corpus, not identity - the runner-integrity stance; a distinctJudges floor is deliberately deferred (MINOR-addable, tightening only criteria that opt in).\n\nDerivation, basis precedence (first that holds): corpus-inadequate; no-admissible-judge (adequate corpus, zero admissible judges among the input's records for C - an input with no records at all included); insufficient-evidence (fewer than tolerance.runs qualifying records); then over the full window, counting passes p and fails f - unverifiable occupies its slot and counts toward neither (an abstention is evidence of non-reproducibility; fail closed, the malformed-waiver stance): satisfied iff p >= agreement, reproducible-fail iff f >= agreement (the judges agree the conduct violates - a conduct problem), else unreproducible (the judges split - a rubric problem; the basis names the remedy). graduated is true iff basis is satisfied.\n\nProvenance is derived and loud, never carried: the result's judges lists every distinct judge identity appearing in the input's records for C - calibration or target - as {admissible, judge}, sorted ascending by the Unicode code points of the judge identity's canonical serialization (CS4's order, never UTF-16 code-unit order); window lists the selected target records as {at, judge, verdict} in selection order (instant ascending, ties by array index), each at exactly as carried on the record, never normalized. The result's window is empty for every basis except satisfied, reproducible-fail, and unreproducible - the early bases select no window even when some records qualify. Records carry only binding-shaped provenance (judge identity, judgmentHash, fixtureHash); reproducibility stats and calibration evidence are recomputed from the ledger every time, the same reason promote recomputes effective decisions rather than trusting a tally field.\n\nGraduation is state-independent: it evaluates a proposed criterion identically to an active one - you test graduation before ratifying graduation intent, and the evidence survives ratification (the projection excludes state; it-judgment). Whether the result gates anyone is it-gating's business; whether to ratify the intent is the promotion protocol's.",
+      "body": "Graduation is how a judgment criterion becomes gateable without felag ever judging: a total, deterministic, fixturable function of exactly (criterionId, implementation, records, spec) - the shape of promote and verify. The non-determinism (the judge model call) lives entirely in record production, outside the boundary; fixtures prove the function with synthetic judgment records, no live judge required.\n\nA criterion is graduatable iff it carries a judgment object {rubric, tolerance?} with tolerance {runs, agreement} defaulting to {runs: 3, agreement: 3} - the default is pinned in this wire format, not in any spec record (the criteriaPerItem pattern). Unanimity-of-3 as the default is deliberate: disagreement at n=3 means the rubric is ambiguous, and an ambiguous rubric should not gate; authors relax it deliberately. Lint enforces 2 x agreement > runs (E_BAD_TOLERANCE), so reproducible-pass and reproducible-fail are mutually exclusive by construction. A graduatable criterion's fixtures list IS its calibration corpus: anchor fixtures, format felag/judgment-anchor@0, input the artifact to judge (payload-opaque, whatever the rubric needs), expected exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"} - one key, those values. Anchor adequacy lives here, not in lint: lint never reads payloads (an interchange invariant), while interpreting payloads per format is what payload-consuming functions are for. Anchor quality - are the anchors discriminating? - is the spec author's judgment conduct, ac-author-conduct's jurisdiction, the same place rubric quality lives.\n\nWire formats felag/graduation-input@0 {criterionId, implementation, records, spec} and felag/graduation-result@0 {graduated, errors, basis, judges, window} (see schema). Guards, mirroring promotion - each returns the full result with the single guard code, basis null, judges and window empty, and stops: G1 the input fails the wire-format schema, every record acceptable to ingestJudgment and timestamps parseable per it-verification's instants rule (E_SCHEMA); G2 spec fails lint (E_SPEC_INVALID); G3 criterionId names no criterion record (E_UNKNOWN_CRITERION); G4 the named criterion carries no judgment object (E_NOT_GRADUATABLE).\n\nDefinitions. Judge identity: the canonical serialization (CS2, CS4, CS5) of a record's judge object; equality is byte equality. Adequate corpus: the criterion's fixtures list is non-empty, every referenced anchor's expected parses as exactly {\"verdict\":\"pass\"} or {\"verdict\":\"fail\"}, and at least one anchor expects pass and at least one expects fail. The fail anchor is load-bearing: it is what kills the lazy always-pass judge, and it is why the agreement statistic needs no chance correction (a chance-corrected coefficient was rejected: floating-point statistics break fixture byte-equality across languages, and kappa is undefined at exactly the perfect agreement the protocol rewards). Admissible judge: judge J is admissible for criterion C iff C's corpus is adequate and for EVERY anchor in C.fixtures, the latest calibration record by J for (C.id, anchor id) whose judgmentHash equals C's current projection hash (it-judgment) and whose fixtureHash equals the anchor's current canonical hash - instant order on at, equal instants tying to the greatest array index, D1's rule verbatim - exists and has verdict equal to the anchor's expected verdict. The bar is all anchors, exactly: the corpus is author-curated to be unambiguous, and a judge wrong on an unambiguous anchor is inadmissible (a pass-rate knob, if real corpora ever need one, is a MINOR addition). Qualifying record: a target record matching criterionId = C.id, the input's implementation, and conformanceVersion equal to the spec preamble's, whose judgmentHash equals C's current projection hash, whose at parses, and whose judge is admissible. Window: the latest tolerance.runs qualifying records by instant, equal instants tying to the greatest array index. Independence of runs is attested, not verified: records are self-reported, and their check is calibration against the public anchor corpus, not identity - the runner-integrity stance; a distinctJudges floor is deliberately deferred (MINOR-addable, tightening only criteria that opt in).\n\nDerivation, basis precedence (first that holds): corpus-inadequate; no-admissible-judge (adequate corpus, zero admissible judges among the input's records for C - an input with no records at all included); insufficient-evidence (fewer than tolerance.runs qualifying records); then over the full window, counting passes p and fails f - unverifiable occupies its slot and counts toward neither (an abstention is evidence of non-reproducibility; fail closed, the malformed-waiver stance): satisfied iff p >= agreement, reproducible-fail iff f >= agreement (the judges agree the conduct violates - a conduct problem), else unreproducible (the judges split - a rubric problem; the basis names the remedy). graduated is true iff basis is satisfied.\n\nProvenance is derived and loud, never carried: the result's judges lists every distinct judge identity appearing in the input's records for C - calibration or target - as {admissible, judge}, sorted ascending by the Unicode code points of the judge identity's canonical serialization (CS4's order, never UTF-16 code-unit order); window lists the selected target records as {at, judge, verdict} in selection order (instant ascending, ties by array index), each at exactly as carried on the record, never normalized. The result's window is empty for every basis except satisfied, reproducible-fail, and unreproducible - the early bases select no window even when some records qualify. Records carry only binding-shaped provenance (judge identity, judgmentHash, fixtureHash); reproducibility stats and calibration evidence are recomputed from the ledger every time, the same reason promote recomputes effective decisions rather than trusting a tally field.\n\nGraduation is state-independent: it evaluates a proposed criterion identically to an active one - you test graduation before ratifying graduation intent, and the evidence survives ratification (the projection excludes state; it-judgment). Whether the result gates anyone is it-gating's business; whether to ratify the intent is the promotion protocol's.",
       "title": "The graduation function"
     },
     {
@@ -523,6 +524,7 @@
       "fixtures": [
         "fx-grad-calibration-latest",
         "fx-grad-corpus-inadequate",
+        "fx-grad-corpus-no-pass",
         "fx-grad-corpus-unusable",
         "fx-grad-judges-order",
         "fx-grad-mixed-judges",
@@ -2488,6 +2490,184 @@
             "id": "anchor-pass2",
             "input": {
               "artifact": "Each waived criterion is listed with its expiry."
+            },
+            "record": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-grad-corpus-no-pass",
+      "contractId": "c-verification",
+      "description": "The mirror inadequacy: a corpus of only fail anchors lacks a pass anchor - corpus-inadequate for every judge.",
+      "expected": {
+        "basis": "corpus-inadequate",
+        "errors": [],
+        "graduated": false,
+        "judges": [
+          {
+            "admissible": false,
+            "judge": {
+              "model": "judge-a"
+            }
+          }
+        ],
+        "window": []
+      },
+      "format": "felag/graduation-input@0",
+      "input": {
+        "criterionId": "jc-1",
+        "implementation": "impl-a",
+        "records": [
+          {
+            "at": "2026-05-01T00:00:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:defef94d655844805a700fe2c27f347031cbe65360691cf51b2245fd6da80dfe",
+            "fixtureId": "anchor-fail",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-05-01T00:01:00Z",
+            "attribution": "fixture",
+            "criterionId": "jc-1",
+            "evidence": "calibration run",
+            "fixtureHash": "sha256:d9d8bb488aef81a52631c844b847e0733683545fe562eed2d60b37e7e7af0c01",
+            "fixtureId": "anchor-fail2",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "calibration",
+            "runner": "harness",
+            "verdict": "fail"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-02T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          },
+          {
+            "at": "2026-06-03T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-1",
+            "evidence": "target run",
+            "implementation": "impl-a",
+            "judge": {
+              "model": "judge-a"
+            },
+            "judgmentHash": "sha256:b6963ee153a9582c31f589860e1ff510be8ae8f6de52a20df82b396de9ed3295",
+            "kind": "target",
+            "runner": "harness",
+            "verdict": "pass"
+          }
+        ],
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-fail2"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 3,
+                "runs": 3
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a second clearly violating artifact",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail2",
+            "input": {
+              "artifact": "see above lol"
             },
             "record": "fixture"
           }
@@ -7957,6 +8137,100 @@
     },
     {
       "record": "fixture",
+      "id": "fx-lint-tolerance-unreachable",
+      "contractId": "c-interchange",
+      "description": "tolerance runs 1 agreement 3 passes the majority rule (2 x 3 > 1) but agreement exceeds runs: a window of 1 record can never carry 3 agreeing verdicts - rejected with E_BAD_TOLERANCE, the criterion would be permanently ungraduatable.",
+      "expected": {
+        "errors": [
+          {
+            "code": "E_BAD_TOLERANCE",
+            "ref": "jc-1"
+          }
+        ],
+        "valid": false
+      },
+      "format": "felag/lint-input@0",
+      "input": {
+        "spec": [
+          {
+            "conformanceVersion": "1.0.0",
+            "contracts": [
+              {
+                "description": "playground contract",
+                "id": "c-x"
+              }
+            ],
+            "exclusions": [],
+            "goals": [],
+            "implementers": [
+              {
+                "name": "impl-a",
+                "roles": [
+                  "author"
+                ]
+              }
+            ],
+            "name": "g-spec",
+            "record": "preamble"
+          },
+          {
+            "body": "Conduct under judgment.",
+            "id": "it-x",
+            "record": "item",
+            "title": "Reporting"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-1",
+            "item": "While reporting conformance, the implementation shall use clear, observable language.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Is the report language clear, observable, and free of implementation jargon?",
+              "tolerance": {
+                "agreement": 3,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "active",
+            "type": "checklist"
+          },
+          {
+            "description": "Anchor: a clearly violating artifact (known-correct verdict fail)",
+            "expected": {
+              "verdict": "fail"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-fail",
+            "input": {
+              "artifact": "ERR 0x5f3759df see trace"
+            },
+            "record": "fixture"
+          },
+          {
+            "description": "Anchor: a clearly satisfying artifact (known-correct verdict pass)",
+            "expected": {
+              "verdict": "pass"
+            },
+            "format": "felag/judgment-anchor@0",
+            "id": "anchor-pass",
+            "input": {
+              "artifact": "The report names each failing criterion and states the remedy plainly."
+            },
+            "record": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "record": "fixture",
       "id": "fx-lint-undeclared-contract",
       "contractId": "c-interchange",
       "description": "A criterion names contractId c-nope, which the preamble does not declare; lint must reject with E_UNDECLARED_CONTRACT (closed-world scope).",
@@ -11667,7 +11941,7 @@
       "record": "fixture",
       "id": "fx-verdict-graduated-conforms",
       "contractId": "c-verification",
-      "description": "An active gating judgment criterion graduates (calibrated judge, passing window at 1/1): verdict conforms. The non-graduatable judgment criterion beside it stays advisory with its VerificationRecord-borne verdict.",
+      "description": "An active gating judgment criterion graduates (calibrated judge, passing window at 1/1): verdict conforms. The non-graduatable judgment criterion beside it stays advisory with its VerificationRecord-borne verdict; the PROPOSED graduatable criterion appears nowhere - graduatable criteria never enter advisory, even with a VerificationRecord on file.",
       "expected": {
         "advisory": [
           {
@@ -11744,6 +12018,17 @@
             "implementationVersion": "1.0.0",
             "runner": "harness",
             "verdict": "pass"
+          },
+          {
+            "at": "2026-06-01T00:00:00Z",
+            "attribution": "fixture",
+            "conformanceVersion": "1.0.0",
+            "criterionId": "jc-prop",
+            "evidence": "self-report",
+            "implementation": "impl-a",
+            "implementationVersion": "1.0.0",
+            "runner": "harness",
+            "verdict": "pass"
           }
         ],
         "spec": [
@@ -11795,6 +12080,29 @@
             "record": "criterion",
             "source": "forethought",
             "state": "active",
+            "type": "checklist"
+          },
+          {
+            "class": "judgment",
+            "contractId": "c-x",
+            "fixtures": [
+              "anchor-fail",
+              "anchor-pass"
+            ],
+            "force": "MUST",
+            "id": "jc-prop",
+            "item": "While reporting conformance, the implementation shall state coverage plainly.",
+            "itemId": "it-x",
+            "judgment": {
+              "rubric": "Does the report state coverage plainly?",
+              "tolerance": {
+                "agreement": 1,
+                "runs": 1
+              }
+            },
+            "record": "criterion",
+            "source": "forethought",
+            "state": "proposed",
             "type": "checklist"
           },
           {
@@ -13984,14 +14292,14 @@
   "transition": {
     "criterionId": "ac-lint-tolerance",
     "to": "active",
-    "requestedAt": "2026-06-13T01:11:04.580Z",
+    "requestedAt": "2026-06-13T01:31:07.399Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T01:11:04.580Z",
-        "criterionHash": "sha256:8891b736b8e8071d200764df0341ca1836a541776a071b3883ab0f857ee9e6ed"
+        "at": "2026-06-13T01:31:07.399Z",
+        "criterionHash": "sha256:2494580c20ebbf0ebf83de4a991152d08c84a7837dd4b47ca59ab855f2795c49"
       }
     ]
   }

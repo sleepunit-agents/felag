@@ -294,13 +294,20 @@ in the records.
 
 ## Named weaknesses, honestly
 
-1. **No distinct-judge floor.** One calibrated deterministic judge run n
-   times yields trivial unanimity; reproducibility then measures only
-   prompt-stability, not inter-judge robustness. Mitigated by calibration
-   (the judge is at least demonstrably competent on anchors) and
-   deferred as a MINOR-addable `distinctJudges` knob. The alternative —
-   requiring distinct judges now — would demand multiple calibrated
-   models on day one, a real adoption tax with zero live corpora.
+1. **No distinct-judge floor — and, stated honestly, target verdicts are
+   attestation, not third-party-reproducible checks.** A behavioral
+   record's backstop is public: anyone re-runs the committed fixture. A
+   target JudgmentRecord judges conduct that is in no corpus — only the
+   judge's calibration is publicly checkable. A judge that is
+   anchor-correct but target-permissive, run once and replicated, fills
+   the window and calibration cannot catch it. Cold review round 2 named
+   this correctly: it is the runner-integrity trust model applied to a
+   sparser evidence stream, and the spec now states the asymmetry plainly
+   (it-judgment) instead of claiming VerificationRecord-equivalence.
+   Mitigations: calibration (demonstrable competence on anchors,
+   including fail anchors), and the MINOR-addable `distinctJudges` knob.
+   Requiring distinct judges now would demand multiple calibrated models
+   on day one — a real adoption tax with zero live corpora.
 2. **All-anchors-correct calibration bar.** A 20-anchor corpus with one
    genuinely debatable anchor bricks every judge. The discipline this
    buys (corpora stay small and unambiguous) seems right at zero live

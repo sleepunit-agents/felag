@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-lint-tolerance",
   "to": "active",
-  "requestedAt": "2026-06-13T01:11:04.580Z",
+  "requestedAt": "2026-06-13T01:31:07.399Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T01:11:04.580Z",
-      "criterionHash": "sha256:8891b736b8e8071d200764df0341ca1836a541776a071b3883ab0f857ee9e6ed"
+      "at": "2026-06-13T01:31:07.399Z",
+      "criterionHash": "sha256:2494580c20ebbf0ebf83de4a991152d08c84a7837dd4b47ca59ab855f2795c49"
     }
   ]
 }
