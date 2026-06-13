@@ -38,13 +38,16 @@ const DOT = {
   // lint diagnostics: an error reads the same red as a blocked criterion, an
   // orphan-fixture warning the same amber as drifting.
   error: "#E24B4A", orphan: "#BA7517",
+  // authoring: an unresolved [NEEDS CLARIFICATION] reads the same amber as a
+  // drifting/proposed thing — it needs attention before the spec is "ready".
+  clarify: "#BA7517",
 };
 const LABEL = {
   conforming: "Conforming", "in-flight": "In flight", blocked: "Blocked",
   upcoming: "Upcoming", drifting: "Drifting", waived: "Waived",
   proposed: "Proposed", descriptive: "Descriptive", disputed: "Disputed",
   deprecated: "Deprecated", unverified: "Unverified",
-  error: "Error", orphan: "Orphan fixture",
+  error: "Error", orphan: "Orphan fixture", clarify: "Needs clarification",
 };
 // Board column order — same ordering src/status.ts uses for the summary strip.
 const STATUS_ORDER = [
@@ -111,31 +114,99 @@ function actionButton(label, intent, icon) {
     `<i class="ti ti-${icon}"></i> ${esc(label)} <span class="fw-arr">↗</span></button>`;
 }
 
+// Staged button: does NOT send. It queues an intent into the widget's staging
+// tray (client-side). The human assembles a batch of authoring moves, reviews
+// them as a block, then sends once via the tray's "Send batch" button. No ↗ —
+// nothing leaves the widget until the batch is sent. Used where a surface
+// invites many small moves before one governance act (authoring, review-queue).
+function stagedButton(root, label, intent, icon) {
+  const call = `window.__felagStage('${root}','${jsStr(intent)}')`;
+  return `<button type="button" class="fw-act" onclick="${attr(call)}">` +
+    `<i class="ti ti-${icon}"></i> ${esc(label)}</button>`;
+}
+
+// act(): a staged button when a staging root is given (the surface batches many
+// moves into one send), else an immediate fill-the-box button. Lets the shared
+// criterion/audit cards serve both the staging surfaces (new/review-queue/
+// audit) and the immediate ones (the status board) from one definition.
+function act(root, label, intent, icon) {
+  return root ? stagedButton(root, label, intent, icon) : actionButton(label, intent, icon);
+}
+
+// The staging tray + its script. Buttons call __felagStage to queue intents;
+// __felagSend joins the queue into ONE felag: block and fills the input (the
+// human presses enter — the batch is the governance act). Dedupes by intent;
+// each row is individually removable. Reusable across widgets; the root's
+// data-subject names the spec the batch applies to.
+function stagingTray(root) {
+  return `<div class="fw-tray" data-tray><p class="fw-tray-empty">No actions staged — click actions above to queue them, then send as one block.</p></div>`;
+}
+function stagingScript() {
+  return `<script>
+  window.__felagStage = window.__felagStage || function(root, intent){
+    var el = document.getElementById(root); if(!el) return;
+    el.__staged = el.__staged || [];
+    if(el.__staged.indexOf(intent) !== -1) return;
+    el.__staged.push(intent); window.__felagTray(root);
+  };
+  window.__felagUnstage = window.__felagUnstage || function(root, i){
+    var el = document.getElementById(root); if(!el || !el.__staged) return;
+    el.__staged.splice(i,1); window.__felagTray(root);
+  };
+  window.__felagClear = window.__felagClear || function(root){
+    var el = document.getElementById(root); if(!el) return;
+    el.__staged = []; window.__felagTray(root);
+  };
+  window.__felagSend = window.__felagSend || function(root){
+    var el = document.getElementById(root); if(!el || !el.__staged || !el.__staged.length) return;
+    var subject = el.getAttribute('data-subject') || 'the spec';
+    var lines = el.__staged.map(function(s,i){ return (i+1)+'. '+s; }).join('\\n');
+    sendPrompt('felag: apply these actions to '+subject+':\\n'+lines);
+  };
+  window.__felagTray = window.__felagTray || function(root){
+    var el = document.getElementById(root); if(!el) return;
+    var tray = el.querySelector('[data-tray]'); if(!tray) return;
+    var s = el.__staged || [];
+    if(!s.length){ tray.innerHTML = '<p class="fw-tray-empty">No actions staged — click actions above to queue them, then send as one block.</p>'; return; }
+    var rows = s.map(function(item,i){
+      return '<div class="fw-tray-row"><span class="fw-tray-num">'+(i+1)+'.</span>'
+        +'<span class="fw-tray-label">'+item.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>'
+        +'<button type="button" class="fw-tray-x" aria-label="Remove" onclick="window.__felagUnstage(\\''+root+'\\','+i+')">&times;</button></div>';
+    }).join('');
+    tray.innerHTML = '<div class="fw-tray-head">'+s.length+' action'+(s.length===1?'':'s')+' staged — sent as one block</div>'+rows
+      +'<div class="fw-acts"><button type="button" class="fw-act" onclick="window.__felagSend(\\''+root+'\\')"><i class="ti ti-send"></i> Send batch <span class="fw-arr">&#8599;</span></button>'
+      +'<button type="button" class="fw-act" onclick="window.__felagClear(\\''+root+'\\')"><i class="ti ti-x"></i> Clear</button></div>';
+  };
+  </script>`;
+}
+
 // The action set a criterion offers is a function of its derived status.
-function criterionActions(c) {
+function criterionActions(c, root) {
   if (c.status === "proposed") {
     return [
-      actionButton("Approve", `approve proposed criterion ${c.id}`, "check"),
-      actionButton("Make descriptive", `make criterion ${c.id} descriptive`, "file-text"),
-      actionButton("Dispute", `dispute criterion ${c.id}`, "alert-triangle"),
+      act(root, "Approve", `approve proposed criterion ${c.id}`, "check"),
+      act(root, "Make descriptive", `make criterion ${c.id} descriptive`, "file-text"),
+      act(root, "Dispute", `dispute criterion ${c.id}`, "alert-triangle"),
     ];
   }
   if (c.status === "drifting") {
     return [
-      actionButton("See failures", `show failing fixtures for criterion ${c.id}`, "list-search"),
-      actionButton("Waive", `waive criterion ${c.id}`, "shield-off"),
+      act(root, "See failures", `show failing fixtures for criterion ${c.id}`, "list-search"),
+      act(root, "Waive", `waive criterion ${c.id}`, "shield-off"),
     ];
   }
   return [];
 }
 
-// A criterion card — the shared unit across every felag widget.
-function criterionCard(c) {
+// A criterion card — the shared unit across every felag widget. Pass a staging
+// `root` to make its actions queue into that widget's tray; omit it for the
+// immediate fill-the-box behavior (the status board).
+function criterionCard(c, root) {
   const gherkin = (c.text ?? "").trim();
   const body = gherkin
     ? `<pre class="fw-gherkin">${esc(gherkin)}</pre>`
     : `<p class="fw-judgment">(judgment criterion)</p>`;
-  const acts = criterionActions(c);
+  const acts = criterionActions(c, root);
   const actsRow = acts.length ? `<div class="fw-acts">${acts.join("")}</div>` : "";
   return `<div class="fw-card" data-status="${attr(c.status)}" data-id="${attr(c.id)}">
     ${dot(c.status)}
@@ -202,6 +273,14 @@ function styles(root) {
   #${root} .fw-chips{display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.2rem 0 0.5rem}
   #${root} .fw-chip{font-family:ui-monospace,monospace;font-size:0.7rem;padding:0.1rem 0.45rem;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary)}
   #${root} .fw-chip-out{font-family:ui-monospace,monospace;font-size:0.7rem;padding:0.1rem 0.45rem;border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-tertiary);border:0.5px dashed var(--color-border-secondary);text-decoration:line-through}
+  #${root} .fw-tray{border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-md);padding:0.5rem 0.7rem;background:var(--color-background-secondary)}
+  #${root} .fw-tray-empty{font-size:0.74rem;color:var(--color-text-tertiary);margin:0}
+  #${root} .fw-tray-head{font-size:0.74rem;font-weight:500;color:var(--color-text-primary);margin:0 0 0.3rem}
+  #${root} .fw-tray-row{display:flex;align-items:center;gap:0.4rem;font-size:0.74rem;padding:0.15rem 0}
+  #${root} .fw-tray-num{color:var(--color-text-tertiary);flex:none}
+  #${root} .fw-tray-label{flex:1;min-width:0;color:var(--color-text-primary)}
+  #${root} .fw-tray-x{border:0;background:transparent;cursor:pointer;color:var(--color-text-tertiary);font-size:0.95rem;line-height:1;padding:0 0.2rem}
+  #${root} .fw-tray-x:hover{color:var(--color-text-danger)}
   </style>`;
 }
 
@@ -233,7 +312,7 @@ export function renderStatusWidget(model) {
     return `<div class="fw-section">
       <div class="fw-section-title">${esc(ct.id)} <span class="fw-section-desc" style="display:inline">${conf}/${crits.length} conforming</span></div>
       <p class="fw-section-desc">${esc(ct.description ?? "")}</p>
-      ${crits.map(criterionCard).join("")}
+      ${crits.map((c) => criterionCard(c)).join("")}
     </div>`;
   }).join("");
 
@@ -242,7 +321,7 @@ export function renderStatusWidget(model) {
     const crits = allCrits.filter((c) => c.status === s);
     return `<div class="fw-col">
       <div class="fw-col-head">${dot(s)}${esc(LABEL[s] ?? s)} <span class="fw-version">${crits.length}</span></div>
-      ${crits.map(criterionCard).join("")}
+      ${crits.map((c) => criterionCard(c)).join("")}
     </div>`;
   }).join("");
   const boardView = `<div class="fw-board">${boardCols}</div>`;
@@ -327,10 +406,16 @@ export function renderReviewQueueWidget(model) {
   const summary = `${proposed.length} proposed criteria awaiting ratification — ${m.name ?? "spec"}`;
 
   const cards = proposed.length
-    ? proposed.map(criterionCard).join("")
+    ? proposed.map((c) => criterionCard(c, root)).join("")
     : `<p class="fw-empty"><i class="ti ti-check"></i> Nothing proposed — the review queue is clear.</p>`;
 
-  return `<div id="${root}" class="felag-widget">
+  // Staging tray only when there's something to ratify — an empty queue needs
+  // no outbox.
+  const traySection = proposed.length
+    ? `<div class="fw-section"><div class="fw-section-title">Staged ratifications</div>${stagingTray(root)}</div>${stagingScript()}`
+    : "";
+
+  return `<div id="${root}" class="felag-widget" data-subject="${attr(m.name ?? "the spec")}">
     <h2 class="sr-only">${esc(summary)}</h2>
     ${styles(root)}
     <div class="fw-header">
@@ -338,8 +423,9 @@ export function renderReviewQueueWidget(model) {
       <span class="fw-version">${esc(m.version ?? "")}</span>
       <span class="fw-pill" style="background:var(--color-background-info)">Review queue</span>
     </div>
-    <p class="fw-section-desc">Proposed criteria wait for a human to sign them. Each button drafts the governance act — you review and send.</p>
+    <p class="fw-section-desc">Proposed criteria wait for a human to sign them. Stage the calls — approve, dispute, make descriptive — and send the batch as one governance act.</p>
     ${cards}
+    ${traySection}
   </div>`;
 }
 
@@ -475,7 +561,7 @@ function auditFixtures(description) {
 
 // A proposed-work card: criterion id + the proposal title + the fixtures it
 // needs, with per-item actions to file it or claim it.
-function auditCard(p) {
+function auditCard(p, root) {
   const fx = auditFixtures(p.description);
   const fxRow = fx ? `<p class="fw-meta">fixtures: ${esc(fx)}</p>` : "";
   return `<div class="fw-card" data-status="drifting" data-id="${attr(p.criterionId)}">
@@ -488,8 +574,8 @@ function auditCard(p) {
       <p class="fw-section-desc" style="margin:0.1rem 0 0">${esc(p.title)}</p>
       ${fxRow}
       <div class="fw-acts">
-        ${actionButton("Send to work store", `send ${p.criterionId} to the work store`, "send")}
-        ${actionButton("Claim", `claim ${p.criterionId}`, "user-check")}
+        ${act(root, "Send to work store", `send ${p.criterionId} to the work store`, "send")}
+        ${act(root, "Claim", `claim ${p.criterionId}`, "user-check")}
       </div>
     </div>
   </div>`;
@@ -543,21 +629,25 @@ export function renderAuditWidget(result) {
     const items = byRef.get(ref);
     return `<div class="fw-section">
       <div class="fw-section-title">${esc(ref)} <span class="fw-section-desc" style="display:inline">${items.length}</span></div>
-      ${items.map(auditCard).join("")}
+      ${items.map((p) => auditCard(p, root)).join("")}
     </div>`;
   }).join("");
 
+  // Per-item sends stage into the tray; "Send all" stays a single bulk shot.
+  const traySection = `<div class="fw-section"><div class="fw-section-title">Staged work</div>${stagingTray(root)}</div>`;
   const wholeActions = `<div class="fw-acts">
     ${actionButton("Send all to taskstore", `send all ${proposals.length} audit proposals to the work store`, "checklist")}
   </div>`;
 
-  return `<div id="${root}" class="felag-widget">
+  return `<div id="${root}" class="felag-widget" data-subject="${attr(impl)}">
     <h2 class="sr-only">${esc(summary)}</h2>
     ${styles(root)}
     ${header}
-    <p class="fw-section-desc">${proposals.length} proposed work item${proposals.length === 1 ? "" : "s"} — one per failing gating criterion. Each button drafts the instruction; you review and send.</p>
+    <p class="fw-section-desc">${proposals.length} proposed work item${proposals.length === 1 ? "" : "s"} — one per failing gating criterion. Stage the ones you want, or send them all at once.</p>
     ${sections}
+    ${traySection}
     ${wholeActions}
+    ${stagingScript()}
   </div>`;
 }
 
@@ -841,9 +931,152 @@ export function renderLintWidget(result, specName) {
   </div>`;
 }
 
+// /felag new — the authoring interview, live. The spec being authored is an
+// in-progress object: criteria sorted into the three strata, a worklist of
+// open [NEEDS CLARIFICATION] questions, and a ready-state that only flips once
+// every clarification is resolved AND lint passes. This is the AUTHORING twin
+// of renderStatusWidget: there, status is derived from verification; here,
+// "ready" is derived from clarifications-resolved + lint-clean. A half-authored
+// spec is a valid, re-openable state — the open-questions list IS the worklist
+// you pick back up next session. Nothing is "done" until the human clicks the
+// cold-review hand-off (review is the done-signal, not an assumed default).
+//
+// Model shape (from the /felag new skill driving the interview):
+//   { spec, item?, contract:[Draft], profile:[string], excluded:[string],
+//     clarifications:[{id, question, criterionId?}], lintClean?:bool }
+//   Draft = { id, force, text(gherkin), fixture?:string|null } — a proposed
+//   criterion. fixture missing ⇒ THE RULE unmet: not yet recordable.
+export function renderInterviewWidget(model) {
+  const root = `fw-new-${_wid++}`;
+  const m = model ?? {};
+  const spec = m.spec ?? "the spec";
+  const contract = m.contract ?? [];
+  const profile = m.profile ?? [];
+  const excluded = m.excluded ?? [];
+  const clarifications = m.clarifications ?? [];
+  // THE RULE: a criterion isn't recordable without its fixture. Those, plus any
+  // open clarification, are what stand between here and "ready".
+  const needFixture = contract.filter((c) => !c.fixture);
+  const lintClean = m.lintClean ?? true;
+  const ready =
+    contract.length > 0 && clarifications.length === 0 &&
+    needFixture.length === 0 && lintClean;
+
+  const summary = `Authoring ${spec} — ${contract.length} proposed, ${clarifications.length} open question${clarifications.length === 1 ? "" : "s"}${ready ? ", ready for review" : ""}`;
+
+  const header = `<div class="fw-header">
+      <span class="fw-name">${esc(spec)}</span>
+      ${m.item ? `<span class="fw-version">${esc(m.item)}</span>` : ""}
+      <span class="fw-pill" style="background:var(--color-background-info)">Authoring</span>
+    </div>`;
+
+  // A draft criterion card. Proposed (amber). If its fixture is missing, THE
+  // RULE is unmet — say so and lead with Add fixture; otherwise offer Confirm.
+  const draftCard = (c) => {
+    const hasFx = !!c.fixture;
+    const gherkin = (c.text ?? "").trim();
+    const body = gherkin
+      ? `<pre class="fw-gherkin">${esc(gherkin)}</pre>`
+      : `<p class="fw-judgment">(judgment criterion)</p>`;
+    const fxLine = hasFx
+      ? `<p class="fw-meta">fixture: ${esc(c.fixture)}</p>`
+      : `<p class="fw-meta" style="color:var(--color-text-warning)">fixture: — &middot; the round you write the sentence is the round you write the fixture</p>`;
+    const acts = hasFx
+      ? [
+          stagedButton(root, "Confirm", `confirm criterion ${c.id}`, "check"),
+          stagedButton(root, "Make descriptive", `mark criterion ${c.id} descriptive`, "file-text"),
+          stagedButton(root, "Exclude", `move ${c.id} to excluded`, "circle-minus"),
+        ]
+      : [
+          stagedButton(root, "Add fixture", `add the fixture that proves ${c.id}`, "plus"),
+          stagedButton(root, "Make descriptive", `mark criterion ${c.id} descriptive`, "file-text"),
+          stagedButton(root, "Exclude", `move ${c.id} to excluded`, "circle-minus"),
+        ];
+    return `<div class="fw-card" data-status="${hasFx ? "proposed" : "clarify"}" data-id="${attr(c.id)}">
+      ${dot(hasFx ? "proposed" : "clarify")}
+      <div class="fw-card-body">
+        <div class="fw-card-head">
+          <span class="fw-id">${esc(c.id)}</span>${badge(c.force ?? "MUST")}${hasFx ? "" : badge("needs fixture")}
+        </div>
+        ${body}${fxLine}
+        <div class="fw-acts">${acts.join("")}</div>
+      </div>
+    </div>`;
+  };
+
+  // Profile/binding and excluded are notes, not criteria — chips, not cards.
+  // Excluded chips are struck (loudly refused, by design).
+  const noteCol = (title, icon, notes, klass) => `<div class="fw-col">
+      <div class="fw-col-head"><i class="ti ti-${icon}"></i> ${title} <span class="fw-version">${notes.length}</span></div>
+      ${notes.length
+        ? `<div class="fw-chips" style="flex-direction:column;align-items:flex-start">${notes.map((n) => `<span class="${klass}" style="white-space:normal">${esc(n)}</span>`).join("")}</div>`
+        : `<p class="fw-empty">none yet</p>`}
+    </div>`;
+
+  // Contract is the substance — full width for its criterion cards. Profile and
+  // excluded are just notes, so they sit below in a compact two-up row.
+  const contractSection = `<div class="fw-section">
+      <div class="fw-section-title">Contract <span class="fw-section-desc" style="display:inline">${contract.length}</span></div>
+      ${contract.length ? contract.map(draftCard).join("") : `<p class="fw-empty">no criteria yet — frame the contract first</p>`}
+    </div>`;
+  const notesRow = `<div class="fw-board">
+    ${noteCol("Profile / binding", "adjustments-horizontal", profile, "fw-chip")}
+    ${noteCol("Excluded", "circle-minus", excluded, "fw-chip-out")}
+  </div>`;
+  const board = contractSection + notesRow;
+
+  // The adopted pattern: open questions are first-class [NEEDS CLARIFICATION]
+  // cards — the authoring-time twin of "conformance derived, never asserted".
+  const clarifySection = clarifications.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Open questions — [NEEDS CLARIFICATION] <span class="fw-section-desc" style="display:inline">${clarifications.length}</span></div>
+        <p class="fw-section-desc">Ambiguity is marked, never assumed. Each resolved here lands (or excludes) a criterion.</p>
+        ${clarifications.map((q) => `<div class="fw-card" data-status="clarify" data-id="${attr(q.id ?? "")}">
+          ${dot("clarify")}
+          <div class="fw-card-body">
+            <div class="fw-card-head"><span class="fw-id">${esc(q.id ?? "?")}</span>${q.criterionId ? badge(`blocks ${q.criterionId}`) : ""}</div>
+            <p class="fw-section-desc" style="margin:0.1rem 0 0;color:var(--color-text-primary)">${esc(q.question ?? "")}</p>
+            <div class="fw-acts">${stagedButton(root, "Resolve", `resolve clarification ${q.id ?? ""}${q.criterionId ? ` (criterion ${q.criterionId})` : ""}`, "message-circle-question")}</div>
+          </div>
+        </div>`).join("")}
+      </div>`
+    : "";
+
+  // Ready-state: the done-signal. Not ready ⇒ name what's blocking. Ready ⇒ the
+  // one deliberate hand-off to cold review (drafts, human sends).
+  const footer = ready
+    ? `<div class="fw-section"><p class="fw-empty"><i class="ti ti-circle-check"></i> ${contract.length} proposed criteria &middot; lints clean — ready for review.</p>
+        <div class="fw-acts">${actionButton("Send to cold review", `cold-review ${spec}`, "arrow-right")}</div></div>`
+    : `<div class="fw-section"><p class="fw-empty">Not ready — ${
+        [
+          clarifications.length ? `${clarifications.length} open question${clarifications.length === 1 ? "" : "s"}` : "",
+          needFixture.length ? `${needFixture.length} criterion${needFixture.length === 1 ? "" : "s"} missing a fixture` : "",
+          lintClean ? "" : "lint failing",
+        ].filter(Boolean).join(", ")
+      }. Resolve these, then send to review.</p></div>`;
+
+  // The staging tray: per-criterion moves queue here and send as one block.
+  const traySection = `<div class="fw-section">
+      <div class="fw-section-title">Staged actions</div>
+      ${stagingTray(root)}
+    </div>`;
+
+  return `<div id="${root}" class="felag-widget" data-subject="${attr(spec)}">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    ${header}
+    ${board}
+    ${clarifySection}
+    ${traySection}
+    ${footer}
+    ${stagingScript()}
+  </div>`;
+}
+
 // Thin dispatcher so future skills stay one-liners (design: renderFelagWidget).
 export function renderFelagWidget(kind, model) {
   switch (kind) {
+    case "new": case "interview": return renderInterviewWidget(model);
     case "status": return renderStatusWidget(model);
     case "review-queue": return renderReviewQueueWidget(model);
     case "verify": return renderVerifyWidget(model);

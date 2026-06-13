@@ -14,6 +14,7 @@ import {
   renderReviewWidget,
   renderRenderWidget,
   renderLintWidget,
+  renderInterviewWidget,
 } from "../felag/skills/widget.mjs";
 
 // A small inline status model in the computeStatus shape.
@@ -101,9 +102,15 @@ describe("renderReviewQueueWidget", () => {
     }
   });
 
-  it("each proposed card has an approve button", () => {
+  it("each proposed card stages an approve ratification (batched, not sent inline)", () => {
     expect(fragment).toContain("Approve");
-    expect(fragment).toContain("felag: approve proposed criterion ac-three");
+    // staged, not an inline send — the felag: prefix is added at batch time
+    expect(fragment).toContain("__felagStage");
+    expect(fragment).toContain("approve proposed criterion ac-three");
+    expect(fragment).not.toContain("sendPrompt('felag: approve proposed criterion");
+    // and the queue carries a staging tray + its send engine
+    expect(fragment).toContain("data-tray");
+    expect(fragment).toContain("__felagSend");
   });
 
   it("opens with an sr-only h2 and is a fragment", () => {
@@ -231,10 +238,16 @@ describe("renderAuditWidget", () => {
     expect(fragment).not.toContain("fixtures: (none)");
   });
 
-  it("each item can be filed or claimed; the whole plan sends all", () => {
-    expect(fragment).toContain("felag: send ac-fail-one to the work store");
-    expect(fragment).toContain("felag: claim ac-fail-one");
+  it("each item stages a file/claim; the whole plan still sends all in one shot", () => {
+    // per-item actions stage into the tray (no inline felag: prefix)
+    expect(fragment).toContain("__felagStage");
+    expect(fragment).toContain("send ac-fail-one to the work store");
+    expect(fragment).toContain("claim ac-fail-one");
+    expect(fragment).not.toContain("sendPrompt('felag: send ac-fail-one");
+    // the bulk shortcut remains an immediate single send
     expect(fragment).toContain("felag: send all 2 audit proposals to the work store");
+    // and the plan carries a staging tray
+    expect(fragment).toContain("data-tray");
   });
 
   it("no proposals → a one-line success state", () => {
@@ -464,5 +477,91 @@ describe("renderLintWidget", () => {
     expect(fragment).not.toContain("sendPrompt('/");
     expect(fragment).not.toMatch(/felag:\s*\//);
     expect(fragment).not.toMatch(/color\s*:\s*#/i);
+  });
+});
+
+describe("renderInterviewWidget (/felag new)", () => {
+  const midModel = {
+    spec: "watchdog-core",
+    item: "session-watch",
+    contract: [
+      { id: "ac-have-fx", force: "MUST", fixture: "fx-ok", text: "Given x When y Then z" },
+      { id: "ac-need-fx", force: "SHOULD", fixture: null, text: "Given a When b Then c" },
+    ],
+    profile: ["runtime is the builder's choice"],
+    excluded: ["no auto-remediation"],
+    clarifications: [{ id: "q-1", criterionId: "ac-have-fx", question: "wall-clock or active-wait?" }],
+    lintClean: true,
+  };
+  const fragment: string = renderInterviewWidget(midModel);
+
+  it("is a fragment opening with an sr-only h2", () => {
+    expect(fragment.startsWith("<!doctype")).toBe(false);
+    expect(fragment).toMatch(/^<div id="fw-new-\d+"[^>]*>\s*<h2 class="sr-only">/);
+  });
+
+  it("sorts criteria into the contract stratum and lists profile/excluded notes", () => {
+    expect(fragment).toContain("Contract");
+    expect(fragment).toContain("ac-have-fx");
+    expect(fragment).toContain("Profile / binding");
+    expect(fragment).toContain("runtime is the builder's choice");
+    expect(fragment).toContain("Excluded");
+    expect(fragment).toContain("no auto-remediation");
+  });
+
+  it("flags a criterion missing its fixture (THE RULE) rather than treating it as ready", () => {
+    expect(fragment).toContain("needs fixture");
+    expect(fragment).toContain("the round you write the sentence is the round you write the fixture");
+    // its primary action is to add the fixture
+    expect(fragment).toContain("add the fixture that proves ac-need-fx");
+  });
+
+  it("renders open questions as first-class [NEEDS CLARIFICATION] cards", () => {
+    expect(fragment).toContain("[NEEDS CLARIFICATION]");
+    expect(fragment).toContain("wall-clock or active-wait?");
+    expect(fragment).toContain("blocks ac-have-fx");
+  });
+
+  it("is NOT ready while a clarification or missing fixture stands — no hand-off button", () => {
+    expect(fragment).toContain("Not ready");
+    expect(fragment).not.toContain("Send to cold review");
+  });
+
+  it("a resolved, lint-clean, fully-fixtured spec is ready and offers the cold-review hand-off", () => {
+    const ready: string = renderInterviewWidget({
+      spec: "watchdog-core",
+      contract: [{ id: "ac-have-fx", force: "MUST", fixture: "fx-ok", text: "Given x When y Then z" }],
+      profile: [], excluded: [], clarifications: [], lintClean: true,
+    });
+    expect(ready).toContain("ready for review");
+    // the hand-off is a SINGLE immediate send (the done-signal), not a staged action
+    expect(ready).toContain("sendPrompt('felag: cold-review watchdog-core')");
+  });
+
+  it("stages authoring moves into a tray instead of sending each inline", () => {
+    expect(fragment).toContain("__felagStage");
+    expect(fragment).toContain("confirm criterion ac-have-fx");
+    expect(fragment).not.toContain("sendPrompt('felag: confirm criterion");
+    expect(fragment).toContain("data-tray");
+    expect(fragment).toContain("data-subject=\"watchdog-core\"");
+  });
+
+  it("the batch send joins staged intents under one felag: block addressed to the subject", () => {
+    expect(fragment).toContain("__felagSend");
+    expect(fragment).toContain("apply these actions to");
+  });
+
+  it("uses 0.5px borders, no leading-slash sendPrompt, and no hardcoded text color", () => {
+    expect(fragment).toContain("0.5px");
+    expect(fragment).not.toContain("sendPrompt('/");
+    expect(fragment).not.toMatch(/felag:\s*\//);
+    expect(fragment).not.toMatch(/color\s*:\s*#[0-9a-f]/i);
+  });
+
+  it("an empty spec invites framing the contract first, and is not ready", () => {
+    const empty: string = renderInterviewWidget({ spec: "fresh", contract: [], clarifications: [] });
+    expect(empty).toContain("frame the contract first");
+    expect(empty).toContain("Not ready");
+    expect(empty).not.toContain("ready for review");
   });
 });

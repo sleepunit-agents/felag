@@ -91,6 +91,7 @@ conversational, **widget-driven** commands — the spec pops as a rich,
 the conformance report, the work plan, the cold-review rounds), and buttons
 draft governance actions you review and send:
 
+- `/felag new` — the authoring interview: sorts surface into the three strata (contract / profile-binding / excluded), front-loads the stranger test + fixture per criterion, marks ambiguity as `[NEEDS CLARIFICATION]`, ends at proposed + lint-clean and hands off to review
 - `/felag status [scope]` — the spec as a board (whole / contract / criterion)
 - `/felag review-queue` — proposed criteria, with approve / dispute / descriptive (the HITL ratification surface)
 - `/felag verify` — the conformance report
@@ -99,10 +100,12 @@ draft governance actions you review and send:
 - `/felag render <audience>` — the audience projection (stakeholder / developer / verifier), switch lens in place
 - `/felag lint` — the merge gate as a panel: error cards (code + ref) and orphan-fixture warnings, or one green line when clean
 
-All seven view verbs now pop an actionable panel. Install: copy `felag/skills/*` into your harness's skills dir. felag-core /
-felag-ts stay vendor-neutral; the skills are the "felag for Claude"
-distribution. (`/felag new` — the guided authoring interview — is the next
-skill; design in `docs/`.)
+Where a surface invites many small moves before one governance act —
+authoring (`new`), ratifying (`review-queue`), filing work (`audit`) — buttons
+don't send one at a time; they **stage** into a tray, and one **Send batch**
+fills the input with the whole block to sign at once. Install: copy
+`felag/skills/*` into your harness's skills dir. felag-core / felag-ts stay
+vendor-neutral; the skills are the "felag for Claude" distribution.
 
 Design history (drafts; the compiled spec records are normative):
 [design v1.2](docs/design/2026-06-11-felag-design-draft-v1.md) (core
@@ -113,8 +116,8 @@ harness), and the
 [compilation findings](docs/design/compilation-findings-v0.md).
 The c-author criteria are now ratified (5.0.0) and the governance machinery
 has many live runs — promotion drove the judgment-gating and descriptive-state
-releases and the author-class ratification itself. Next: the `/felag new`
-authoring-interview skill, and Dolt-backed index storage.
+releases and the author-class ratification itself. Next: Dolt-backed index
+storage, and wiring `/felag audit` into the work store.
 
 ## Lineage
 
