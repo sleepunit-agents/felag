@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-grad-admissibility",
   "to": "active",
-  "requestedAt": "2026-06-13T01:31:07.417Z",
+  "requestedAt": "2026-06-13T01:51:48.444Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T01:31:07.417Z",
-      "criterionHash": "sha256:fbfbd887873d7351e3728aee35cb112b5481d1eccb56a30b71b3bf8f9b5a8a94"
+      "at": "2026-06-13T01:51:48.444Z",
+      "criterionHash": "sha256:18da925ecdbc8fe865abc1a9579bfdbed669c469bf82944f1b46ec9f26ac0d47"
     }
   ]
 }
