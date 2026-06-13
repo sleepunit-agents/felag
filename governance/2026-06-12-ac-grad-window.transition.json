@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-grad-window",
+  "to": "active",
+  "requestedAt": "2026-06-13T01:51:48.448Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T01:51:48.448Z",
+      "criterionHash": "sha256:50a724ea5d244bcaaa7c419ed63bf6f389ebea08fc1a9badb4dbcfcb1c02b2e6"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
+import { graduate, ingestJudgment } from "../src/graduation.js";
 import { promote } from "../src/promotion.js";
 import {
   renderInventory,
@@ -31,7 +32,7 @@ import type {
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "2.0.0";
+const IMPLEMENTATION_VERSION = "3.0.0";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 const at = new Date().toISOString();
 
@@ -63,6 +64,12 @@ function runFixture(fx: Fixture): "pass" | "fail" {
         break;
       case "felag/promotion-input@0":
         ok = eq(promote(fx.input), fx.expected);
+        break;
+      case "felag/judgment-ingest@0":
+        ok = eq(ingestJudgment(fx.input), fx.expected);
+        break;
+      case "felag/graduation-input@0":
+        ok = eq(graduate(fx.input), fx.expected);
         break;
       case "felag/author-output@0":
         ok = eq(validateAuthorOutput(fx.input as AuthorOutputInput), fx.expected);

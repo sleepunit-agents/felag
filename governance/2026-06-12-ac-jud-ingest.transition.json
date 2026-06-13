@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-jud-ingest",
+  "to": "active",
+  "requestedAt": "2026-06-13T01:51:48.437Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T01:51:48.437Z",
+      "criterionHash": "sha256:d8679349f054c74d65584463869e2e27b6a72317c7a4716633e8432eaacb3bb9"
+    }
+  ]
+}

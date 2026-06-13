@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // felag CLI — thin shell over the library.
-// Verbs: lint, fmt, hash, verify, prime, audit, promote, tasks.
+// Verbs: lint, fmt, hash, verify, graduate, prime, audit, promote, tasks.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fixtureHash, parse, serialize } from "./canonical.js";
 import { lint } from "./lint.js";
 import { verify } from "./verify.js";
+import { graduate } from "./graduation.js";
 import { promote } from "./promotion.js";
 import { emitPrime } from "./prime.js";
 import { audit } from "./audit.js";
@@ -144,6 +145,22 @@ switch (verb) {
     console.log(JSON.stringify(result, null, 2));
     process.exit(0);
   }
+  case "graduate": {
+    // felag graduate <spec-dir> <records.jsonl> <implementation> <criterionId>
+    const [dir, recordsFile, implementation, criterionId] = args;
+    if (!dir || !recordsFile || !implementation || !criterionId) {
+      console.error("usage: felag graduate <spec-dir> <records.jsonl> <implementation> <criterionId>");
+      process.exit(2);
+    }
+    const result = graduate({
+      criterionId,
+      implementation,
+      records: readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)),
+      spec: loadSpecDir(dir),
+    });
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.graduated ? 0 : 1);
+  }
   case "promote": {
     // felag promote <spec-dir> <transition.json> [--as-of <iso>]
     const [dir, transitionFile] = args;
@@ -184,7 +201,7 @@ switch (verb) {
   }
   default:
     console.error(
-      "felag <lint|fmt|hash|verify|prime|audit|promote|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
+      "felag <lint|fmt|hash|verify|graduate|prime|audit|promote|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
     );
     process.exit(2);
 }

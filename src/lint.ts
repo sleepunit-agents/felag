@@ -38,15 +38,36 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
       );
     case "item":
       return !(typeof rec.id === "string" && typeof rec.title === "string" && typeof rec.body === "string");
-    case "criterion":
-      return !(
-        typeof rec.id === "string" &&
-        typeof rec.itemId === "string" &&
-        CRITERION_CLASSES.has(rec.class as string) &&
-        FORCES.has(rec.force as string) &&
-        CRITERION_STATES.has(rec.state as string) &&
-        Array.isArray(rec.fixtures)
-      );
+    case "criterion": {
+      if (
+        !(
+          typeof rec.id === "string" &&
+          typeof rec.itemId === "string" &&
+          CRITERION_CLASSES.has(rec.class as string) &&
+          FORCES.has(rec.force as string) &&
+          CRITERION_STATES.has(rec.state as string) &&
+          Array.isArray(rec.fixtures)
+        )
+      ) {
+        return true;
+      }
+      // judgment object (3.0.0): forbidden on class behavioral; when present,
+      // rubric is a string and tolerance, if present, carries integer
+      // runs/agreement >= 1 (the majority rule is E_BAD_TOLERANCE, not schema).
+      if (rec.judgment !== undefined) {
+        if (rec.class === "behavioral") return true;
+        const j = rec.judgment as Record<string, unknown> | null;
+        if (j === null || typeof j !== "object" || Array.isArray(j)) return true;
+        if (typeof j.rubric !== "string") return true;
+        if (j.tolerance !== undefined) {
+          const t = j.tolerance as Record<string, unknown> | null;
+          if (t === null || typeof t !== "object" || Array.isArray(t)) return true;
+          if (!Number.isInteger(t.runs) || (t.runs as number) < 1) return true;
+          if (!Number.isInteger(t.agreement) || (t.agreement as number) < 1) return true;
+        }
+      }
+      return false;
+    }
     case "fixture":
       return !(
         typeof rec.id === "string" &&
@@ -102,6 +123,23 @@ export function lint(records: SpecRecord[]): LintResult {
       }
       if (c.contractId !== undefined && declared.has(c.contractId) && c.class === "behavioral" && c.fixtures.length === 0) {
         errors.push({ code: "E_MISSING_FIXTURES", ref: c.id });
+      }
+      // 3.0.0: a graduatable judgment criterion's fixtures are its calibration
+      // corpus — a graduation bar with no anchors is bare assertion.
+      if (c.class === "judgment" && c.judgment !== undefined && c.fixtures.length === 0) {
+        errors.push({ code: "E_MISSING_FIXTURES", ref: c.id });
+      }
+      // 3.0.0: without strict majority, reproducible-pass and reproducible-fail
+      // could hold at once; agreement above runs is unreachable — a window of
+      // runs records can never carry more than runs agreeing verdicts.
+      const tol = c.judgment?.tolerance;
+      if (
+        tol !== undefined &&
+        Number.isInteger(tol.runs) &&
+        Number.isInteger(tol.agreement) &&
+        (2 * tol.agreement <= tol.runs || tol.agreement > tol.runs)
+      ) {
+        errors.push({ code: "E_BAD_TOLERANCE", ref: c.id });
       }
       for (const fx of c.fixtures) {
         if (!fixtureIds.has(fx)) errors.push({ code: "E_UNKNOWN_FIXTURE", ref: c.id });

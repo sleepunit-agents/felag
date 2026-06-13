@@ -1,12 +1,13 @@
 // The conformance harness: spec/felag-core/fixtures.jsonl IS the test suite.
 // Each fixture's format selects the implementation surface under test.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { fixtureHash, parse, serialize } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
+import { graduate, ingestJudgment } from "../src/graduation.js";
 import { promote } from "../src/promotion.js";
 import {
   renderInventory,
@@ -61,6 +62,14 @@ describe("felag-core fixture corpus", () => {
           expect(promote(fx.input)).toEqual(fx.expected);
           break;
         }
+        case "felag/judgment-ingest@0": {
+          expect(ingestJudgment(fx.input)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/graduation-input@0": {
+          expect(graduate(fx.input)).toEqual(fx.expected);
+          break;
+        }
         case "felag/author-output@0": {
           expect(validateAuthorOutput(fx.input as AuthorOutputInput)).toEqual(fx.expected);
           break;
@@ -96,5 +105,28 @@ describe("felag-core fixture corpus", () => {
       ...parse(readFileSync(join(dir, "fixtures.jsonl"), "utf8")),
     ];
     expect(lint(all)).toEqual({ valid: true, errors: [] });
+  });
+
+  // Governance ack currency: every committed ratification ack must bind the
+  // COMMITTED criterion text (state flipped back to proposed — the line as
+  // acknowledged). Triplet replay alone proves only the snapshot; this
+  // catches text drift after ratification, which silently un-ratifies.
+  it("governance acks are current against the committed spec", () => {
+    const spec = parse(readFileSync(join(dir, "spec.jsonl"), "utf8"));
+    const govDir = join(__dirname, "..", "governance");
+    for (const f of readdirSync(govDir).filter((f) => f.endsWith(".transition.json"))) {
+      const t = JSON.parse(readFileSync(join(govDir, f), "utf8")) as {
+        criterionId: string;
+        acknowledgments: { criterionHash: string }[];
+      };
+      const c = spec.find(
+        (r) => r.record === "criterion" && r.id === t.criterionId,
+      );
+      expect(c, `${t.criterionId} missing from committed spec`).toBeDefined();
+      const asProposed = { ...(c as object), state: "proposed" };
+      for (const a of t.acknowledgments) {
+        expect(a.criterionHash, `${f}: stale ack`).toBe(fixtureHash(asProposed));
+      }
+    }
   });
 });

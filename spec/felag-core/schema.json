@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://felag.dev/schema/felag-core/2.0.0/schema.json",
-  "title": "felag-core interchange records (conformanceVersion 2.0.0)",
-  "description": "Schema for the records of spec.jsonl and fixtures.jsonl, plus the verification-side objects (VerificationRecord, Waiver, ConformanceReport) and the tool result objects used by fixtures. Each JSONL line validates against #/$defs/record. Canonical serialization (CS1-CS9) is specified in spec item it-interchange and is a conformance requirement on writers, not expressible in JSON Schema.",
+  "$id": "https://felag.dev/schema/felag-core/3.0.0/schema.json",
+  "title": "felag-core interchange records (conformanceVersion 3.0.0)",
+  "description": "Schema for the records of spec.jsonl and fixtures.jsonl, plus the verification-side objects (VerificationRecord, JudgmentRecord, Waiver, ConformanceReport) and the tool result objects used by fixtures. Each JSONL line validates against #/$defs/record. Canonical serialization (CS1-CS9) is specified in spec item it-interchange and is a conformance requirement on writers, not expressible in JSON Schema.",
   "$defs": {
     "record": {
       "oneOf": [
@@ -105,13 +105,20 @@
         },
         "judgment": {
           "type": "object",
-          "description": "Required if judgment-class gating is ever requested (no graduation bar exists at 0.1.0).",
+          "description": "Graduation intent (3.0.0): a judgment criterion carrying this object is graduatable and its fixtures list is its calibration corpus (it-graduation). Forbidden on class behavioral. tolerance defaults to {runs: 3, agreement: 3}, pinned in the graduation wire format; lint enforces 2*agreement > runs (E_BAD_TOLERANCE).",
           "properties": {
-            "rubric": {"type": "string"},
-            "judgeConfig": {"type": "string"},
-            "reproducibility": {"type": "string"}
+            "rubric": {"type": "string", "minLength": 1},
+            "tolerance": {
+              "type": "object",
+              "properties": {
+                "runs": {"type": "integer", "minimum": 1},
+                "agreement": {"type": "integer", "minimum": 1}
+              },
+              "required": ["runs", "agreement"],
+              "additionalProperties": false
+            }
           },
-          "required": ["rubric", "judgeConfig", "reproducibility"],
+          "required": ["rubric"],
           "additionalProperties": false
         }
       },
@@ -120,7 +127,8 @@
       "allOf": [
         {"if": {"properties": {"type": {"const": "scenario"}}}, "then": {"required": ["gherkin"]}},
         {"if": {"properties": {"type": {"const": "checklist"}}}, "then": {"required": ["item"]}},
-        {"if": {"properties": {"state": {"const": "disputed"}}}, "then": {"required": ["dispute"]}}
+        {"if": {"properties": {"state": {"const": "disputed"}}}, "then": {"required": ["dispute"]}},
+        {"if": {"properties": {"class": {"const": "behavioral"}}}, "then": {"properties": {"judgment": false}}}
       ]
     },
     "fixture": {
@@ -156,6 +164,103 @@
         "attribution": {"$ref": "#/$defs/attribution"}
       },
       "required": ["criterionId", "implementation", "implementationVersion", "conformanceVersion", "verdict", "evidence", "runner", "at", "attribution"],
+      "additionalProperties": false
+    },
+    "judgeIdentity": {
+      "type": "object",
+      "description": "Structured matching plumbing, NOT attribution (the two-kinds-of-names doctrine): compared by canonical-serialization byte equality only — never parsed, never ranked. Publishers encode model, version, and configuration in the model string.",
+      "properties": {"model": {"type": "string", "minLength": 1}},
+      "required": ["model"],
+      "additionalProperties": false
+    },
+    "judgmentRecord": {
+      "type": "object",
+      "description": "A judge's verdict as recorded evidence — the judgment analog of VerificationRecord (it-judgment). judgmentHash binds both kinds to the judgment projection {criterionId, rubric, text} — exactly what the judge was shown; governance edits (state, dispute, tolerance, fixtures) never stale evidence, text or rubric edits stale everything. kind calibration: anchor-bound, implementation-free. kind target: conduct-bound, anchor-free.",
+      "properties": {
+        "criterionId": {"$ref": "#/$defs/id"},
+        "judgmentHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "kind": {"enum": ["calibration", "target"]},
+        "fixtureId": {"$ref": "#/$defs/id"},
+        "fixtureHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "implementation": {"type": "string", "minLength": 1},
+        "conformanceVersion": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+        "judge": {"$ref": "#/$defs/judgeIdentity"},
+        "verdict": {"enum": ["pass", "fail", "unverifiable"]},
+        "evidence": {"type": "string"},
+        "runner": {"type": "string"},
+        "at": {"$ref": "#/$defs/timestamp"},
+        "attribution": {"$ref": "#/$defs/attribution"}
+      },
+      "required": ["criterionId", "judgmentHash", "kind", "judge", "verdict", "evidence", "runner", "at", "attribution"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "calibration"}}},
+          "then": {
+            "required": ["fixtureId", "fixtureHash"],
+            "properties": {"implementation": false, "conformanceVersion": false}
+          }
+        },
+        {
+          "if": {"properties": {"kind": {"const": "target"}}},
+          "then": {
+            "required": ["implementation", "conformanceVersion"],
+            "properties": {"fixtureId": false, "fixtureHash": false}
+          }
+        }
+      ]
+    },
+    "graduationInput": {
+      "type": "object",
+      "description": "felag/graduation-input@0: graduation as a total, deterministic function of (criterionId, implementation, records, spec) — the shape of promote and verify (it-graduation). The default tolerance {runs: 3, agreement: 3} is pinned here, not in any spec record.",
+      "properties": {
+        "criterionId": {"$ref": "#/$defs/id"},
+        "implementation": {"type": "string", "minLength": 1},
+        "records": {"type": "array", "items": {"$ref": "#/$defs/judgmentRecord"}},
+        "spec": {"type": "array", "items": {"$ref": "#/$defs/record"}}
+      },
+      "required": ["criterionId", "implementation", "records", "spec"],
+      "additionalProperties": false
+    },
+    "graduationResult": {
+      "type": "object",
+      "description": "felag/graduation-result@0: graduated iff basis is satisfied; basis null iff a guard fired. Provenance is derived and loud: judges lists every judge identity in the input's records for the criterion with computed admissibility (sorted ascending by canonical judge serialization); window lists the selected target records in selection order (instant ascending, ties by array index).",
+      "properties": {
+        "graduated": {"type": "boolean"},
+        "errors": {
+          "type": "array",
+          "items": {"enum": ["E_SCHEMA", "E_SPEC_INVALID", "E_UNKNOWN_CRITERION", "E_NOT_GRADUATABLE"]}
+        },
+        "basis": {
+          "enum": ["satisfied", "reproducible-fail", "unreproducible", "insufficient-evidence", "no-admissible-judge", "corpus-inadequate", null]
+        },
+        "judges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "admissible": {"type": "boolean"},
+              "judge": {"$ref": "#/$defs/judgeIdentity"}
+            },
+            "required": ["admissible", "judge"],
+            "additionalProperties": false
+          }
+        },
+        "window": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "at": {"$ref": "#/$defs/timestamp"},
+              "judge": {"$ref": "#/$defs/judgeIdentity"},
+              "verdict": {"enum": ["pass", "fail", "unverifiable"]}
+            },
+            "required": ["at", "judge", "verdict"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["graduated", "errors", "basis", "judges", "window"],
       "additionalProperties": false
     },
     "waiver": {
@@ -205,7 +310,7 @@
           "items": {
             "type": "object",
             "properties": {
-              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS"]},
+              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS", "E_BAD_TOLERANCE"]},
               "ref": {"type": "string"}
             },
             "required": ["code", "ref"],
@@ -309,7 +414,7 @@
           "items": {
             "type": "object",
             "properties": {
-              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS", "E_BUDGET_CRITERIA", "E_BAD_PROVENANCE", "E_UNKNOWN_CRITERION"]},
+              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS", "E_BAD_TOLERANCE", "E_BUDGET_CRITERIA", "E_BAD_PROVENANCE", "E_UNKNOWN_CRITERION"]},
               "ref": {"type": "string"}
             },
             "required": ["code", "ref"],
@@ -350,7 +455,7 @@
           "items": {
             "type": "object",
             "properties": {
-              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS", "E_NO_SCOPE", "E_BAD_PROVENANCE", "E_OUT_OF_SCOPE"]},
+              "code": {"enum": ["E_SCHEMA", "E_DUPLICATE_ID", "E_UNDECLARED_CONTRACT", "E_MISSING_FIXTURES", "E_UNKNOWN_FIXTURE", "E_DUPLICATE_IMPLEMENTER", "E_MULTIPLE_OWNERS", "E_BAD_TOLERANCE", "E_NO_SCOPE", "E_BAD_PROVENANCE", "E_OUT_OF_SCOPE"]},
               "ref": {"type": "string"}
             },
             "required": ["code", "ref"],
@@ -413,11 +518,12 @@
     },
     "verifyInput": {
       "type": "object",
-      "description": "Fixture exchange format felag/verify-input@0: the inputs of verdict derivation made deterministic (asOf pins waiver expiry evaluation).",
+      "description": "Fixture exchange format felag/verify-input@0: the inputs of verdict derivation made deterministic (asOf pins waiver expiry evaluation). judgmentRecords is optional since 3.0.0, absent meaning empty — the JudgmentRecord evidence for graduatable judgment criteria.",
       "properties": {
         "asOf": {"$ref": "#/$defs/timestamp"},
         "implementation": {"type": "string"},
         "records": {"type": "array", "items": {"$ref": "#/$defs/verificationRecord"}},
+        "judgmentRecords": {"type": "array", "items": {"$ref": "#/$defs/judgmentRecord"}},
         "spec": {"type": "array", "items": {"$ref": "#/$defs/record"}},
         "waivers": {"type": "array", "items": {"$ref": "#/$defs/waiver"}}
       },

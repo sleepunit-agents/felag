@@ -2,6 +2,7 @@
 // Ingests externally-produced VerificationRecords and derives conformance.
 
 import { fixtureHash } from "./canonical.js";
+import { graduate } from "./graduation.js";
 import { parseInstant } from "./instant.js";
 import type {
   ConformanceReport,
@@ -47,10 +48,12 @@ export function ingest(record: unknown): IngestResult {
   return { accepted: sorted.length === 0, errors: sorted };
 }
 
-/** Gating per it-gating: behavioral MUST, declared contract, state active or
- * disputed — disputed gates everyone except the disputer. */
+/** Gating per it-gating: MUST, declared contract, state active or disputed
+ * (disputed gates everyone except the disputer), and class behavioral OR
+ * class judgment carrying a judgment object (graduatable, 3.0.0). */
 function gates(c: Criterion, declared: Set<string>, implementation: string): boolean {
-  if (c.class !== "behavioral" || c.force !== "MUST") return false;
+  if (c.force !== "MUST") return false;
+  if (c.class === "judgment" && c.judgment === undefined) return false;
   if (c.contractId === undefined || !declared.has(c.contractId)) return false;
   if (c.state === "active") return true;
   if (c.state === "disputed") return c.dispute?.by !== implementation;
@@ -98,8 +101,36 @@ export function verify(input: VerifyInput): ConformanceReport {
   const failing: string[] = [];
   const waived: string[] = [];
 
+  // D2: unexpired waiver (kind waiver or known-bug) covers an unsatisfied
+  // criterion. Instant comparison; an unparseable expiresAt is expired (fail
+  // closed — a malformed waiver waives nothing).
+  const hasWaiver = (criterionId: string): boolean =>
+    waivers.some(
+      (w: Waiver) =>
+        w.criterionId === criterionId &&
+        w.implementation === input.implementation &&
+        (w.kind === "waiver" || w.kind === "known-bug") &&
+        parseInstant(w.expiresAt) > parseInstant(input.asOf),
+    );
+
   for (const c of criteria) {
     if (!gates(c, declared, input.implementation)) continue;
+    // D1J (3.0.0): a gating judgment criterion is satisfied iff the
+    // graduation function returns graduated for it over the input's
+    // judgment records; D2 and D3 then apply to it unchanged.
+    if (c.class === "judgment") {
+      const grad = graduate({
+        criterionId: c.id,
+        implementation: input.implementation,
+        records: input.judgmentRecords ?? [],
+        spec: input.spec,
+      });
+      if (!grad.graduated) {
+        if (hasWaiver(c.id)) waived.push(c.id);
+        else failing.push(c.id);
+      }
+      continue;
+    }
     // D1: satisfied iff every referenced fixture's latest matching record passes;
     // stale-hash records (fixtureHash present and ≠ current canonical hash) ignored.
     let satisfied = true;
@@ -118,27 +149,21 @@ export function verify(input: VerifyInput): ConformanceReport {
       }
     }
     if (satisfied) continue;
-    // D2: unexpired waiver (kind waiver or known-bug) covers it.
-    const hasWaiver = waivers.some(
-      (w: Waiver) =>
-        w.criterionId === c.id &&
-        w.implementation === input.implementation &&
-        (w.kind === "waiver" || w.kind === "known-bug") &&
-        // Instant comparison; an unparseable expiresAt is expired (fail
-        // closed — a malformed waiver waives nothing).
-        parseInstant(w.expiresAt) > parseInstant(input.asOf),
-    );
-    if (hasWaiver) waived.push(c.id);
+    if (hasWaiver(c.id)) waived.push(c.id);
     else failing.push(c.id);
   }
 
   // D4: disputed criteria are listed for every implementation — loud everywhere.
   const disputed = criteria.filter((c) => c.state === "disputed").map((c) => c.id);
 
-  // D4: advisory — judgment criteria that have records, with their latest verdicts.
+  // D4: advisory — NON-GRADUATABLE judgment criteria (no judgment object)
+  // that have records, with their latest VerificationRecord-borne verdicts.
+  // Graduatable criteria never appear here: gating ones live in
+  // failing/waived; non-gating ones have the graduation result as their own
+  // diagnostic surface.
   const advisory: { criterionId: string; verdict: VerificationRecord["verdict"] }[] = [];
   for (const c of criteria) {
-    if (c.class !== "judgment") continue;
+    if (c.class !== "judgment" || c.judgment !== undefined) continue;
     const latest = latestRecord(input.records, c.id, undefined, input.implementation, conformanceVersion);
     if (latest) advisory.push({ criterionId: c.id, verdict: latest.verdict });
   }
