@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-lint-state-enum",
+  "to": "active",
+  "requestedAt": "2026-06-13T07:10:00.483Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T07:10:00.483Z",
+      "criterionHash": "sha256:abb3bf7dc97d363b6286aef6927cbc4a1a5b6830880597a7eb28b04819de2652"
+    }
+  ]
+}

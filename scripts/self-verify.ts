@@ -32,7 +32,7 @@ import type {
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "3.0.0";
+const IMPLEMENTATION_VERSION = "4.0.0";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 const at = new Date().toISOString();
 

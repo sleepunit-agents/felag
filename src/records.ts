@@ -37,7 +37,7 @@ export interface Item {
   interfaceSketch?: string;
 }
 
-export type CriterionState = "proposed" | "active" | "deprecated" | "disputed";
+export type CriterionState = "proposed" | "active" | "deprecated" | "disputed" | "descriptive";
 export type CriterionClass = "behavioral" | "judgment";
 export type Force = "MUST" | "SHOULD" | "MAY";
 
