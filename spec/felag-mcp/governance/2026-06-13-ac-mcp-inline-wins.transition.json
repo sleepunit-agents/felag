@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-inline-wins",
   "to": "active",
-  "requestedAt": "2026-06-13T14:35:08.685Z",
+  "requestedAt": "2026-06-13T14:43:18.962Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:35:08.685Z",
+      "at": "2026-06-13T14:43:18.962Z",
       "criterionHash": "sha256:43edc0da1240b7ea99620996603196ae758b4a914bc7f0687e10a1300c92c008"
     }
   ]

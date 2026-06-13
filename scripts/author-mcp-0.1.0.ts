@@ -97,7 +97,7 @@ const items: Item[] = [
     id: "it-mcp-tools",
     title: "Adapter-shaped tool results",
     body:
-      "Three tools return a result that is NOT a bare pass-through of a single core function — the adapter composes or reshapes, and that shaping is contract:\n\nfelag_lint returns {valid, errors, orphanFixtures}: the core lint result (valid, errors) plus orphanFixtures, the ascending set of fixture ids referenced by no criterion. The CLI emits this as a stderr warning; the adapter surfaces it in-band. An orphan is a warning, never a lint error — valid stays true.\n\nfelag_hash returns {hashes}, an array of {id, hash} for the FIXTURE records only (other record types are skipped), ascending by id, hash being felag-core's fixtureHash (CS9). An optional fixtureId narrows to one fixture. This is the CLI's hash iteration surfaced as structured data.\n\nfelag_fmt returns {canonical}, the canonical serialization of the input — given inline records, or given raw text it parses then re-serializes (the round-trip primitive). It is READ-ONLY: unlike the CLI's in-place fmt, the tool never writes a file. This is structural, not incidental — dispatch is handed no writer, so no tool can mutate the filesystem.\n\nThe adapter is thin: each tool delegates verb semantics to the felag-core library and adds only I/O resolution, result shaping, and error mapping. It never re-derives or alters a verb's result. (This thinness is a judgment seam, recorded descriptive — documented, never gated.)",
+      "Three tools return a result that is NOT a bare pass-through of a single core function — the adapter composes or reshapes, and that shaping is contract:\n\nfelag_lint returns {valid, errors, orphanFixtures}: the core lint result (valid, errors) plus orphanFixtures, the ascending set of fixture ids referenced by no criterion. The CLI emits this as a stderr warning; the adapter surfaces it in-band. An orphan is a warning, never a lint error — valid stays true.\n\nfelag_hash returns {hashes}, an array of {id, hash} for the FIXTURE records only (other record types are skipped), ascending by id, hash being felag-core's fixtureHash (CS9). An optional fixtureId narrows to one fixture. This is the CLI's hash iteration surfaced as structured data.\n\nfelag_fmt returns {canonical}, the canonical serialization of the input — given inline records, or given raw text it parses then re-serializes (the round-trip primitive). When BOTH records and text are present, records WINS and text is consulted only when records is absent — the same inline-structured-wins tiebreak as resolveSpec's spec-over-specDir. It is READ-ONLY: unlike the CLI's in-place fmt, the tool never writes a file. This is structural, not incidental — dispatch is handed no writer, so no tool can mutate the filesystem.\n\nThe adapter is thin: each tool delegates verb semantics to the felag-core library and adds only I/O resolution, result shaping, and error mapping. It never re-derives or alters a verb's result. (This thinness is a judgment seam, recorded descriptive — documented, never gated.)",
   },
 ];
 
@@ -166,6 +166,7 @@ const criteria: Criterion[] = [
       "fx-mcp-bad-input-precedence",
       "fx-mcp-bad-input-prec-render",
       "fx-mcp-bad-input-prec-promote",
+      "fx-mcp-bad-input-prec-graduate",
       "fx-mcp-bad-input-prec-validate-prime",
     ],
   }),
@@ -233,8 +234,8 @@ const criteria: Criterion[] = [
     id: "ac-mcp-fmt-roundtrip",
     itemId: "it-mcp-tools",
     gherkin:
-      "Given felag_fmt over non-canonical raw text\nWhen the tool runs\nThen the result is {canonical} carrying the canonical serialization (parse then serialize) and no file is written",
-    fixtures: ["fx-mcp-fmt-roundtrip"],
+      "Given felag_fmt over non-canonical raw text\nWhen the tool runs\nThen the result is {canonical} carrying the canonical serialization (parse then serialize) and no file is written\nAnd given BOTH records and text, records wins (the inline-structured-wins tiebreak) and the text is not consulted",
+    fixtures: ["fx-mcp-fmt-roundtrip", "fx-mcp-fmt-precedence"],
   }),
   crit({
     id: "ac-mcp-adapter-thinness",
@@ -492,6 +493,12 @@ fx(
   { call: { tool: "felag_validate_prime", input: {} } },
   { ok: false, error: "E_BAD_INPUT" },
 );
+fx(
+  "fx-mcp-bad-input-prec-graduate",
+  "felag_graduate with NO inputs returns {ok:false, error:'E_BAD_INPUT'} on the absent criterionId/implementation, NOT E_NO_SPEC_SOURCE — graduate has its own handler (two required inputs) and the ordering rule binds it too.",
+  { call: { tool: "felag_graduate", input: {} } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
 
 // --- ac-mcp-inline-wins: inline spec used, broken specDir ignored ---
 fx(
@@ -606,6 +613,12 @@ fx(
     "felag_fmt over a non-canonical interchange line (keys out of CS4 order) returns {canonical} carrying the canonical serialization — record first, then id, then ascending keys, trailing LF. No file is written (dispatch holds no writer). The parse-then-serialize round-trip surfaced as a tool.",
     { call: { tool: "felag_fmt", input: { text: nonCanonical } } },
     { ok: true, result: { canonical: serialize(parse(nonCanonical)) } },
+  );
+  fx(
+    "fx-mcp-fmt-precedence",
+    "felag_fmt given BOTH records and text where the text is UNPARSEABLE: records wins, the text is never consulted, and the result is the canonical serialization of the records. An impl that consulted text first (or preferred it) would return E_PARSE here — the records-over-text tiebreak, symmetric with spec-over-specDir.",
+    { call: { tool: "felag_fmt", input: { records: [miniItem], text: "{ would not parse" } } },
+    { ok: true, result: { canonical: serialize([miniItem]) } },
   );
 }
 

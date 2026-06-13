@@ -148,6 +148,9 @@ const HANDLERS: Record<string, Handler> = {
   felag_fmt: (input) => {
     // Round-trip serialization. Read-only: dispatch has no writer, so fmt
     // (like every tool) cannot mutate the filesystem — it returns canonical text.
+    // Channel precedence: records WINS over text (the inline-structured-wins
+    // pattern, mirroring resolveSpec's spec-over-specDir); text is consulted
+    // only when records is absent.
     let records: SpecRecord[];
     if (Array.isArray(input.records)) {
       records = input.records as SpecRecord[];
@@ -236,6 +239,8 @@ export function mcpDispatch(call: McpCall, fs: FsSnapshot = {}): McpEnvelope {
     return { ok: true, result: handler(call.input ?? {}, fs) };
   } catch (e) {
     if (e instanceof McpError) return { ok: false, error: e.code, detail: e.message };
-    return { ok: false, error: "E_LIB", detail: (e as Error).message ?? String(e) };
+    // `||` not `??`: a core throw of Error("") has a non-nullish empty message;
+    // detail must be non-empty (it-mcp-dispatch), so fall back to String(e).
+    return { ok: false, error: "E_LIB", detail: (e as Error).message || String(e) };
   }
 }

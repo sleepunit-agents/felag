@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-channel-isolation",
   "to": "active",
-  "requestedAt": "2026-06-13T14:35:08.688Z",
+  "requestedAt": "2026-06-13T14:43:18.964Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:35:08.688Z",
+      "at": "2026-06-13T14:43:18.964Z",
       "criterionHash": "sha256:dd1305643be44f36021a30b1fdde573737acd6d55d435adfac6a50931c93bac7"
     }
   ]

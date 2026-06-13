@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-mcp-bad-input",
   "to": "active",
-  "requestedAt": "2026-06-13T14:35:08.684Z",
+  "requestedAt": "2026-06-13T14:43:18.961Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:35:08.684Z",
-      "criterionHash": "sha256:141a4693bd1bca642fe22a97b21586767ffbfea8c36696ac18dde1b346d06ca5"
+      "at": "2026-06-13T14:43:18.961Z",
+      "criterionHash": "sha256:f9a55afd5326319ba6c941cc343f77d8ebae39ad1a363d601106027c8711865d"
     }
   ]
 }
