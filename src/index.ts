@@ -16,3 +16,5 @@ export type { AuditResult } from "./audit.js";
 export { TaskStore } from "./tasks/store.js";
 export { BeadsWorkLayer } from "./shims/beads.js";
 export type { WorkLayer } from "./tasks/layer.js";
+export { mcpDispatch, TOOL_NAMES } from "./mcp/dispatch.js";
+export type { McpCall, McpEnvelope, FsSnapshot } from "./mcp/dispatch.js";

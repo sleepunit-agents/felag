@@ -40,6 +40,30 @@ npm run self-verify            # emit VerificationRecords + conformance report
 node dist/cli.js lint spec/felag-core   # the merge gate (+ orphan-fixture warnings)
 ```
 
+## MCP server
+
+A second sibling conformance unit, `spec/felag-mcp` 0.1.0 (contract `c-mcp`),
+exposes the verbs as MCP tools so any agent drives felag conversationally
+instead of shelling out. The contract is deliberately thin: it pins the
+*adapter* surface — the pure `mcpDispatch(call, fs)` function's result envelope
+(`{ok:true,result}` | `{ok:false,error,detail}`), spec-source resolution
+(inline `spec` wins over `specDir`), totality (every thrown library/load error
+mapped to a stable `E_*` code, never propagated), and the adapter-shaped tool
+results — while the verb *semantics* stay felag-core's contract. The
+`@modelcontextprotocol/sdk` stdio wiring is transport, excluded from the
+contract exactly as CLI formatting is.
+
+```bash
+node dist/mcp/bin.js           # start the stdio server (bin: felag-mcp)
+npx tsx scripts/smoke-mcp.ts   # real MCP client round-trip
+# Claude Code:  claude mcp add felag -- felag-mcp
+```
+
+Twelve tools mirror the CLI verbs: `felag_lint`, `felag_fmt`, `felag_hash`,
+`felag_verify`, `felag_audit`, `felag_promote`, `felag_graduate`,
+`felag_render`, `felag_prime`, `felag_validate_author`,
+`felag_validate_excavate`, `felag_validate_prime`.
+
 Design history (drafts; the compiled spec records are normative):
 [design v1.2](docs/design/2026-06-11-felag-design-draft-v1.md) (core
 format), the
