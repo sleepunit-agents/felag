@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { computeStatus, renderStatusHTML } from "../src/status.js";
+import { mcpDispatch, TOOL_NAMES, PRESENTATION_TOOL_NAMES } from "../src/mcp/dispatch.js";
 import type { SpecRecord, VerificationRecord } from "../src/records.js";
 
 const spec: SpecRecord[] = [
@@ -66,5 +67,45 @@ describe("felag status projection", () => {
     const html = renderStatusHTML(computeStatus(spec, { records: passing, implementation: "impl-a" }));
     expect(html.startsWith("<!doctype html>")).toBe(true);
     expect(html).toContain("mini");
+  });
+});
+
+// felag_status is the MCP presentation tool (tier 2): it wraps computeStatus +
+// renderStatusHTML behind the same total dispatch as the verb tools, but sits
+// OUTSIDE the c-mcp contract (a separate registry) so the contracted TOOL_NAMES
+// stays the twelve verb cores.
+describe("felag_status MCP tool", () => {
+  it("is routed as presentation, not a contracted verb tool", () => {
+    expect(PRESENTATION_TOOL_NAMES).toContain("felag_status");
+    expect(TOOL_NAMES).not.toContain("felag_status"); // boundary stays honest
+  });
+
+  it("returns {model, html} with counts equal to visible rows", () => {
+    const env = mcpDispatch({ tool: "felag_status", input: { spec, records: passing, implementation: "impl-a" } });
+    expect(env.ok).toBe(true);
+    if (!env.ok) return;
+    const { model, html } = env.result as { model: ReturnType<typeof computeStatus>; html: string };
+    const rows = model.contracts.reduce((n, c) => n + c.criteria.length, 0);
+    const counted = Object.values(model.counts).reduce((a, b) => a + b, 0);
+    expect(rows).toBe(counted);
+    expect(rows).toBe(3);
+    expect(html.startsWith("<!doctype html>")).toBe(true);
+  });
+
+  it("honors criterion-scope target", () => {
+    const env = mcpDispatch({ tool: "felag_status", input: { spec, records: passing, implementation: "impl-a", target: "ac1" } });
+    expect(env.ok).toBe(true);
+    if (!env.ok) return;
+    const { model } = env.result as { model: ReturnType<typeof computeStatus> };
+    expect(model.scope.kind).toBe("criterion");
+    expect(model.criterion?.id).toBe("ac1");
+  });
+
+  it("is total — a missing spec source maps to {ok:false} like every tool", () => {
+    const env = mcpDispatch({ tool: "felag_status", input: {} });
+    expect(env.ok).toBe(false);
+    if (env.ok) return;
+    expect(env.error).toBe("E_NO_SPEC_SOURCE");
+    expect(env.detail.length).toBeGreaterThan(0);
   });
 });

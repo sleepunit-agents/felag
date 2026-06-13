@@ -68,11 +68,13 @@ const TOOLS: ToolDef[] = [
   { name: "felag_validate_author", description: "Validate authored output (lint + budgets + provenance).", shape: { spec: f.spec, specDir: f.specDir, new: z.array(z.string()).optional(), budgets: z.record(z.string(), z.unknown()).optional() } },
   { name: "felag_validate_excavate", description: "Validate excavate output (scoped, discovered+proposed).", shape: { spec: f.spec, specDir: f.specDir, scope: z.record(z.string(), z.unknown()).nullable().optional() } },
   { name: "felag_validate_prime", description: "Validate a prime document carries the protocol bodies verbatim.", shape: { spec: f.spec, specDir: f.specDir, output: z.string() } },
+  // Presentation tool (outside the c-mcp contract; see dispatch's PRESENTATION_HANDLERS).
+  { name: "felag_status", description: "Status projection (spec-state ⋈ verify); returns {model, html}. Optional records/implementation/asOf join conformance; target selects a contract or criterion.", shape: { spec: f.spec, specDir: f.specDir, records: f.records, implementation: z.string().optional().describe("implementation name; omit for a spec-only view"), asOf: f.asOf, waivers: f.waivers, target: z.string().optional().describe("contract id → section; criterion id → detail; absent → whole spec") } },
 ];
 
-/** Construct the felag MCP server with all twelve tools registered. The handler
- * for every tool is the same shape: snapshot the specDir, default the clock,
- * dispatch, marshal. */
+/** Construct the felag MCP server with the twelve contracted verb tools plus the
+ * felag_status presentation tool registered. The handler for every tool is the
+ * same shape: snapshot the specDir, default the clock, dispatch, marshal. */
 export function createServer(): McpServer {
   const server = new McpServer({ name: "felag-mcp", version: "0.1.0" });
 

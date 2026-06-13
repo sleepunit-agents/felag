@@ -22,6 +22,7 @@ import { graduate } from "../graduation.js";
 import { promote } from "../promotion.js";
 import { emitPrime } from "../prime.js";
 import { audit } from "../audit.js";
+import { computeStatus, renderStatusHTML } from "../status.js";
 import {
   renderInventory,
   validateAuthorOutput,
@@ -36,6 +37,7 @@ import type {
   SpecRecord,
   VerificationRecord,
   VerifyInput,
+  Waiver,
 } from "../records.js";
 
 /** The result envelope. Totality: dispatch returns one of these, never throws.
@@ -220,8 +222,43 @@ const HANDLERS: Record<string, Handler> = {
 };
 
 /** The twelve tool names the registry dispatch routes (handler insertion order;
- * eight share a CLI verb stem, the four author-class validators do not). */
+ * eight share a CLI verb stem, the four author-class validators do not). These
+ * are the c-mcp CONTRACTED verb tools — pass-throughs to felag-core cores. */
 export const TOOL_NAMES = Object.keys(HANDLERS);
+
+// ---- presentation tools (NOT c-mcp contract) --------------------------------
+// felag status is PRESENTATION = excluded surface (felag-core: "CLI output
+// formatting, render aesthetics ... non-core"), exactly as status.ts declares
+// of itself. So felag_status carries no contract: it is not a verb-core
+// pass-through and must not join the contracted TOOL_NAMES (which c-mcp
+// describes as verb tools "specced only at their adapter boundary"). It lives
+// in a SEPARATE registry that mcpDispatch ALSO routes, so totality
+// (ac-mcp-totality: every throw mapped to {ok:false}) still covers it while
+// the contracted surface stays exactly the twelve cores. No fixture asserts an
+// exact tool set, so this is additive and keeps felag-ts CONFORMS unchanged.
+
+const PRESENTATION_HANDLERS: Record<string, Handler> = {
+  // felag_status: compute the status projection (spec-state ⋈ verify) and skin
+  // it. Returns { model, html } — model is the structured StatusModel (counts,
+  // contracts, optional criterion detail), html the self-contained page. Inputs
+  // mirror the verb tools: spec|specDir resolves the spec; records/implementation/
+  // asOf feed the conformance join (absent → every active criterion unverified);
+  // target selects contract- or criterion-scope. computeStatus defaults asOf
+  // itself, so no clock input is required for totality.
+  felag_status: (input, fs) => {
+    const model = computeStatus(resolveSpec(input, fs), {
+      records: input.records as VerificationRecord[] | undefined,
+      implementation: input.implementation as string | undefined,
+      asOf: input.asOf as string | undefined,
+      target: input.target as string | undefined,
+      waivers: input.waivers as Waiver[] | undefined,
+    });
+    return { model, html: renderStatusHTML(model) };
+  },
+};
+
+/** Presentation tool names, routed by dispatch but outside the c-mcp contract. */
+export const PRESENTATION_TOOL_NAMES = Object.keys(PRESENTATION_HANDLERS);
 
 /** Total dispatch: route the call, wrap success as {ok:true,result}, map any
  * thrown McpError to its code and any other throw to E_LIB. Never throws. */
@@ -231,7 +268,7 @@ export function mcpDispatch(call: McpCall, fs: FsSnapshot = {}): McpEnvelope {
   if (call === null || typeof call !== "object") {
     return { ok: false, error: "E_BAD_INPUT", detail: "call must be an object { tool, input }" };
   }
-  const handler = HANDLERS[call.tool];
+  const handler = HANDLERS[call.tool] ?? PRESENTATION_HANDLERS[call.tool];
   if (!handler) {
     return { ok: false, error: "E_UNKNOWN_TOOL", detail: `no such tool: ${call.tool}` };
   }
