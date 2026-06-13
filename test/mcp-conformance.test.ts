@@ -40,6 +40,20 @@ describe("felag-mcp fixture corpus (reference implementation)", () => {
     });
   }
 
+  // Reference-impl unit test (NOT a contract fixture): the catch-all else-branch
+  // maps a non-McpError library throw to E_LIB rather than propagating. verify on
+  // a spec with no preamble throws inside felag-core today; this pins THIS impl's
+  // totality on that path. It tracks felag-core's incidental throwing behavior
+  // (see the 0.1.0 residue exclusion), which is exactly why it is not a fixture.
+  it("reference impl: a non-McpError library throw maps to E_LIB", () => {
+    const r = mcpDispatch({
+      tool: "felag_verify",
+      input: { spec: [], implementation: "x", asOf: "2026-01-01T00:00:00Z", records: [] },
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("E_LIB");
+  });
+
   it("spec/felag-mcp passes lint and is canonical", () => {
     const all: SpecRecord[] = [
       ...parse(readFileSync(join(dir, "spec.jsonl"), "utf8")),

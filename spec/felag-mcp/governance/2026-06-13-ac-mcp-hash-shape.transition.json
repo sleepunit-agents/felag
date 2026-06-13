@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-mcp-hash-shape",
   "to": "active",
-  "requestedAt": "2026-06-13T14:04:35.903Z",
+  "requestedAt": "2026-06-13T14:18:20.972Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:04:35.903Z",
-      "criterionHash": "sha256:c7d1de18fc46335c5d836c7b2bc2b2f640bf5f6cbd96a5e8f5340787b9528ef3"
+      "at": "2026-06-13T14:18:20.972Z",
+      "criterionHash": "sha256:6c2f95b7e38f855437b8b848a6ea2d5394eb0a2c211b7695620ce9c6e1fed019"
     }
   ]
 }

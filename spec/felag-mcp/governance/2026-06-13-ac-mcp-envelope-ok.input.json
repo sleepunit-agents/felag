@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-06-13T14:04:35.898Z",
+  "asOf": "2026-06-13T14:18:20.961Z",
   "spec": [
     {
       "record": "preamble",
@@ -16,7 +16,7 @@
         "Tool input JSON Schemas as advertised to a host (each tool's MCP inputSchema): advisory ergonomics, observable but undeclared. The contract gates on dispatch behavior given an input, not on the schema a host uses to build that input.",
         "Filesystem access: how the server reads a specDir from disk is transport. The contract models the filesystem as an explicit path->content snapshot passed to dispatch, so path-loading is a pure, fixturable function; real file I/O lives in the server binding.",
         "Statefulness: audit's optional work-layer wiring (spec/felag-tasks) is stateful; the audit tool exposes only the pure coverage projection with no work layer attached. Work mutation through MCP is out of scope.",
-        "MCP adapter residue at 0.1.0: the E_LIB catch-all maps any non-mapped library throw, but its canonical trigger — serialize's CS6 refusal of a non-finite number — cannot be carried in a JSON fixture (the corpus cannot encode the value whose refusal it would pin), exactly as felag-core's CS6 writer refusal is unfixturable. The obligation rides on prose and the dispatch implementation, not a fixture; the fixturable totality case is E_PARSE."
+        "MCP adapter residue at 0.1.0: E_LIB is the catch-all for any felag-core library throw not classified as E_PARSE. Its triggers depend on felag-core's INCIDENTAL throwing behavior, which felag-core does not make contractual: serialize's CS6 refusal of a non-finite number (itself unfixturable — a JSON fixture cannot encode the value whose refusal it would pin), or a core verb throwing on a degenerate input (e.g. verify on a spec with no preamble, or render given an out-of-enum audience). Because none of these throws is a felag-core guarantee, none can be pinned by a stable cross-implementation fixture; the obligation rides on prose and the dispatch implementation. The fixturable, contractually-stable totality case is E_PARSE; that dispatch maps a non-McpError throw to E_LIB rather than propagating it is pinned by a reference-implementation unit test, not a contract fixture."
       ],
       "goals": [
         "Expose the felag toolchain's verbs as MCP tools so any agent drives felag conversationally — lint a spec, verify conformance, run the author-class validators, promote, graduate — without shelling out to the CLI.",
@@ -39,13 +39,13 @@
     {
       "record": "item",
       "id": "it-mcp-dispatch",
-      "body": "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. A tool name absent from the registry returns E_UNKNOWN_TOOL. A thrown felag-core library error is caught and mapped — unparseable interchange to E_PARSE, any other library throw to the catch-all E_LIB — so a model never receives a crashed server instead of an answer. The error CODE is the divergence point a second implementation must match; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe twelve tools mirror the CLI verbs one-to-one: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Most are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's).",
+      "body": "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
       "title": "Dispatch and the result envelope"
     },
     {
       "record": "item",
       "id": "it-mcp-resolve",
-      "body": "Tools that operate on a spec accept the spec inline under `spec` (a SpecRecord array) and/or by path under `specDir` (a directory). The name `spec` is deliberate: `records` is reserved for the EVIDENCE channel (verify/audit take VerificationRecords, graduate takes JudgmentRecords) and would otherwise collide with the spec. Resolution is deterministic: inline `spec` WINS when present, and specDir is not consulted. Otherwise specDir is loaded from the filesystem snapshot by reading specDir + '/spec.jsonl' and specDir + '/fixtures.jsonl' — either file may be absent, and whichever are present have their records concatenated (parity with the CLI's loadSpecDir). If neither file is present in the snapshot, resolution fails with E_SPEC_NOT_FOUND. If neither `spec` nor `specDir` is supplied at all, resolution fails with E_NO_SPEC_SOURCE.\n\nThe filesystem is an explicit snapshot — a map from logical 'dir/file' path (joined with '/') to file content — passed to dispatch, NOT a live disk read. This makes path-loading a pure, fixturable function: a fixture carries its own in-memory filesystem. The real MCP server populates the snapshot by reading the requested specDir from disk before calling dispatch; that disk I/O is transport, excluded from this contract. The precedence rule (inline beats path) is the load-bearing decision: it lets an agent compose or test against an inline spec while the path remains the ergonomic default.",
+      "body": "Tools that operate on a spec accept the spec inline under `spec` (a SpecRecord array) and/or by path under `specDir` (a directory). The name `spec` is deliberate: `records` is reserved for the EVIDENCE channel (verify/audit take VerificationRecords, graduate takes JudgmentRecords) and would otherwise collide with the spec — so a single call may legitimately carry BOTH an inline `spec` (the contract) and a `records` array (the evidence), and they never contend. Resolution is deterministic: inline `spec` WINS when present — where PRESENT means `spec` is a JSON array (any other type is treated as absent and falls through) — and specDir is not consulted. Otherwise specDir is loaded from the filesystem snapshot by reading specDir + '/spec.jsonl' and specDir + '/fixtures.jsonl' — either file may be absent, and whichever are present have their records concatenated (parity with the CLI's loadSpecDir). If neither file is present in the snapshot, resolution fails with E_SPEC_NOT_FOUND. If neither `spec` nor `specDir` is supplied at all, resolution fails with E_NO_SPEC_SOURCE.\n\nThe filesystem is an explicit snapshot — a map from logical 'dir/file' path (joined with '/') to file content — passed to dispatch, NOT a live disk read. This makes path-loading a pure, fixturable function: a fixture carries its own in-memory filesystem. The real MCP server populates the snapshot by reading the requested specDir from disk before calling dispatch; that disk I/O is transport, excluded from this contract. The precedence rule (inline beats path) is the load-bearing decision: it lets an agent compose or test against an inline spec while the path remains the ergonomic default.",
       "title": "Spec-source resolution: inline-vs-path precedence"
     },
     {
@@ -60,10 +60,18 @@
       "class": "behavioral",
       "contractId": "c-mcp",
       "fixtures": [
-        "fx-mcp-envelope-ok"
+        "fx-mcp-envelope-render",
+        "fx-mcp-envelope-verify",
+        "fx-mcp-envelope-audit",
+        "fx-mcp-envelope-promote",
+        "fx-mcp-envelope-graduate",
+        "fx-mcp-envelope-prime",
+        "fx-mcp-envelope-validate-author",
+        "fx-mcp-envelope-validate-excavate",
+        "fx-mcp-envelope-validate-prime"
       ],
       "force": "MUST",
-      "gherkin": "Given a valid call to a pass-through tool (felag_render over an inline spec)\nWhen mcpDispatch routes it\nThen the envelope is {ok:true, result} and result is the felag-core function's return wrapped unchanged",
+      "gherkin": "Given a valid call to any pass-through tool (render, verify, audit, promote, graduate, prime, validate_author, validate_excavate, validate_prime)\nWhen mcpDispatch routes it\nThen the envelope is {ok:true, result} and result is the named felag-core function's return wrapped unchanged — the adapter resolves I/O and wraps, it neither re-derives nor reshapes a pass-through result\nAnd the spec resolves from the `spec`/`specDir` channel while evidence (where the verb takes it) rides the `records` channel",
       "itemId": "it-mcp-dispatch",
       "source": "forethought",
       "state": "proposed",
@@ -93,7 +101,24 @@
         "fx-mcp-parse-error"
       ],
       "force": "MUST",
-      "gherkin": "Given a call whose input drives a felag-core function to throw (felag_fmt over unparseable text)\nWhen mcpDispatch routes it\nThen the throw is caught and mapped to {ok:false, error:'E_PARSE'} with a non-empty detail — dispatch never propagates the exception\nAnd any other non-mapped library throw maps to the E_LIB catch-all (residue: its canonical trigger, a non-finite numeral, is unfixturable in JSON)",
+      "gherkin": "Given a call whose input drives a felag-core function to throw (felag_fmt over unparseable text)\nWhen mcpDispatch routes it\nThen the throw is caught and mapped to {ok:false, error:'E_PARSE'} with a non-empty detail — dispatch never propagates the exception\nAnd any other non-mapped library throw maps to the E_LIB catch-all (residue: its triggers depend on felag-core's incidental throwing behavior, none contractually stable — see exclusions)",
+      "itemId": "it-mcp-dispatch",
+      "source": "forethought",
+      "state": "proposed",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
+      "id": "ac-mcp-bad-input",
+      "class": "behavioral",
+      "contractId": "c-mcp",
+      "fixtures": [
+        "fx-mcp-bad-input-verify",
+        "fx-mcp-bad-input-fmt",
+        "fx-mcp-bad-input-render"
+      ],
+      "force": "MUST",
+      "gherkin": "Given a tool call missing one of its REQUIRED inputs (felag_verify with a spec but no implementation; felag_fmt with neither records nor text; felag_render with a spec but no audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
       "itemId": "it-mcp-dispatch",
       "source": "forethought",
       "state": "proposed",
@@ -161,6 +186,36 @@
     },
     {
       "record": "criterion",
+      "id": "ac-mcp-path-parse-error",
+      "class": "behavioral",
+      "contractId": "c-mcp",
+      "fixtures": [
+        "fx-mcp-path-parse-error"
+      ],
+      "force": "MUST",
+      "gherkin": "Given a call carrying only a specDir whose snapshot spec.jsonl is present but unparseable\nWhen the tool resolves its spec\nThen the envelope is {ok:false, error:'E_PARSE'} — the snapshot-file parse site, distinct from fmt's text parse, also maps to E_PARSE rather than swallowing a partial load",
+      "itemId": "it-mcp-resolve",
+      "source": "forethought",
+      "state": "proposed",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
+      "id": "ac-mcp-channel-isolation",
+      "class": "behavioral",
+      "contractId": "c-mcp",
+      "fixtures": [
+        "fx-mcp-channel-isolation"
+      ],
+      "force": "MUST",
+      "gherkin": "Given felag_verify carrying BOTH an inline spec (the contract) and a records array (passing VerificationRecords, the evidence)\nWhen the tool runs\nThen the spec resolves from `spec` and the records are consumed as EVIDENCE, not as spec — the conformance report reflects the evidence against the inline contract\nAnd an implementation that read the spec from `records` (as the CLI's verify reads a records.jsonl positional) would misverify here",
+      "itemId": "it-mcp-resolve",
+      "source": "forethought",
+      "state": "proposed",
+      "type": "scenario"
+    },
+    {
+      "record": "criterion",
       "id": "ac-mcp-lint-orphans",
       "class": "behavioral",
       "contractId": "c-mcp",
@@ -168,7 +223,7 @@
         "fx-mcp-lint-orphans"
       ],
       "force": "MUST",
-      "gherkin": "Given felag_lint over a lint-valid spec that contains a fixture referenced by no criterion\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[the orphan id]} — the orphan is a warning surfaced in-band, never a lint error",
+      "gherkin": "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated",
       "itemId": "it-mcp-tools",
       "source": "forethought",
       "state": "proposed",
@@ -180,10 +235,11 @@
       "class": "behavioral",
       "contractId": "c-mcp",
       "fixtures": [
-        "fx-mcp-hash-shape"
+        "fx-mcp-hash-shape",
+        "fx-mcp-hash-narrow"
       ],
       "force": "MUST",
-      "gherkin": "Given felag_hash over a spec containing non-fixture records and one fixture\nWhen the tool runs\nThen the result is {hashes:[{id, hash}]} for the fixture records only, ascending by id, hash being felag-core's fixtureHash",
+      "gherkin": "Given felag_hash over a spec containing non-fixture records and two fixtures whose ids are NOT in input order\nWhen the tool runs\nThen the result is {hashes:[{id, hash}]} for the fixture records only, ascending by id (the sort is discriminated), hash being felag-core's fixtureHash\nAnd given an optional fixtureId, only that fixture's hash is returned",
       "itemId": "it-mcp-tools",
       "source": "forethought",
       "state": "proposed",
@@ -219,9 +275,648 @@
     },
     {
       "record": "fixture",
-      "id": "fx-mcp-envelope-ok",
+      "id": "fx-mcp-bad-input-fmt",
       "contractId": "c-mcp",
-      "description": "A valid pass-through call (felag_render, developer audience) returns {ok:true, result} where result is renderInventory's return wrapped unchanged. An implementation that wrapped the result in an extra layer, or omitted the ok discriminant, would diverge here.",
+      "description": "felag_fmt with neither records nor text returns {ok:false, error:'E_BAD_INPUT'} — fmt's own required-input check.",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {},
+          "tool": "felag_fmt"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-bad-input-render",
+      "contractId": "c-mcp",
+      "description": "felag_render with a spec but no audience returns {ok:false, error:'E_BAD_INPUT'} — absence of a required input, NOT E_LIB (which is reserved for a present-but-invalid input the core rejects by throwing).",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_render"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-bad-input-verify",
+      "contractId": "c-mcp",
+      "description": "felag_verify with a spec and asOf but NO implementation returns {ok:false, error:'E_BAD_INPUT'}. A required input is structurally absent — the adapter catches it without verb knowledge, distinct from E_LIB.",
+      "expected": {
+        "error": "E_BAD_INPUT",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "asOf": "2026-01-01T00:00:00Z",
+            "records": [],
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_verify"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-channel-isolation",
+      "contractId": "c-mcp",
+      "description": "felag_verify carrying BOTH an inline spec (contract) and a records array (one passing VerificationRecord for ac1, the evidence): the spec resolves from `spec` and the record is consumed as EVIDENCE, yielding a conforming report. An impl reading the spec from `records` (as the CLI's verify reads a records.jsonl positional) would misverify — the spec's own load-bearing channel decision, finally pinned.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "advisory": [],
+          "conformanceVersion": "1.0.0",
+          "disputed": [],
+          "failing": [],
+          "implementation": "impl-a",
+          "verdict": "conforms",
+          "waived": []
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "asOf": "2026-01-01T00:00:00Z",
+            "implementation": "impl-a",
+            "records": [
+              {
+                "at": "2026-01-01T00:00:00Z",
+                "attribution": "ci@example run:1",
+                "conformanceVersion": "1.0.0",
+                "criterionId": "ac1",
+                "evidence": "runner output ref #1",
+                "fixtureHash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+                "fixtureId": "fx1",
+                "implementation": "impl-a",
+                "implementationVersion": "1.0.0",
+                "runner": "ci",
+                "verdict": "pass"
+              }
+            ],
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ],
+            "waivers": []
+          },
+          "tool": "felag_verify"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-audit",
+      "contractId": "c-mcp",
+      "description": "felag_audit wraps audit's {report, proposals} unchanged — the pure coverage projection, no work layer attached (statefulness excluded).",
+      "expected": {
+        "ok": true,
+        "result": {
+          "proposals": [
+            {
+              "at": "2026-01-01T00:00:00Z",
+              "attribution": "felag-audit",
+              "criterionId": "ac1",
+              "description": "Criterion ac1 (item it1, spec mini 1.0.0) has no passing VerificationRecord for impl-a as of 2026-01-01T00:00:00Z. Fixtures: fx1.",
+              "specItemRef": "mini#it1",
+              "title": "Conformance: ac1 failing for impl-a"
+            }
+          ],
+          "report": {
+            "advisory": [],
+            "conformanceVersion": "1.0.0",
+            "disputed": [],
+            "failing": [
+              "ac1"
+            ],
+            "implementation": "impl-a",
+            "verdict": "drifts",
+            "waived": []
+          }
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "asOf": "2026-01-01T00:00:00Z",
+            "implementation": "impl-a",
+            "records": [],
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ],
+            "waivers": []
+          },
+          "tool": "felag_audit"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-graduate",
+      "contractId": "c-mcp",
+      "description": "felag_graduate wraps graduate's GraduationResult unchanged (here a guard: ac1 is behavioral, not a graduatable judgment criterion). criterionId and implementation are required.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "basis": null,
+          "errors": [
+            "E_NOT_GRADUATABLE"
+          ],
+          "graduated": false,
+          "judges": [],
+          "window": []
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "criterionId": "ac1",
+            "implementation": "impl-a",
+            "records": [],
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_graduate"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-prime",
+      "contractId": "c-mcp",
+      "description": "felag_prime wraps emitPrime's markdown STRING unchanged as result (not double-JSON-encoded). The result is a bare string, the one pass-through whose payload is not an object.",
+      "expected": {
+        "ok": true,
+        "result": "# mini — author-class protocols\n\n*Emitted by `prime` from the committed spec (conformanceVersion 1.0.0). The protocol bodies below are normative and reproduced verbatim; this framing is not. You — whatever you are: a person, a session, a tool — are about to act as a `felag/author` implementation. Your conduct is judgment-verified; every artifact you emit is mechanically verified against the contract. The no-LLM path is always sufficient: hand-write interchange lines and run `lint`.*\n\n\n---\n\n*End of protocols. Validate your outputs: `lint` for interchange, the author-output/excavate-output formats for authored records, the promotion-input format for ratification. Fixtures carry the contract; prose carries intent.*\n"
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_prime"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-promote",
+      "contractId": "c-mcp",
+      "description": "felag_promote wraps promote's PromotionResult unchanged (here a refusal: ac1 is active, not proposed). The transition rides its own input field; asOf is required (no server clock in the pure function).",
+      "expected": {
+        "ok": true,
+        "result": {
+          "accepted": false,
+          "errors": [
+            "E_NOT_PROPOSED",
+            "E_PENDING"
+          ],
+          "lapsed": [],
+          "outcome": null,
+          "stale": [],
+          "waiver": null
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "asOf": "2026-01-01T00:00:00Z",
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ],
+            "transition": {
+              "acknowledgments": [],
+              "criterionId": "ac1",
+              "requestedAt": "2026-01-01T00:00:00Z",
+              "requestedBy": "impl-a",
+              "to": "active"
+            }
+          },
+          "tool": "felag_promote"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-render",
+      "contractId": "c-mcp",
+      "description": "felag_render (developer audience) wraps renderInventory's return unchanged under {ok:true, result}. An impl that added a layer or dropped the ok discriminant diverges.",
       "expected": {
         "ok": true,
         "result": {
@@ -304,45 +999,21 @@
     },
     {
       "record": "fixture",
-      "id": "fx-mcp-fmt-roundtrip",
+      "id": "fx-mcp-envelope-validate-author",
       "contractId": "c-mcp",
-      "description": "felag_fmt over a non-canonical interchange line (keys out of CS4 order) returns {canonical} carrying the canonical serialization — record first, then id, then ascending keys, trailing LF. No file is written (dispatch holds no writer). This is the parse-then-serialize round-trip surfaced as a tool.",
+      "description": "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:[] over a valid mini spec -> valid).",
       "expected": {
         "ok": true,
         "result": {
-          "canonical": "{\"record\":\"item\",\"id\":\"it1\",\"body\":\"b\",\"title\":\"t\"}\n"
+          "errors": [],
+          "valid": true
         }
       },
       "format": "felag/mcp-dispatch@0",
       "input": {
         "call": {
           "input": {
-            "text": "{\"id\":\"it1\",\"record\":\"item\",\"title\":\"t\",\"body\":\"b\"}"
-          },
-          "tool": "felag_fmt"
-        }
-      }
-    },
-    {
-      "record": "fixture",
-      "id": "fx-mcp-hash-shape",
-      "contractId": "c-mcp",
-      "description": "felag_hash over a spec containing a preamble, item, criterion, and one fixture returns {hashes:[{id, hash}]} for the FIXTURE record only — non-fixture records are skipped — hash being felag-core's fixtureHash (CS9). An implementation that hashed every record, or omitted the {id,hash} shape, would diverge.",
-      "expected": {
-        "ok": true,
-        "result": {
-          "hashes": [
-            {
-              "hash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
-              "id": "fx1"
-            }
-          ]
-        }
-      },
-      "format": "felag/mcp-dispatch@0",
-      "input": {
-        "call": {
-          "input": {
+            "new": [],
             "spec": [
               {
                 "conformanceVersion": "1.0.0",
@@ -403,6 +1074,455 @@
               }
             ]
           },
+          "tool": "felag_validate_author"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-validate-excavate",
+      "contractId": "c-mcp",
+      "description": "felag_validate_excavate wraps validateExcavateOutput's LintResult unchanged (scoped, no criteria to check -> valid). scope rides its own field.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "errors": [],
+          "valid": true
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "scope": {
+              "contracts": [
+                "c1"
+              ]
+            },
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              }
+            ]
+          },
+          "tool": "felag_validate_excavate"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-validate-prime",
+      "contractId": "c-mcp",
+      "description": "felag_validate_prime wraps validatePrimeOutput's LintResult unchanged (no c-author protocol items -> valid). output rides its own field.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "errors": [],
+          "valid": true
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "output": "",
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_validate_prime"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-envelope-verify",
+      "contractId": "c-mcp",
+      "description": "felag_verify wraps verify's ConformanceReport unchanged. Spec rides the spec channel, evidence the records channel (here empty). An impl that mis-wired the evidence channel diverges.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "advisory": [],
+          "conformanceVersion": "1.0.0",
+          "disputed": [],
+          "failing": [
+            "ac1"
+          ],
+          "implementation": "impl-a",
+          "verdict": "drifts",
+          "waived": []
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "asOf": "2026-01-01T00:00:00Z",
+            "implementation": "impl-a",
+            "records": [],
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ],
+            "waivers": []
+          },
+          "tool": "felag_verify"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-fmt-roundtrip",
+      "contractId": "c-mcp",
+      "description": "felag_fmt over a non-canonical interchange line (keys out of CS4 order) returns {canonical} carrying the canonical serialization — record first, then id, then ascending keys, trailing LF. No file is written (dispatch holds no writer). The parse-then-serialize round-trip surfaced as a tool.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "canonical": "{\"record\":\"item\",\"id\":\"it1\",\"body\":\"b\",\"title\":\"t\"}\n"
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "text": "{\"id\":\"it1\",\"record\":\"item\",\"title\":\"t\",\"body\":\"b\"}"
+          },
+          "tool": "felag_fmt"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-hash-narrow",
+      "contractId": "c-mcp",
+      "description": "felag_hash with an optional fixtureId narrows to that single fixture: only fx2's hash is returned, fx1 omitted. The narrowing selector is a real adapter feature.",
+      "expected": {
+        "ok": true,
+        "result": {
+          "hashes": [
+            {
+              "hash": "sha256:762d228bb32931e8ef6c7189f5c24c123acefe350be9d7aa9ae241f37002f162",
+              "id": "fx2"
+            }
+          ]
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "fixtureId": "fx2",
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "second mini fixture",
+                "expected": {
+                  "y": 3
+                },
+                "format": "json",
+                "id": "fx2",
+                "input": {
+                  "x": 2
+                },
+                "record": "fixture"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
+          "tool": "felag_hash"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-hash-shape",
+      "contractId": "c-mcp",
+      "description": "felag_hash over a spec with non-fixture records and TWO fixtures supplied out of id order (fx2 before fx1) returns {hashes:[{id,hash}]} for the FIXTURE records only, ASCENDING by id — non-fixture records skipped, the sort discriminated. hash is felag-core's fixtureHash (CS9).",
+      "expected": {
+        "ok": true,
+        "result": {
+          "hashes": [
+            {
+              "hash": "sha256:fdcea35c863dcb7d579c6b1747bf1ae8fd7770e3188412def6f95fdc16d7dd1b",
+              "id": "fx1"
+            },
+            {
+              "hash": "sha256:762d228bb32931e8ef6c7189f5c24c123acefe350be9d7aa9ae241f37002f162",
+              "id": "fx2"
+            }
+          ]
+        }
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "spec": [
+              {
+                "conformanceVersion": "1.0.0",
+                "contracts": [
+                  {
+                    "description": "mini contract",
+                    "id": "c1"
+                  }
+                ],
+                "exclusions": [],
+                "goals": [
+                  "exercise the felag-mcp fixtures"
+                ],
+                "implementers": [
+                  {
+                    "name": "impl-a",
+                    "roles": [
+                      "repo-owner"
+                    ]
+                  }
+                ],
+                "name": "mini",
+                "record": "preamble"
+              },
+              {
+                "body": "mini body",
+                "id": "it1",
+                "record": "item",
+                "title": "mini item"
+              },
+              {
+                "class": "behavioral",
+                "contractId": "c1",
+                "fixtures": [
+                  "fx1"
+                ],
+                "force": "MUST",
+                "gherkin": "Given x\nWhen y\nThen z",
+                "id": "ac1",
+                "itemId": "it1",
+                "record": "criterion",
+                "source": "forethought",
+                "state": "active",
+                "type": "scenario"
+              },
+              {
+                "contractId": "c1",
+                "description": "second mini fixture",
+                "expected": {
+                  "y": 3
+                },
+                "format": "json",
+                "id": "fx2",
+                "input": {
+                  "x": 2
+                },
+                "record": "fixture"
+              },
+              {
+                "contractId": "c1",
+                "description": "mini fixture",
+                "expected": {
+                  "y": 2
+                },
+                "format": "json",
+                "id": "fx1",
+                "input": {
+                  "x": 1
+                },
+                "record": "fixture"
+              }
+            ]
+          },
           "tool": "felag_hash"
         }
       }
@@ -411,7 +1531,7 @@
       "record": "fixture",
       "id": "fx-mcp-inline-wins",
       "contractId": "c-mcp",
-      "description": "A felag_lint call carrying BOTH an inline spec (valid) and a specDir whose snapshot spec.jsonl is broken JSON: inline wins, the specDir is never read, and lint reports the inline spec valid. An implementation that preferred the path would return E_PARSE instead — the discrimination this fixture pins.",
+      "description": "A felag_lint call carrying BOTH an inline spec (valid) and a specDir whose snapshot spec.jsonl is broken JSON: inline wins, the specDir is never read, lint reports the inline spec valid. An impl preferring the path would return E_PARSE — the discrimination this pins.",
       "expected": {
         "ok": true,
         "result": {
@@ -496,13 +1616,14 @@
       "record": "fixture",
       "id": "fx-mcp-lint-orphans",
       "contractId": "c-mcp",
-      "description": "felag_lint over a lint-valid spec that also carries a fixture referenced by no criterion returns {valid:true, errors:[], orphanFixtures:['fx-orphan']}. The orphan is a warning surfaced in-band, not a lint error — an implementation that promoted it to an error (valid:false) or dropped it from the result would diverge.",
+      "description": "felag_lint over a lint-valid spec carrying TWO fixtures referenced by no criterion, supplied out of id order (fx-orphan-b before fx-orphan-a): {valid:true, errors:[], orphanFixtures:['fx-orphan-a','fx-orphan-b']}. Orphans are in-band warnings (valid stays true) and the ascending order is discriminated — an impl that never sorts, or promoted an orphan to a lint error, diverges.",
       "expected": {
         "ok": true,
         "result": {
           "errors": [],
           "orphanFixtures": [
-            "fx-orphan"
+            "fx-orphan-a",
+            "fx-orphan-b"
           ],
           "valid": true
         }
@@ -571,10 +1692,19 @@
               },
               {
                 "contractId": "c1",
+                "description": "also referenced by no criterion",
+                "expected": {},
+                "format": "json",
+                "id": "fx-orphan-b",
+                "input": {},
+                "record": "fixture"
+              },
+              {
+                "contractId": "c1",
                 "description": "referenced by no criterion",
                 "expected": {},
                 "format": "json",
-                "id": "fx-orphan",
+                "id": "fx-orphan-a",
                 "input": {},
                 "record": "fixture"
               }
@@ -588,7 +1718,7 @@
       "record": "fixture",
       "id": "fx-mcp-no-source",
       "contractId": "c-mcp",
-      "description": "A spec-operating call (felag_lint) carrying neither records nor specDir returns {ok:false, error:'E_NO_SPEC_SOURCE'}.",
+      "description": "A spec-operating call (felag_lint) carrying neither spec nor specDir returns {ok:false, error:'E_NO_SPEC_SOURCE'}.",
       "expected": {
         "error": "E_NO_SPEC_SOURCE",
         "ok": false
@@ -605,7 +1735,7 @@
       "record": "fixture",
       "id": "fx-mcp-parse-error",
       "contractId": "c-mcp",
-      "description": "felag_fmt over unparseable raw text drives the parser to throw; dispatch catches it and returns {ok:false, error:'E_PARSE'}. The exception never reaches the transport. (E_LIB, the catch-all for any other library throw, is unfixturable in JSON — see the 0.1.0 residue exclusion.)",
+      "description": "felag_fmt over unparseable raw text drives the parser to throw; dispatch catches it and returns {ok:false, error:'E_PARSE'}. The exception never reaches the transport.",
       "expected": {
         "error": "E_PARSE",
         "ok": false
@@ -624,7 +1754,7 @@
       "record": "fixture",
       "id": "fx-mcp-path-load",
       "contractId": "c-mcp",
-      "description": "A felag_lint call carrying only specDir, whose snapshot holds spec.jsonl (preamble+item+criterion) and fixtures.jsonl (the fixture): both are read and concatenated, and lint runs against the merged spec — loadSpecDir parity. An implementation reading only one of the two files would report E_MISSING_FIXTURES or an orphan.",
+      "description": "A felag_lint call carrying only specDir, whose snapshot holds spec.jsonl (preamble+item+criterion) and fixtures.jsonl (the fixture): both are read and concatenated, lint runs against the merged spec — loadSpecDir parity. An impl reading only one file would report E_MISSING_FIXTURES or an orphan.",
       "expected": {
         "ok": true,
         "result": {
@@ -644,6 +1774,28 @@
         "fs": {
           "spec/mini/fixtures.jsonl": "{\"record\":\"fixture\",\"id\":\"fx1\",\"contractId\":\"c1\",\"description\":\"mini fixture\",\"expected\":{\"y\":2},\"format\":\"json\",\"input\":{\"x\":1}}\n",
           "spec/mini/spec.jsonl": "{\"record\":\"preamble\",\"conformanceVersion\":\"1.0.0\",\"contracts\":[{\"description\":\"mini contract\",\"id\":\"c1\"}],\"exclusions\":[],\"goals\":[\"exercise the felag-mcp fixtures\"],\"implementers\":[{\"name\":\"impl-a\",\"roles\":[\"repo-owner\"]}],\"name\":\"mini\"}\n{\"record\":\"item\",\"id\":\"it1\",\"body\":\"mini body\",\"title\":\"mini item\"}\n{\"record\":\"criterion\",\"id\":\"ac1\",\"class\":\"behavioral\",\"contractId\":\"c1\",\"fixtures\":[\"fx1\"],\"force\":\"MUST\",\"gherkin\":\"Given x\\nWhen y\\nThen z\",\"itemId\":\"it1\",\"source\":\"forethought\",\"state\":\"active\",\"type\":\"scenario\"}\n"
+        }
+      }
+    },
+    {
+      "record": "fixture",
+      "id": "fx-mcp-path-parse-error",
+      "contractId": "c-mcp",
+      "description": "A felag_lint call with only specDir, whose snapshot spec.jsonl is present but unparseable, returns {ok:false, error:'E_PARSE'} — the snapshot-file parse site (distinct from fmt's text parse) maps to E_PARSE rather than swallowing a partial load.",
+      "expected": {
+        "error": "E_PARSE",
+        "ok": false
+      },
+      "format": "felag/mcp-dispatch@0",
+      "input": {
+        "call": {
+          "input": {
+            "specDir": "spec/bad"
+          },
+          "tool": "felag_lint"
+        },
+        "fs": {
+          "spec/bad/spec.jsonl": "{ not parseable"
         }
       }
     },
@@ -688,14 +1840,14 @@
   "transition": {
     "criterionId": "ac-mcp-envelope-ok",
     "to": "active",
-    "requestedAt": "2026-06-13T14:04:35.898Z",
+    "requestedAt": "2026-06-13T14:18:20.961Z",
     "requestedBy": "felag project",
     "acknowledgments": [
       {
         "implementer": "felag project",
         "decision": "ack",
-        "at": "2026-06-13T14:04:35.898Z",
-        "criterionHash": "sha256:7b974665c7a1e30c5527266e3e775a8c2e0c7697a32bf5b723117122e289a452"
+        "at": "2026-06-13T14:18:20.961Z",
+        "criterionHash": "sha256:8a4a7267a51e63e037836b14563d3d91b1780a8aa51560a855d12f7aa98e1220"
       }
     ]
   }

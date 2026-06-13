@@ -214,7 +214,8 @@ const HANDLERS: Record<string, Handler> = {
     }),
 };
 
-/** The twelve tool names, in CLI-verb order — the registry dispatch routes. */
+/** The twelve tool names the registry dispatch routes (handler insertion order;
+ * eight share a CLI verb stem, the four author-class validators do not). */
 export const TOOL_NAMES = Object.keys(HANDLERS);
 
 /** Total dispatch: route the call, wrap success as {ok:true,result}, map any

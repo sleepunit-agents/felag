@@ -19,14 +19,24 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { fixtureHash, parse, serialize, sortFixtures } from "../src/canonical.js";
 import { lint } from "../src/lint.js";
-import { renderInventory } from "../src/author.js";
-import { validateAuthorOutput } from "../src/author.js";
+import { verify } from "../src/verify.js";
+import { audit } from "../src/audit.js";
+import { promote } from "../src/promotion.js";
+import { graduate } from "../src/graduation.js";
+import { emitPrime } from "../src/prime.js";
+import {
+  renderInventory,
+  validateAuthorOutput,
+  validateExcavateOutput,
+  validatePrimeOutput,
+} from "../src/author.js";
 import type {
   Criterion,
   Fixture,
   Item,
   Preamble,
   SpecRecord,
+  VerificationRecord,
 } from "../src/records.js";
 
 const dir = join(import.meta.dirname, "..", "spec", "felag-mcp");
@@ -57,7 +67,7 @@ const preamble: Preamble = {
     "Tool input JSON Schemas as advertised to a host (each tool's MCP inputSchema): advisory ergonomics, observable but undeclared. The contract gates on dispatch behavior given an input, not on the schema a host uses to build that input.",
     "Filesystem access: how the server reads a specDir from disk is transport. The contract models the filesystem as an explicit path->content snapshot passed to dispatch, so path-loading is a pure, fixturable function; real file I/O lives in the server binding.",
     "Statefulness: audit's optional work-layer wiring (spec/felag-tasks) is stateful; the audit tool exposes only the pure coverage projection with no work layer attached. Work mutation through MCP is out of scope.",
-    "MCP adapter residue at 0.1.0: the E_LIB catch-all maps any non-mapped library throw, but its canonical trigger — serialize's CS6 refusal of a non-finite number — cannot be carried in a JSON fixture (the corpus cannot encode the value whose refusal it would pin), exactly as felag-core's CS6 writer refusal is unfixturable. The obligation rides on prose and the dispatch implementation, not a fixture; the fixturable totality case is E_PARSE.",
+    "MCP adapter residue at 0.1.0: E_LIB is the catch-all for any felag-core library throw not classified as E_PARSE. Its triggers depend on felag-core's INCIDENTAL throwing behavior, which felag-core does not make contractual: serialize's CS6 refusal of a non-finite number (itself unfixturable — a JSON fixture cannot encode the value whose refusal it would pin), or a core verb throwing on a degenerate input (e.g. verify on a spec with no preamble, or render given an out-of-enum audience). Because none of these throws is a felag-core guarantee, none can be pinned by a stable cross-implementation fixture; the obligation rides on prose and the dispatch implementation. The fixturable, contractually-stable totality case is E_PARSE; that dispatch maps a non-McpError throw to E_LIB rather than propagating it is pinned by a reference-implementation unit test, not a contract fixture.",
   ],
   governance: { timeoutDays: 30 },
   implementers: [{ name: "felag project", roles: ["repo-owner"] }],
@@ -73,14 +83,14 @@ const items: Item[] = [
     id: "it-mcp-dispatch",
     title: "Dispatch and the result envelope",
     body:
-      "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. A tool name absent from the registry returns E_UNKNOWN_TOOL. A thrown felag-core library error is caught and mapped — unparseable interchange to E_PARSE, any other library throw to the catch-all E_LIB — so a model never receives a crashed server instead of an answer. The error CODE is the divergence point a second implementation must match; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe twelve tools mirror the CLI verbs one-to-one: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Most are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's).",
+      "Every MCP tool call resolves through a single pure function, mcpDispatch(call, fs), where call is {tool, input} and fs is a filesystem snapshot (below). It returns a result envelope: a discriminated union of {ok:true, result} on success and {ok:false, error, detail} on failure. result is the tool's payload (the verb's result, possibly adapter-shaped); error is a stable machine code (E_*); detail is a required non-empty human-readable string whose WORDING is non-normative but whose presence and type are normative.\n\nDispatch is TOTAL: it never throws and never propagates an exception to the transport. The error partition is closed and a second implementation MUST match the CODE: E_UNKNOWN_TOOL (the tool name is absent from the registry); E_NO_SPEC_SOURCE and E_SPEC_NOT_FOUND (spec resolution, see it-mcp-resolve); E_BAD_INPUT (a REQUIRED input is absent — asOf/implementation for verify and audit, transition for promote, criterionId/implementation for graduate, audience for render, output for validate_prime, or neither records nor text for fmt); E_PARSE (interchange that does not parse, whether the fmt text or a snapshot file); and E_LIB (the catch-all for any other thrown felag-core library error). The error CODE is the divergence point; this totality is the verify-is-a-ledger stance (felag never crashes the caller) carried to the tool layer.\n\nThe presence/validity line is deliberate: the adapter checks only that a required input is PRESENT (a structural check it can make without verb knowledge) and maps absence to E_BAD_INPUT; an input that is present but semantically invalid (e.g. an out-of-enum render audience) is the core verb's to reject, and the core rejecting it by throwing surfaces as E_LIB — the adapter does not re-implement the verb's input validation.\n\nThe twelve tools mirror the felag-core library verbs: felag_lint, felag_fmt, felag_hash, felag_verify, felag_audit, felag_promote, felag_graduate, felag_render, felag_prime, felag_validate_author, felag_validate_excavate, felag_validate_prime. Eight have a CLI verb of the same stem; the four author-class validators (render and the three validate_*) expose felag-core library functions with no CLI counterpart. Most tools are pure pass-throughs whose result is the named felag-core function's return wrapped unchanged under {ok:true, result}; those are specced here only at the envelope boundary, never re-stated (their semantics are felag-core's). A pass-through success fixture therefore EMBEDS a concrete felag-core result by reference: that value is pinned by the core's own contract and is expected to move if the core's result legitimately evolves under it — the fixture asserts the adapter wraps it unchanged, not that the value is itself a c-mcp obligation.",
   },
   {
     record: "item",
     id: "it-mcp-resolve",
     title: "Spec-source resolution: inline-vs-path precedence",
     body:
-      "Tools that operate on a spec accept the spec inline under `spec` (a SpecRecord array) and/or by path under `specDir` (a directory). The name `spec` is deliberate: `records` is reserved for the EVIDENCE channel (verify/audit take VerificationRecords, graduate takes JudgmentRecords) and would otherwise collide with the spec. Resolution is deterministic: inline `spec` WINS when present, and specDir is not consulted. Otherwise specDir is loaded from the filesystem snapshot by reading specDir + '/spec.jsonl' and specDir + '/fixtures.jsonl' — either file may be absent, and whichever are present have their records concatenated (parity with the CLI's loadSpecDir). If neither file is present in the snapshot, resolution fails with E_SPEC_NOT_FOUND. If neither `spec` nor `specDir` is supplied at all, resolution fails with E_NO_SPEC_SOURCE.\n\nThe filesystem is an explicit snapshot — a map from logical 'dir/file' path (joined with '/') to file content — passed to dispatch, NOT a live disk read. This makes path-loading a pure, fixturable function: a fixture carries its own in-memory filesystem. The real MCP server populates the snapshot by reading the requested specDir from disk before calling dispatch; that disk I/O is transport, excluded from this contract. The precedence rule (inline beats path) is the load-bearing decision: it lets an agent compose or test against an inline spec while the path remains the ergonomic default.",
+      "Tools that operate on a spec accept the spec inline under `spec` (a SpecRecord array) and/or by path under `specDir` (a directory). The name `spec` is deliberate: `records` is reserved for the EVIDENCE channel (verify/audit take VerificationRecords, graduate takes JudgmentRecords) and would otherwise collide with the spec — so a single call may legitimately carry BOTH an inline `spec` (the contract) and a `records` array (the evidence), and they never contend. Resolution is deterministic: inline `spec` WINS when present — where PRESENT means `spec` is a JSON array (any other type is treated as absent and falls through) — and specDir is not consulted. Otherwise specDir is loaded from the filesystem snapshot by reading specDir + '/spec.jsonl' and specDir + '/fixtures.jsonl' — either file may be absent, and whichever are present have their records concatenated (parity with the CLI's loadSpecDir). If neither file is present in the snapshot, resolution fails with E_SPEC_NOT_FOUND. If neither `spec` nor `specDir` is supplied at all, resolution fails with E_NO_SPEC_SOURCE.\n\nThe filesystem is an explicit snapshot — a map from logical 'dir/file' path (joined with '/') to file content — passed to dispatch, NOT a live disk read. This makes path-loading a pure, fixturable function: a fixture carries its own in-memory filesystem. The real MCP server populates the snapshot by reading the requested specDir from disk before calling dispatch; that disk I/O is transport, excluded from this contract. The precedence rule (inline beats path) is the load-bearing decision: it lets an agent compose or test against an inline spec while the path remains the ergonomic default.",
   },
   {
     record: "item",
@@ -115,8 +125,18 @@ const criteria: Criterion[] = [
     id: "ac-mcp-envelope-ok",
     itemId: "it-mcp-dispatch",
     gherkin:
-      "Given a valid call to a pass-through tool (felag_render over an inline spec)\nWhen mcpDispatch routes it\nThen the envelope is {ok:true, result} and result is the felag-core function's return wrapped unchanged",
-    fixtures: ["fx-mcp-envelope-ok"],
+      "Given a valid call to any pass-through tool (render, verify, audit, promote, graduate, prime, validate_author, validate_excavate, validate_prime)\nWhen mcpDispatch routes it\nThen the envelope is {ok:true, result} and result is the named felag-core function's return wrapped unchanged — the adapter resolves I/O and wraps, it neither re-derives nor reshapes a pass-through result\nAnd the spec resolves from the `spec`/`specDir` channel while evidence (where the verb takes it) rides the `records` channel",
+    fixtures: [
+      "fx-mcp-envelope-render",
+      "fx-mcp-envelope-verify",
+      "fx-mcp-envelope-audit",
+      "fx-mcp-envelope-promote",
+      "fx-mcp-envelope-graduate",
+      "fx-mcp-envelope-prime",
+      "fx-mcp-envelope-validate-author",
+      "fx-mcp-envelope-validate-excavate",
+      "fx-mcp-envelope-validate-prime",
+    ],
   }),
   crit({
     id: "ac-mcp-unknown-tool",
@@ -129,8 +149,15 @@ const criteria: Criterion[] = [
     id: "ac-mcp-totality",
     itemId: "it-mcp-dispatch",
     gherkin:
-      "Given a call whose input drives a felag-core function to throw (felag_fmt over unparseable text)\nWhen mcpDispatch routes it\nThen the throw is caught and mapped to {ok:false, error:'E_PARSE'} with a non-empty detail — dispatch never propagates the exception\nAnd any other non-mapped library throw maps to the E_LIB catch-all (residue: its canonical trigger, a non-finite numeral, is unfixturable in JSON)",
+      "Given a call whose input drives a felag-core function to throw (felag_fmt over unparseable text)\nWhen mcpDispatch routes it\nThen the throw is caught and mapped to {ok:false, error:'E_PARSE'} with a non-empty detail — dispatch never propagates the exception\nAnd any other non-mapped library throw maps to the E_LIB catch-all (residue: its triggers depend on felag-core's incidental throwing behavior, none contractually stable — see exclusions)",
     fixtures: ["fx-mcp-parse-error"],
+  }),
+  crit({
+    id: "ac-mcp-bad-input",
+    itemId: "it-mcp-dispatch",
+    gherkin:
+      "Given a tool call missing one of its REQUIRED inputs (felag_verify with a spec but no implementation; felag_fmt with neither records nor text; felag_render with a spec but no audience)\nWhen mcpDispatch routes it\nThen the envelope is {ok:false, error:'E_BAD_INPUT'} naming the missing input in detail — absence is a structural check the adapter makes without verb knowledge, distinct from E_LIB (a present-but-invalid input the core rejects by throwing)",
+    fixtures: ["fx-mcp-bad-input-verify", "fx-mcp-bad-input-fmt", "fx-mcp-bad-input-render"],
   }),
 
   // it-mcp-resolve
@@ -162,21 +189,35 @@ const criteria: Criterion[] = [
       "Given a call carrying a specDir whose interchange files are absent from the snapshot\nWhen the tool resolves its spec\nThen the envelope is {ok:false, error:'E_SPEC_NOT_FOUND'}",
     fixtures: ["fx-mcp-spec-not-found"],
   }),
+  crit({
+    id: "ac-mcp-path-parse-error",
+    itemId: "it-mcp-resolve",
+    gherkin:
+      "Given a call carrying only a specDir whose snapshot spec.jsonl is present but unparseable\nWhen the tool resolves its spec\nThen the envelope is {ok:false, error:'E_PARSE'} — the snapshot-file parse site, distinct from fmt's text parse, also maps to E_PARSE rather than swallowing a partial load",
+    fixtures: ["fx-mcp-path-parse-error"],
+  }),
+  crit({
+    id: "ac-mcp-channel-isolation",
+    itemId: "it-mcp-resolve",
+    gherkin:
+      "Given felag_verify carrying BOTH an inline spec (the contract) and a records array (passing VerificationRecords, the evidence)\nWhen the tool runs\nThen the spec resolves from `spec` and the records are consumed as EVIDENCE, not as spec — the conformance report reflects the evidence against the inline contract\nAnd an implementation that read the spec from `records` (as the CLI's verify reads a records.jsonl positional) would misverify here",
+    fixtures: ["fx-mcp-channel-isolation"],
+  }),
 
   // it-mcp-tools
   crit({
     id: "ac-mcp-lint-orphans",
     itemId: "it-mcp-tools",
     gherkin:
-      "Given felag_lint over a lint-valid spec that contains a fixture referenced by no criterion\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[the orphan id]} — the orphan is a warning surfaced in-band, never a lint error",
+      "Given felag_lint over a lint-valid spec that contains TWO fixtures referenced by no criterion, supplied out of id order\nWhen the tool runs\nThen the result is {valid:true, errors:[], orphanFixtures:[both ids, ascending]} — the orphans are warnings surfaced in-band (valid stays true), and the ascending order is discriminated",
     fixtures: ["fx-mcp-lint-orphans"],
   }),
   crit({
     id: "ac-mcp-hash-shape",
     itemId: "it-mcp-tools",
     gherkin:
-      "Given felag_hash over a spec containing non-fixture records and one fixture\nWhen the tool runs\nThen the result is {hashes:[{id, hash}]} for the fixture records only, ascending by id, hash being felag-core's fixtureHash",
-    fixtures: ["fx-mcp-hash-shape"],
+      "Given felag_hash over a spec containing non-fixture records and two fixtures whose ids are NOT in input order\nWhen the tool runs\nThen the result is {hashes:[{id, hash}]} for the fixture records only, ascending by id (the sort is discriminated), hash being felag-core's fixtureHash\nAnd given an optional fixtureId, only that fixture's hash is returned",
+    fixtures: ["fx-mcp-hash-shape", "fx-mcp-hash-narrow"],
   }),
   crit({
     id: "ac-mcp-fmt-roundtrip",
@@ -237,11 +278,46 @@ const miniFixture: Fixture = {
 };
 const miniSpec: SpecRecord[] = [miniPreamble, miniItem, miniCriterion, miniFixture];
 
+// A passing VerificationRecord for ac1 — the EVIDENCE channel payload.
+const passRecord: VerificationRecord = {
+  criterionId: "ac1",
+  fixtureId: "fx1",
+  fixtureHash: fixtureHash(miniFixture),
+  implementation: "impl-a",
+  implementationVersion: "1.0.0",
+  conformanceVersion: "1.0.0",
+  verdict: "pass",
+  evidence: "runner output ref #1",
+  runner: "ci",
+  at: "2026-01-01T00:00:00Z",
+  attribution: "ci@example run:1",
+};
+
+// A second fixture for hash ordering (fx2 supplied BEFORE fx1 in input).
+const miniFixture2: Fixture = {
+  record: "fixture",
+  id: "fx2",
+  contractId: "c1",
+  description: "second mini fixture",
+  format: "json",
+  input: { x: 2 },
+  expected: { y: 3 },
+};
+
 const orphanFixture: Fixture = {
   record: "fixture",
-  id: "fx-orphan",
+  id: "fx-orphan-a",
   contractId: "c1",
   description: "referenced by no criterion",
+  format: "json",
+  input: {},
+  expected: {},
+};
+const orphanFixture2: Fixture = {
+  record: "fixture",
+  id: "fx-orphan-b",
+  contractId: "c1",
+  description: "also referenced by no criterion",
   format: "json",
   input: {},
   expected: {},
@@ -265,15 +341,77 @@ function fx(
   });
 }
 
-// 1. envelope success — pass-through felag_render, result is the core return verbatim.
+const ASOF = "2026-01-01T00:00:00Z";
+const verifyInput = { asOf: ASOF, implementation: "impl-a", records: [], spec: miniSpec, waivers: [] };
+const promoteTransition = {
+  criterionId: "ac1",
+  to: "active" as const,
+  requestedAt: ASOF,
+  requestedBy: "impl-a",
+  acknowledgments: [],
+};
+const excavateSpec: SpecRecord[] = [miniPreamble, miniItem];
+
+// --- ac-mcp-envelope-ok: one success fixture per pass-through tool. Each
+// EMBEDS the named core function's result (computed via the lib) to assert the
+// adapter wraps it unchanged under {ok:true, result}; the embedded value is
+// pinned by felag-core's contract by reference (it-mcp-dispatch). ---
 fx(
-  "fx-mcp-envelope-ok",
-  "A valid pass-through call (felag_render, developer audience) returns {ok:true, result} where result is renderInventory's return wrapped unchanged. An implementation that wrapped the result in an extra layer, or omitted the ok discriminant, would diverge here.",
+  "fx-mcp-envelope-render",
+  "felag_render (developer audience) wraps renderInventory's return unchanged under {ok:true, result}. An impl that added a layer or dropped the ok discriminant diverges.",
   { call: { tool: "felag_render", input: { spec: miniSpec, audience: "developer" } } },
   { ok: true, result: renderInventory({ spec: miniSpec, audience: "developer" }) },
 );
+fx(
+  "fx-mcp-envelope-verify",
+  "felag_verify wraps verify's ConformanceReport unchanged. Spec rides the spec channel, evidence the records channel (here empty). An impl that mis-wired the evidence channel diverges.",
+  { call: { tool: "felag_verify", input: verifyInput } },
+  { ok: true, result: verify({ asOf: ASOF, implementation: "impl-a", records: [], spec: miniSpec, waivers: [] }) },
+);
+fx(
+  "fx-mcp-envelope-audit",
+  "felag_audit wraps audit's {report, proposals} unchanged — the pure coverage projection, no work layer attached (statefulness excluded).",
+  { call: { tool: "felag_audit", input: verifyInput } },
+  { ok: true, result: audit({ asOf: ASOF, implementation: "impl-a", records: [], spec: miniSpec, waivers: [] }) },
+);
+fx(
+  "fx-mcp-envelope-promote",
+  "felag_promote wraps promote's PromotionResult unchanged (here a refusal: ac1 is active, not proposed). The transition rides its own input field; asOf is required (no server clock in the pure function).",
+  { call: { tool: "felag_promote", input: { spec: miniSpec, transition: promoteTransition, asOf: ASOF } } },
+  { ok: true, result: promote({ asOf: ASOF, spec: miniSpec, transition: promoteTransition }) },
+);
+fx(
+  "fx-mcp-envelope-graduate",
+  "felag_graduate wraps graduate's GraduationResult unchanged (here a guard: ac1 is behavioral, not a graduatable judgment criterion). criterionId and implementation are required.",
+  { call: { tool: "felag_graduate", input: { spec: miniSpec, criterionId: "ac1", implementation: "impl-a", records: [] } } },
+  { ok: true, result: graduate({ criterionId: "ac1", implementation: "impl-a", records: [], spec: miniSpec }) },
+);
+fx(
+  "fx-mcp-envelope-prime",
+  "felag_prime wraps emitPrime's markdown STRING unchanged as result (not double-JSON-encoded). The result is a bare string, the one pass-through whose payload is not an object.",
+  { call: { tool: "felag_prime", input: { spec: miniSpec } } },
+  { ok: true, result: emitPrime(miniSpec) },
+);
+fx(
+  "fx-mcp-envelope-validate-author",
+  "felag_validate_author wraps validateAuthorOutput's LintResult unchanged (new:[] over a valid mini spec -> valid).",
+  { call: { tool: "felag_validate_author", input: { spec: miniSpec, new: [] } } },
+  { ok: true, result: validateAuthorOutput({ spec: miniSpec, new: [] }) },
+);
+fx(
+  "fx-mcp-envelope-validate-excavate",
+  "felag_validate_excavate wraps validateExcavateOutput's LintResult unchanged (scoped, no criteria to check -> valid). scope rides its own field.",
+  { call: { tool: "felag_validate_excavate", input: { spec: excavateSpec, scope: { contracts: ["c1"] } } } },
+  { ok: true, result: validateExcavateOutput({ spec: excavateSpec, scope: { contracts: ["c1"] } }) },
+);
+fx(
+  "fx-mcp-envelope-validate-prime",
+  "felag_validate_prime wraps validatePrimeOutput's LintResult unchanged (no c-author protocol items -> valid). output rides its own field.",
+  { call: { tool: "felag_validate_prime", input: { spec: miniSpec, output: "" } } },
+  { ok: true, result: validatePrimeOutput({ spec: miniSpec, output: "" }) },
+);
 
-// 2. unknown tool — E_UNKNOWN_TOOL (detail compared only for presence+type).
+// --- ac-mcp-unknown-tool ---
 fx(
   "fx-mcp-unknown-tool",
   "A call naming a tool absent from the twelve-tool registry returns {ok:false, error:'E_UNKNOWN_TOOL'} and does not throw. detail is a non-empty string whose wording is non-normative.",
@@ -281,18 +419,38 @@ fx(
   { ok: false, error: "E_UNKNOWN_TOOL" },
 );
 
-// 3. totality — a library throw (unparseable text) maps to E_PARSE, never propagates.
+// --- ac-mcp-totality: a library throw (unparseable fmt text) maps to E_PARSE ---
 fx(
   "fx-mcp-parse-error",
-  "felag_fmt over unparseable raw text drives the parser to throw; dispatch catches it and returns {ok:false, error:'E_PARSE'}. The exception never reaches the transport. (E_LIB, the catch-all for any other library throw, is unfixturable in JSON — see the 0.1.0 residue exclusion.)",
+  "felag_fmt over unparseable raw text drives the parser to throw; dispatch catches it and returns {ok:false, error:'E_PARSE'}. The exception never reaches the transport.",
   { call: { tool: "felag_fmt", input: { text: "{ this is not valid json" } } },
   { ok: false, error: "E_PARSE" },
 );
 
-// 4. inline wins — inline records used, broken specDir ignored.
+// --- ac-mcp-bad-input: a REQUIRED input absent -> E_BAD_INPUT (the sixth code) ---
+fx(
+  "fx-mcp-bad-input-verify",
+  "felag_verify with a spec and asOf but NO implementation returns {ok:false, error:'E_BAD_INPUT'}. A required input is structurally absent — the adapter catches it without verb knowledge, distinct from E_LIB.",
+  { call: { tool: "felag_verify", input: { spec: miniSpec, asOf: ASOF, records: [] } } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
+fx(
+  "fx-mcp-bad-input-fmt",
+  "felag_fmt with neither records nor text returns {ok:false, error:'E_BAD_INPUT'} — fmt's own required-input check.",
+  { call: { tool: "felag_fmt", input: {} } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
+fx(
+  "fx-mcp-bad-input-render",
+  "felag_render with a spec but no audience returns {ok:false, error:'E_BAD_INPUT'} — absence of a required input, NOT E_LIB (which is reserved for a present-but-invalid input the core rejects by throwing).",
+  { call: { tool: "felag_render", input: { spec: miniSpec } } },
+  { ok: false, error: "E_BAD_INPUT" },
+);
+
+// --- ac-mcp-inline-wins: inline spec used, broken specDir ignored ---
 fx(
   "fx-mcp-inline-wins",
-  "A felag_lint call carrying BOTH an inline spec (valid) and a specDir whose snapshot spec.jsonl is broken JSON: inline wins, the specDir is never read, and lint reports the inline spec valid. An implementation that preferred the path would return E_PARSE instead — the discrimination this fixture pins.",
+  "A felag_lint call carrying BOTH an inline spec (valid) and a specDir whose snapshot spec.jsonl is broken JSON: inline wins, the specDir is never read, lint reports the inline spec valid. An impl preferring the path would return E_PARSE — the discrimination this pins.",
   {
     call: { tool: "felag_lint", input: { spec: miniSpec, specDir: "spec/decoy" } },
     fs: { "spec/decoy/spec.jsonl": "{ broken interchange" },
@@ -300,10 +458,18 @@ fx(
   { ok: true, result: { valid: true, errors: [], orphanFixtures: [] } },
 );
 
-// 5. path load — specDir read from the snapshot, both files merged.
+// --- ac-mcp-channel-isolation: spec and records are distinct channels ---
+fx(
+  "fx-mcp-channel-isolation",
+  "felag_verify carrying BOTH an inline spec (contract) and a records array (one passing VerificationRecord for ac1, the evidence): the spec resolves from `spec` and the record is consumed as EVIDENCE, yielding a conforming report. An impl reading the spec from `records` (as the CLI's verify reads a records.jsonl positional) would misverify — the spec's own load-bearing channel decision, finally pinned.",
+  { call: { tool: "felag_verify", input: { spec: miniSpec, records: [passRecord], implementation: "impl-a", asOf: ASOF, waivers: [] } } },
+  { ok: true, result: verify({ asOf: ASOF, implementation: "impl-a", records: [passRecord], spec: miniSpec, waivers: [] }) },
+);
+
+// --- ac-mcp-path-load: specDir read from the snapshot, both files merged ---
 fx(
   "fx-mcp-path-load",
-  "A felag_lint call carrying only specDir, whose snapshot holds spec.jsonl (preamble+item+criterion) and fixtures.jsonl (the fixture): both are read and concatenated, and lint runs against the merged spec — loadSpecDir parity. An implementation reading only one of the two files would report E_MISSING_FIXTURES or an orphan.",
+  "A felag_lint call carrying only specDir, whose snapshot holds spec.jsonl (preamble+item+criterion) and fixtures.jsonl (the fixture): both are read and concatenated, lint runs against the merged spec — loadSpecDir parity. An impl reading only one file would report E_MISSING_FIXTURES or an orphan.",
   {
     call: { tool: "felag_lint", input: { specDir: "spec/mini" } },
     fs: {
@@ -314,15 +480,24 @@ fx(
   { ok: true, result: { valid: true, errors: [], orphanFixtures: [] } },
 );
 
-// 6. no source — neither records nor specDir.
+// --- ac-mcp-path-parse-error: a malformed snapshot file -> E_PARSE ---
+fx(
+  "fx-mcp-path-parse-error",
+  "A felag_lint call with only specDir, whose snapshot spec.jsonl is present but unparseable, returns {ok:false, error:'E_PARSE'} — the snapshot-file parse site (distinct from fmt's text parse) maps to E_PARSE rather than swallowing a partial load.",
+  {
+    call: { tool: "felag_lint", input: { specDir: "spec/bad" } },
+    fs: { "spec/bad/spec.jsonl": "{ not parseable" },
+  },
+  { ok: false, error: "E_PARSE" },
+);
+
+// --- ac-mcp-no-source / ac-mcp-spec-not-found ---
 fx(
   "fx-mcp-no-source",
-  "A spec-operating call (felag_lint) carrying neither records nor specDir returns {ok:false, error:'E_NO_SPEC_SOURCE'}.",
+  "A spec-operating call (felag_lint) carrying neither spec nor specDir returns {ok:false, error:'E_NO_SPEC_SOURCE'}.",
   { call: { tool: "felag_lint", input: {} } },
   { ok: false, error: "E_NO_SPEC_SOURCE" },
 );
-
-// 7. spec not found — specDir given, snapshot empty.
 fx(
   "fx-mcp-spec-not-found",
   "A felag_lint call naming a specDir whose interchange files are absent from the snapshot returns {ok:false, error:'E_SPEC_NOT_FOUND'} — distinct from E_NO_SPEC_SOURCE (a path WAS given; nothing was there).",
@@ -330,28 +505,34 @@ fx(
   { ok: false, error: "E_SPEC_NOT_FOUND" },
 );
 
-// 8. lint orphans — orphan fixture surfaced in-band, valid stays true.
+// --- ac-mcp-lint-orphans: TWO orphans, out of order -> ascending, valid stays true ---
 fx(
   "fx-mcp-lint-orphans",
-  "felag_lint over a lint-valid spec that also carries a fixture referenced by no criterion returns {valid:true, errors:[], orphanFixtures:['fx-orphan']}. The orphan is a warning surfaced in-band, not a lint error — an implementation that promoted it to an error (valid:false) or dropped it from the result would diverge.",
-  { call: { tool: "felag_lint", input: { spec: [...miniSpec, orphanFixture] } } },
-  { ok: true, result: { valid: true, errors: [], orphanFixtures: ["fx-orphan"] } },
+  "felag_lint over a lint-valid spec carrying TWO fixtures referenced by no criterion, supplied out of id order (fx-orphan-b before fx-orphan-a): {valid:true, errors:[], orphanFixtures:['fx-orphan-a','fx-orphan-b']}. Orphans are in-band warnings (valid stays true) and the ascending order is discriminated — an impl that never sorts, or promoted an orphan to a lint error, diverges.",
+  { call: { tool: "felag_lint", input: { spec: [...miniSpec, orphanFixture2, orphanFixture] } } },
+  { ok: true, result: { valid: true, errors: [], orphanFixtures: ["fx-orphan-a", "fx-orphan-b"] } },
 );
 
-// 9. hash shape — fixtures only, ascending, fixtureHash computed.
+// --- ac-mcp-hash-shape: fixtures only, two out of order -> ascending; + fixtureId narrowing ---
 fx(
   "fx-mcp-hash-shape",
-  "felag_hash over a spec containing a preamble, item, criterion, and one fixture returns {hashes:[{id, hash}]} for the FIXTURE record only — non-fixture records are skipped — hash being felag-core's fixtureHash (CS9). An implementation that hashed every record, or omitted the {id,hash} shape, would diverge.",
-  { call: { tool: "felag_hash", input: { spec: miniSpec } } },
-  { ok: true, result: { hashes: [{ id: "fx1", hash: fixtureHash(miniFixture) }] } },
+  "felag_hash over a spec with non-fixture records and TWO fixtures supplied out of id order (fx2 before fx1) returns {hashes:[{id,hash}]} for the FIXTURE records only, ASCENDING by id — non-fixture records skipped, the sort discriminated. hash is felag-core's fixtureHash (CS9).",
+  { call: { tool: "felag_hash", input: { spec: [miniPreamble, miniItem, miniCriterion, miniFixture2, miniFixture] } } },
+  { ok: true, result: { hashes: [{ id: "fx1", hash: fixtureHash(miniFixture) }, { id: "fx2", hash: fixtureHash(miniFixture2) }] } },
+);
+fx(
+  "fx-mcp-hash-narrow",
+  "felag_hash with an optional fixtureId narrows to that single fixture: only fx2's hash is returned, fx1 omitted. The narrowing selector is a real adapter feature.",
+  { call: { tool: "felag_hash", input: { spec: [miniPreamble, miniItem, miniCriterion, miniFixture2, miniFixture], fixtureId: "fx2" } } },
+  { ok: true, result: { hashes: [{ id: "fx2", hash: fixtureHash(miniFixture2) }] } },
 );
 
-// 10. fmt round-trip — non-canonical text in, canonical out, read-only.
+// --- ac-mcp-fmt-roundtrip ---
 {
   const nonCanonical = '{"id":"it1","record":"item","title":"t","body":"b"}';
   fx(
     "fx-mcp-fmt-roundtrip",
-    "felag_fmt over a non-canonical interchange line (keys out of CS4 order) returns {canonical} carrying the canonical serialization — record first, then id, then ascending keys, trailing LF. No file is written (dispatch holds no writer). This is the parse-then-serialize round-trip surfaced as a tool.",
+    "felag_fmt over a non-canonical interchange line (keys out of CS4 order) returns {canonical} carrying the canonical serialization — record first, then id, then ascending keys, trailing LF. No file is written (dispatch holds no writer). The parse-then-serialize round-trip surfaced as a tool.",
     { call: { tool: "felag_fmt", input: { text: nonCanonical } } },
     { ok: true, result: { canonical: serialize(parse(nonCanonical)) } },
   );

@@ -27,8 +27,11 @@ const ORDER = [
   "ac-mcp-envelope-ok",
   "ac-mcp-unknown-tool",
   "ac-mcp-totality",
+  "ac-mcp-bad-input",
   "ac-mcp-inline-wins",
   "ac-mcp-path-load",
+  "ac-mcp-path-parse-error",
+  "ac-mcp-channel-isolation",
   "ac-mcp-no-source",
   "ac-mcp-spec-not-found",
   "ac-mcp-lint-orphans",
@@ -72,4 +75,4 @@ for (const criterionId of ORDER) {
   writeFileSync(join(dir, "spec.jsonl"), serialize(spec));
   console.log(`${criterionId}: ratified (${recordHash(criterion).slice(0, 20)}…) and activated`);
 }
-console.log("all ten ratified");
+console.log(`all ${ORDER.length} ratified`);

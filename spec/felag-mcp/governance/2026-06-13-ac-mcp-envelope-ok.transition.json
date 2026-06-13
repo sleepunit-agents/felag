@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-mcp-envelope-ok",
   "to": "active",
-  "requestedAt": "2026-06-13T14:04:35.898Z",
+  "requestedAt": "2026-06-13T14:18:20.961Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:04:35.898Z",
-      "criterionHash": "sha256:7b974665c7a1e30c5527266e3e775a8c2e0c7697a32bf5b723117122e289a452"
+      "at": "2026-06-13T14:18:20.961Z",
+      "criterionHash": "sha256:8a4a7267a51e63e037836b14563d3d91b1780a8aa51560a855d12f7aa98e1220"
     }
   ]
 }
