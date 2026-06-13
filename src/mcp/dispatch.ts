@@ -31,6 +31,8 @@ import {
 import type {
   Criterion,
   Fixture,
+  PromotionInput,
+  RenderInventoryInput,
   SpecRecord,
   VerificationRecord,
   VerifyInput,
@@ -171,12 +173,14 @@ const HANDLERS: Record<string, Handler> = {
 
   felag_audit: (input, fs) => audit(buildVerifyInput(input, fs)),
 
-  felag_promote: (input, fs) =>
-    promote({
-      asOf: required<string>(input, "asOf"),
-      spec: resolveSpec(input, fs),
-      transition: required(input, "transition"),
-    }),
+  felag_promote: (input, fs) => {
+    // Required-input checks precede spec resolution (it-mcp-dispatch ordering):
+    // do NOT inline these into the object literal — JS evaluates properties in
+    // source order, which would resolve the spec before the transition check.
+    const asOf = required<string>(input, "asOf");
+    const transition = required<PromotionInput["transition"]>(input, "transition");
+    return promote({ asOf, spec: resolveSpec(input, fs), transition });
+  },
 
   felag_graduate: (input, fs) =>
     graduate({
@@ -186,11 +190,10 @@ const HANDLERS: Record<string, Handler> = {
       spec: resolveSpec(input, fs),
     }),
 
-  felag_render: (input, fs) =>
-    renderInventory({
-      spec: resolveSpec(input, fs),
-      audience: required(input, "audience"),
-    }),
+  felag_render: (input, fs) => {
+    const audience = required<RenderInventoryInput["audience"]>(input, "audience"); // before spec (ordering)
+    return renderInventory({ spec: resolveSpec(input, fs), audience });
+  },
 
   felag_prime: (input, fs) => emitPrime(resolveSpec(input, fs)),
 
@@ -207,11 +210,10 @@ const HANDLERS: Record<string, Handler> = {
       scope: (input.scope as { contracts: string[] } | null) ?? null,
     }),
 
-  felag_validate_prime: (input, fs) =>
-    validatePrimeOutput({
-      spec: resolveSpec(input, fs),
-      output: required<string>(input, "output"),
-    }),
+  felag_validate_prime: (input, fs) => {
+    const output = required<string>(input, "output"); // before spec resolution (ordering rule)
+    return validatePrimeOutput({ spec: resolveSpec(input, fs), output });
+  },
 };
 
 /** The twelve tool names the registry dispatch routes (handler insertion order;

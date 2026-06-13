@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-spec-not-found",
   "to": "active",
-  "requestedAt": "2026-06-13T14:30:23.974Z",
+  "requestedAt": "2026-06-13T14:35:08.690Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:30:23.974Z",
+      "at": "2026-06-13T14:35:08.690Z",
       "criterionHash": "sha256:c4e70ff8b17d36905249238cecc9ac448cf186f041339da69662dedf739b3c59"
     }
   ]

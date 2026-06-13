@@ -1,13 +1,13 @@
 {
   "criterionId": "ac-mcp-path-parse-error",
   "to": "active",
-  "requestedAt": "2026-06-13T14:30:23.972Z",
+  "requestedAt": "2026-06-13T14:35:08.687Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-13T14:30:23.972Z",
+      "at": "2026-06-13T14:35:08.687Z",
       "criterionHash": "sha256:c5b5ef99540099c399c09cea81a3f2375fbf989447a2538076f787f791ebd307"
     }
   ]
