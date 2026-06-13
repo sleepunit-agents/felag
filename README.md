@@ -14,23 +14,30 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-**spec/felag-core 1.1.0 is live, and the reference implementation conforms.**
-All three conformance classes have contracts:
+**spec/felag-core 5.0.0 is live, and the reference implementation conforms —
+all 55 criteria active and passing, none inert.** Three conformance classes:
 
-- `felag/interchange` (contract `c-interchange`) — canonical JSONL, lint,
-  hashing, round-trip. Gating.
+- `felag/interchange` (contract `c-interchange`) — canonical JSONL (numbers
+  in fixture payloads serialize per RFC 8785), lint, hashing, round-trip,
+  index rebuild. Gating.
 - `felag/verifier` (contract `c-verification`) — VerificationRecord
-  ingestion, waivers, verdict derivation, reports. Gating.
-- `felag/author` (contract `c-author`) — the promotion protocol
-  (ratification as a total function), author/excavate output validation,
-  render audience projection, prime emission. **Criteria are
-  `state: proposed`**: published and fixtured, gating no one until ratified
-  — through the promotion protocol itself.
+  ingestion, waivers, verdict derivation, reports, and **judgment-criterion
+  gating** (the graduation function: calibrated agent-judges + reproducibility
+  tolerance + verdict provenance). All timestamp comparisons are instant
+  comparisons after UTC normalization. Gating.
+- `felag/author` (contract `c-author`) — the promotion protocol (ratification
+  as a total function), author/excavate output validation, render audience
+  projection, prime emission. **Ratified to active in 5.0.0** through the
+  promotion protocol itself, after six dogfood ceremonies exercised every verb.
+
+Criterion lifecycle: `proposed` (inert, a promotion target) → `active`, plus
+`descriptive` (recorded-true-but-deliberately-not-law, a terminal resting
+place for honest archaeology), `deprecated`, and `disputed`.
 
 `felag-ts` (this repo: `src/`) implements all of it and passes the full
-fixture corpus (69 fixtures — the spec IS the test suite), plus a seeded
-fuzz pass on the promotion function's totality claim. Self-verification
-report: `verification/felag-ts.report.json` — verdict `conforms`.
+fixture corpus (the spec IS the test suite), plus a seeded fuzz pass on the
+promotion function's totality claim. Self-verification report:
+`verification/felag-ts.report.json` — verdict `conforms`.
 A sibling conformance unit, `spec/felag-tasks` 0.1.0, specifies the work
 layer; its reference implementation and a beads shim both conform.
 
@@ -62,7 +69,38 @@ npx tsx scripts/smoke-mcp.ts   # real MCP client round-trip
 Twelve tools mirror the CLI verbs: `felag_lint`, `felag_fmt`, `felag_hash`,
 `felag_verify`, `felag_audit`, `felag_promote`, `felag_graduate`,
 `felag_render`, `felag_prime`, `felag_validate_author`,
-`felag_validate_excavate`, `felag_validate_prime`.
+`felag_validate_excavate`, `felag_validate_prime`. (`felag_status` is also
+routed but excluded from the contracted set — it's presentation.)
+
+## You see it, you don't read it
+
+felag is stored as strict data, but you never read raw JSONL. `felag status`
+projects a spec joined to its conformance — every criterion a card whose
+column is *derived* (conforming, drifting, proposed, descriptive). Scope it
+to a whole spec, one contract, or one criterion's full detail:
+
+```bash
+node dist/cli.js status spec/felag-core verification/felag-ts.records.jsonl felag-ts
+node dist/cli.js status spec/felag-core ... --json          # the model, for tooling
+node dist/cli.js status spec/felag-core ... --serve         # a live-reloading browser dashboard
+```
+
+A set of claude-native skills (`felag/skills/`) turn the verbs into
+conversational, **widget-driven** commands — the spec pops as a rich,
+*actionable* panel (the board with a Spec⟷kanban toggle, the review queue,
+the conformance report, the work plan, the cold-review rounds), and buttons
+draft governance actions you review and send:
+
+- `/felag status [scope]` — the spec as a board (whole / contract / criterion)
+- `/felag review-queue` — proposed criteria, with approve / dispute / descriptive (the HITL ratification surface)
+- `/felag verify` — the conformance report
+- `/felag audit` — drift → a work plan
+- `/felag review` — the cold-review loop to a MERGE verdict, rounds + findings
+
+Install: copy `felag/skills/*` into your harness's skills dir. felag-core /
+felag-ts stay vendor-neutral; the skills are the "felag for Claude"
+distribution. (`/felag new` — the guided authoring interview — is the next
+skill; design in `docs/`.)
 
 Design history (drafts; the compiled spec records are normative):
 [design v1.2](docs/design/2026-06-11-felag-design-draft-v1.md) (core
@@ -71,9 +109,10 @@ format), the
 (five adversarial cold-review rounds — `scripts/cold-review.sh` is the
 harness), and the
 [compilation findings](docs/design/compilation-findings-v0.md).
-Next milestone: a real `felag/author` implementation, then ratifying the
-c-author criteria via `promote()` — the governance machinery's first
-end-to-end run is its own activation.
+The c-author criteria are now ratified (5.0.0) and the governance machinery
+has many live runs — promotion drove the judgment-gating and descriptive-state
+releases and the author-class ratification itself. Next: the `/felag new`
+authoring-interview skill, and Dolt-backed index storage.
 
 ## Lineage
 
