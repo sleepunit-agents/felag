@@ -314,11 +314,231 @@ export function renderReviewQueueWidget(model) {
   </div>`;
 }
 
+// --- verify -------------------------------------------------------------
+
+// The columns a ConformanceReport carries. A report names criterion ids only
+// (no force/state/text), so verify renders a LIGHT card — id + status + the
+// verify-specific actions — not the full criterionCard (which needs a CritView).
+// dotStatus reuses the shared status vocabulary so the colors match every other
+// felag widget: a failing criterion is the same orange "drifting" dot the board
+// shows it as. The label is the report's own word.
+const VERIFY_COLS = [
+  { key: "failing", dotStatus: "drifting", label: "Failing" },
+  { key: "waived", dotStatus: "waived", label: "Waived" },
+  { key: "disputed", dotStatus: "disputed", label: "Disputed" },
+];
+
+// Light report card: a bare criterion id under a verify column. No Gherkin —
+// the report doesn't carry it; the actions bridge back to the spec/work store.
+function verifyCard(id, dotStatus, label, acts) {
+  const actsRow = acts && acts.length ? `<div class="fw-acts">${acts.join("")}</div>` : "";
+  return `<div class="fw-card" data-status="${attr(dotStatus)}" data-id="${attr(id)}">
+    ${dot(dotStatus)}
+    <div class="fw-card-body">
+      <div class="fw-card-head">
+        <span class="fw-id">${esc(id)}</span>
+        ${badge(label)}
+      </div>
+      ${actsRow}
+    </div>
+  </div>`;
+}
+
+// From `felag verify` (a ConformanceReport): the verdict pill, a count strip
+// over failing/waived/disputed, and those criterion ids as cards grouped by
+// column. A failing card bridges to work (open it) or to the diagnosis (why);
+// the whole report offers re-verify and audit. A clean conforms with nothing
+// outstanding is a one-line success state — no empty columns forced.
+export function renderVerifyWidget(report) {
+  const root = `fw-verify-${_wid++}`;
+  const r = report ?? {};
+  const impl = r.implementation ?? "implementation";
+  const version = r.conformanceVersion ?? "";
+  const verdict = r.verdict ?? "unverified";
+  const lists = {
+    failing: r.failing ?? [],
+    waived: r.waived ?? [],
+    disputed: r.disputed ?? [],
+  };
+  const advisory = r.advisory ?? [];
+  const hasContent = lists.failing.length || lists.waived.length || lists.disputed.length;
+
+  const header = `<div class="fw-header">
+      <span class="fw-name">${esc(impl)}</span>
+      <span class="fw-version">${esc(version)}</span>
+      ${verdictPill(verdict)}
+    </div>`;
+
+  // Clean conforms with nothing outstanding → success state, not empty columns.
+  if (!hasContent) {
+    const summary = `${impl} ${verdict} — every gating criterion passes`;
+    const advisoryNote = advisory.length
+      ? `<p class="fw-meta">advisory: ${advisory.map((a) => `${esc(a.criterionId)} (${esc(a.verdict)})`).join(", ")}</p>`
+      : "";
+    return `<div id="${root}" class="felag-widget">
+      <h2 class="sr-only">${esc(summary)}</h2>
+      ${styles(root)}
+      ${header}
+      <p class="fw-empty"><i class="ti ti-circle-check"></i> ${esc(verdict)} — every gating criterion passes for ${esc(impl)}.</p>
+      ${advisoryNote}
+      <div class="fw-acts">${actionButton("Re-verify", `re-verify ${impl}`, "refresh")}</div>
+    </div>`;
+  }
+
+  const summary = `${impl} ${verdict} — ${lists.failing.length} failing, ${lists.waived.length} waived, ${lists.disputed.length} disputed`;
+
+  const strip = `<div class="fw-strip">${
+    VERIFY_COLS.filter((col) => lists[col.key].length)
+      .map((col) => `<span class="fw-sum">${dot(col.dotStatus)}${esc(col.label)} <b>${lists[col.key].length}</b></span>`)
+      .join("")
+  }</div>`;
+
+  const sections = VERIFY_COLS.filter((col) => lists[col.key].length).map((col) => {
+    const cards = lists[col.key].map((id) => {
+      const acts = col.key === "failing"
+        ? [
+            actionButton("Open as work", `open ${id} as work`, "plus"),
+            actionButton("Why it fails", `show me why ${id} fails`, "list-search"),
+          ]
+        : [];
+      return verifyCard(id, col.dotStatus, col.label, acts);
+    }).join("");
+    return `<div class="fw-section">
+      <div class="fw-section-title">${esc(col.label)} <span class="fw-section-desc" style="display:inline">${lists[col.key].length}</span></div>
+      ${cards}
+    </div>`;
+  }).join("");
+
+  const advisorySection = advisory.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Advisory <span class="fw-section-desc" style="display:inline">${advisory.length}</span></div>
+        <p class="fw-section-desc">Non-gating judgment criteria with records — diagnostic, gate no one.</p>
+        ${advisory.map((a) => `<p class="fw-meta">${esc(a.criterionId)} — ${esc(a.verdict)}</p>`).join("")}
+      </div>`
+    : "";
+
+  const wholeActions = `<div class="fw-acts">
+    ${actionButton("Re-verify", `re-verify ${impl}`, "refresh")}
+    ${actionButton("Audit into work plan", `audit ${impl} into a work plan`, "checklist")}
+  </div>`;
+
+  return `<div id="${root}" class="felag-widget">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    ${header}
+    ${strip}
+    ${sections}
+    ${advisorySection}
+    ${wholeActions}
+  </div>`;
+}
+
+// --- audit --------------------------------------------------------------
+
+// audit's proposals carry the fixtures inline in the description prose; pull
+// them back out for a clean meta line. Falls back to "" (the card still shows
+// the title + criterion id) if the format ever drifts — a view never throws.
+function auditFixtures(description) {
+  const m = /Fixtures:\s*(.+?)\.\s*$/.exec(String(description ?? ""));
+  const fx = m && m[1] ? m[1].trim() : "";
+  return fx && fx !== "(none)" ? fx : "";
+}
+
+// A proposed-work card: criterion id + the proposal title + the fixtures it
+// needs, with per-item actions to file it or claim it.
+function auditCard(p) {
+  const fx = auditFixtures(p.description);
+  const fxRow = fx ? `<p class="fw-meta">fixtures: ${esc(fx)}</p>` : "";
+  return `<div class="fw-card" data-status="drifting" data-id="${attr(p.criterionId)}">
+    ${dot("drifting")}
+    <div class="fw-card-body">
+      <div class="fw-card-head">
+        <span class="fw-id">${esc(p.criterionId)}</span>
+        ${badge("proposal")}
+      </div>
+      <p class="fw-section-desc" style="margin:0.1rem 0 0">${esc(p.title)}</p>
+      ${fxRow}
+      <div class="fw-acts">
+        ${actionButton("Send to work store", `send ${p.criterionId} to the work store`, "send")}
+        ${actionButton("Claim", `claim ${p.criterionId}`, "user-check")}
+      </div>
+    </div>
+  </div>`;
+}
+
+// From `felag audit` (an AuditResult): the proposed work items — one per
+// failing gating criterion — grouped by the spec item audit emits them under
+// (the AuditResult carries no contract id; the spec item is the unit it groups
+// by). The whole plan offers "send all". No proposals → a clean success state.
+export function renderAuditWidget(result) {
+  const root = `fw-audit-${_wid++}`;
+  const res = result ?? {};
+  const report = res.report ?? {};
+  const proposals = res.proposals ?? [];
+  const impl = report.implementation ?? "implementation";
+  const version = report.conformanceVersion ?? "";
+
+  const header = `<div class="fw-header">
+      <span class="fw-name">${esc(impl)}</span>
+      <span class="fw-version">${esc(version)}</span>
+      <span class="fw-pill" style="background:var(--color-background-info)">Audit</span>
+    </div>`;
+
+  if (!proposals.length) {
+    const summary = `No work proposed — ${impl} has no failing gating criteria`;
+    return `<div id="${root}" class="felag-widget">
+      <h2 class="sr-only">${esc(summary)}</h2>
+      ${styles(root)}
+      ${header}
+      <p class="fw-empty"><i class="ti ti-circle-check"></i> Nothing to do — every gating criterion passes for ${esc(impl)}.</p>
+      <div class="fw-acts">${actionButton("Re-audit", `audit ${impl} into a work plan`, "refresh")}</div>
+    </div>`;
+  }
+
+  const summary = `${proposals.length} proposed work items from audit — ${impl}`;
+
+  // Group by specItemRef in first-seen order (audit emits proposals in spec
+  // order, so this keeps the plan reading top-to-bottom of the spec).
+  const groups = [];
+  const byRef = new Map();
+  for (const p of proposals) {
+    const ref = p.specItemRef ?? "(no item)";
+    if (!byRef.has(ref)) {
+      byRef.set(ref, []);
+      groups.push(ref);
+    }
+    byRef.get(ref).push(p);
+  }
+
+  const sections = groups.map((ref) => {
+    const items = byRef.get(ref);
+    return `<div class="fw-section">
+      <div class="fw-section-title">${esc(ref)} <span class="fw-section-desc" style="display:inline">${items.length}</span></div>
+      ${items.map(auditCard).join("")}
+    </div>`;
+  }).join("");
+
+  const wholeActions = `<div class="fw-acts">
+    ${actionButton("Send all to taskstore", `send all ${proposals.length} audit proposals to the work store`, "checklist")}
+  </div>`;
+
+  return `<div id="${root}" class="felag-widget">
+    <h2 class="sr-only">${esc(summary)}</h2>
+    ${styles(root)}
+    ${header}
+    <p class="fw-section-desc">${proposals.length} proposed work item${proposals.length === 1 ? "" : "s"} — one per failing gating criterion. Each button drafts the instruction; you review and send.</p>
+    ${sections}
+    ${wholeActions}
+  </div>`;
+}
+
 // Thin dispatcher so future skills stay one-liners (design: renderFelagWidget).
 export function renderFelagWidget(kind, model) {
   switch (kind) {
     case "status": return renderStatusWidget(model);
     case "review-queue": return renderReviewQueueWidget(model);
+    case "verify": return renderVerifyWidget(model);
+    case "audit": return renderAuditWidget(model);
     default: throw new Error(`unknown felag widget kind: ${kind}`);
   }
 }
