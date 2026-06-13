@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-grad-basis",
+  "to": "active",
+  "requestedAt": "2026-06-13T00:45:44.511Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T00:45:44.511Z",
+      "criterionHash": "sha256:3985dfb7a3acf93b992a858c89ae4aea87c175b9bea6f8e5c6c8e23429f88cd9"
+    }
+  ]
+}

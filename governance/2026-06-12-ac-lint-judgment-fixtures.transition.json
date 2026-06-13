@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-lint-judgment-fixtures",
+  "to": "active",
+  "requestedAt": "2026-06-13T00:45:44.497Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-13T00:45:44.497Z",
+      "criterionHash": "sha256:2ed54332e9c9cb4ab5b263f91d1f0f38c21fd7a8a3cc6861a68e69fce9ee836a"
+    }
+  ]
+}
