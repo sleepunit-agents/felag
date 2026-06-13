@@ -1,0 +1,107 @@
+{
+  "asOf": "2026-06-13T18:36:50.274Z",
+  "ratifications": [
+    {
+      "criterionId": "ac-lint-roster",
+      "criterionHash": "sha256:af36a8dc65ec81990b8add2f331923b5386a7f6a6c77f1cc3a4f635d839fe9ef",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-author-lint",
+      "criterionHash": "sha256:b61d660072df29835e075a3affc47c5d26f6595e98f9aba8af31d50c922c4d1c",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-author-budget",
+      "criterionHash": "sha256:9d494a8a6ab6da9b6feb4c083425dbb32635e2cea277ca041e234a4a9f357bd8",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-author-provenance",
+      "criterionHash": "sha256:69e99d3ccf278dade8de8fe15f6656fa2938e3acd37df242d1933ef1e7b1cc44",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-excavate-scope",
+      "criterionHash": "sha256:242608603156da0b7977a8b16b5e45aeff0c213690c0a4505ca8688a94541ebc",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-excavate-provenance",
+      "criterionHash": "sha256:be8d951e3179d339d81582c98c8dc65fcfcf13bb6be30cc2dfeb09a9dbcf98fa",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-excavate-bound",
+      "criterionHash": "sha256:cecf035c00d7d43ea3be1b8b2bbea1efd2ffba2ab3c2bf628bdac0644b817762",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-render-stakeholder",
+      "criterionHash": "sha256:bc146633dba5d68a96e41993fd04751090cda2376e4e704a88d6754f117380e1",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-render-developer",
+      "criterionHash": "sha256:faffcb90bd99e86784248ebf47beac393b082c789cc4582de4b20bfa8ed6d8f7",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-render-verifier",
+      "criterionHash": "sha256:96b8061cb7a84f4a9f4cbb1ad6e56009106c7bf6aa63c4b65a6c4d1a485b91ea",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-guards",
+      "criterionHash": "sha256:2fc5967fdea3d1417a77f2e76cd74e5ab00c4b554920a9b6d8613d7b1e87ea7c",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-ratify",
+      "criterionHash": "sha256:cb2d307c9a766f2f02a94a935d2ad94df1bbe03163ec71c76dcb2ee264a576c9",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-veto",
+      "criterionHash": "sha256:fdc51be88915e160a868b77439c7c0b76c6768e2c490f41bd1fd6d4aa9402081",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-acks",
+      "criterionHash": "sha256:46cc31c876518c0cf45096f5af7cd269f28fd6d2bd104ff22d9114e7944f66de",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-reject",
+      "criterionHash": "sha256:32e921ec8f9ff14fb210fce029696a4534f85c4c21553c6bc64800de0ca2317b",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-promo-known-bug",
+      "criterionHash": "sha256:8cac452cab4ba5ffbc2cb771e0219b46fb4c09abffb98b1bd8029ffe6d7e968e",
+      "accepted": true,
+      "outcome": "ratified"
+    },
+    {
+      "criterionId": "ac-prime-protocol",
+      "criterionHash": "sha256:db832ac6b15fc7000a1efc6abe4d684e1aeccc5e913b1e67304eeeaa7c0a32f1",
+      "accepted": true,
+      "outcome": "ratified"
+    }
+  ]
+}
