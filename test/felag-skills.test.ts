@@ -12,6 +12,7 @@ import {
   renderVerifyWidget,
   renderAuditWidget,
   renderReviewWidget,
+  renderRenderWidget,
 } from "../felag/skills/widget.mjs";
 
 // A small inline status model in the computeStatus shape.
@@ -313,6 +314,72 @@ describe("renderReviewWidget", () => {
     expect(merged).toContain("nothing left to fold");
     expect(merged).toContain("felag: merge demo-spec");
     expect(merged).not.toContain("Critical");
+  });
+
+  it("uses 0.5px borders, has no leading-slash sendPrompt, and no hardcoded text color", () => {
+    expect(fragment).toContain("0.5px");
+    expect(fragment).not.toContain("sendPrompt('/");
+    expect(fragment).not.toMatch(/felag:\s*\//);
+    expect(fragment).not.toMatch(/color\s*:\s*#/i);
+  });
+});
+
+// A RenderInventory (the shape `felag render --audience` emits): a sorted set of
+// included record ids + the fields projected out for that audience. The render
+// widget is the only felag view keyed on an AUDIENCE, not conformance status.
+// `spec` is the claude-layer convenience the skill sets so re-render intents name
+// the spec — not part of the vendor-neutral inventory contract.
+const stakeholderInv = {
+  spec: "demo-spec",
+  included: ["ac-one", "ac-two", "it-1", "it-2"],
+  excludedFields: ["class", "fixtures", "judgment", "source"],
+};
+const verifierInv = {
+  spec: "demo-spec",
+  included: ["ac-one", "ac-two", "fx-1", "fx-2", "it-1", "it-2"],
+  excludedFields: [],
+};
+
+describe("renderRenderWidget", () => {
+  const fragment: string = renderRenderWidget(stakeholderInv, "stakeholder");
+
+  it("is a fragment opening with an sr-only h2", () => {
+    expect(fragment.startsWith("<!doctype")).toBe(false);
+    expect(fragment).toMatch(/^<div id="fw-render-\d+"[^>]*>\s*<h2 class="sr-only">/);
+  });
+
+  it("shows the audience and offers a toggle to the other two", () => {
+    expect(fragment).toContain("Stakeholder");
+    expect(fragment).toContain("Developer");
+    expect(fragment).toContain("Verifier");
+    expect(fragment).toContain('aria-label="Audience"');
+    // each audience is a fresh projection → the toggle re-renders via sendPrompt.
+    expect(fragment).toContain("felag: render demo-spec for developer");
+    expect(fragment).toContain("felag: render demo-spec for verifier");
+  });
+
+  it("lists every included record id", () => {
+    for (const id of stakeholderInv.included) expect(fragment).toContain(id);
+  });
+
+  it("shows the excluded fields as hidden-from-this-audience chips", () => {
+    for (const f of stakeholderInv.excludedFields) expect(fragment).toContain(f);
+    expect(fragment).toContain("Hidden from this audience");
+  });
+
+  it("an empty excludedFields set is a one-line every-field-visible state", () => {
+    const full: string = renderRenderWidget(verifierInv, "verifier");
+    expect(full).toContain("Every field is visible");
+    expect(full).not.toContain("Hidden from this audience");
+    for (const id of verifierInv.included) expect(full).toContain(id);
+  });
+
+  it("falls back to \"the spec\" when the inventory carries no spec name", () => {
+    const noName: string = renderRenderWidget(
+      { included: ["it-1"], excludedFields: [] },
+      "developer",
+    );
+    expect(noName).toContain("felag: render the spec for verifier");
   });
 
   it("uses 0.5px borders, has no leading-slash sendPrompt, and no hardcoded text color", () => {
