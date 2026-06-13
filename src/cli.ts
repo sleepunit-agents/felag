@@ -11,6 +11,7 @@ import { graduate } from "./graduation.js";
 import { promote } from "./promotion.js";
 import { emitPrime } from "./prime.js";
 import { audit } from "./audit.js";
+import { computeStatus, renderStatusHTML } from "./status.js";
 import { TaskStore } from "./tasks/store.js";
 import { BeadsWorkLayer } from "./shims/beads.js";
 import type { WorkLayer } from "./tasks/layer.js";
@@ -176,6 +177,38 @@ switch (verb) {
     console.log(JSON.stringify(result, null, 2));
     process.exit(result.accepted ? 0 : 1);
   }
+  case "status": {
+    // felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--as-of <iso>]
+    // Records optional — without them every active criterion shows "unverified"
+    // (still a useful spec view). Emits a self-contained HTML page.
+    const dir = args[0];
+    if (!dir || dir.startsWith("--")) {
+      console.error("usage: felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>]");
+      process.exit(2);
+    }
+    const positional: string[] = [];
+    for (const a of args.slice(1)) { if (a.startsWith("--")) break; positional.push(a); }
+    const recordsFile = positional[0];
+    const implementation = positional[1];
+    const records = recordsFile
+      ? readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
+      : undefined;
+    const model = computeStatus(loadSpecDir(dir), {
+      records,
+      implementation,
+      asOf: flagValue(args, "--as-of"),
+      target: flagValue(args, "--target"),
+    });
+    const html = renderStatusHTML(model);
+    const out = flagValue(args, "--out");
+    if (out) {
+      writeFileSync(out, html);
+      console.error(`felag status → ${out} (${model.name} ${model.version}, ${model.verdict})`);
+    } else {
+      console.log(html);
+    }
+    process.exit(0);
+  }
   case "tasks": {
     // felag tasks <propose|transition|report> (--store <file>|--beads <dir>)
     //   propose <proposal.json> | transition <taskRef> <status> | report
@@ -201,7 +234,7 @@ switch (verb) {
   }
   default:
     console.error(
-      "felag <lint|fmt|hash|verify|graduate|prime|audit|promote|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
+      "felag <lint|fmt|hash|verify|graduate|prime|audit|promote|status|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
     );
     process.exit(2);
 }
