@@ -95,7 +95,7 @@ draft governance actions you review and send:
 - `/felag status [scope]` — the spec as a board (whole / contract / criterion)
 - `/felag review-queue` — proposed criteria, with approve / dispute / descriptive (the HITL ratification surface)
 - `/felag verify` — the conformance report
-- `/felag audit` — drift → a work plan
+- `/felag audit` — drift → a work plan, fileable straight into the work store (`--taskstore`)
 - `/felag review` — the cold-review loop to a MERGE verdict, rounds + findings
 - `/felag render <audience>` — the audience projection (stakeholder / developer / verifier), switch lens in place
 - `/felag lint` — the merge gate as a panel: error cards (code + ref) and orphan-fixture warnings, or one green line when clean
@@ -116,8 +116,11 @@ harness), and the
 [compilation findings](docs/design/compilation-findings-v0.md).
 The c-author criteria are now ratified (5.0.0) and the governance machinery
 has many live runs — promotion drove the judgment-gating and descriptive-state
-releases and the author-class ratification itself. Next: Dolt-backed index
-storage, and wiring `/felag audit` into the work store.
+releases and the author-class ratification itself. `felag audit --taskstore`
+files drift straight into the first-party **taskstore** work store (idempotent
+on `(specItemRef, criterionId)`); the felag-side adapter conforms to felag-tasks
+(`verification/felag-tasks-taskstore-shim.report.json`).
+Next: Dolt-backed index storage.
 
 ## Lineage
 

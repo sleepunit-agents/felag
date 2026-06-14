@@ -22,6 +22,7 @@ import { audit } from "./audit.js";
 import { computeStatus, renderStatusHTML } from "./status.js";
 import { TaskStore } from "./tasks/store.js";
 import { BeadsWorkLayer } from "./shims/beads.js";
+import { TaskstoreWorkLayer } from "./shims/taskstore.js";
 import type { WorkLayer } from "./tasks/layer.js";
 import type { TaskStatus } from "./tasks/store.js";
 import type { Criterion, Fixture, RenderInventoryInput, SpecRecord, VerifyInput } from "./records.js";
@@ -101,6 +102,12 @@ function loadLayer(args: string[]): { layer: WorkLayer; flush: () => void } | nu
   }
   const beadsDir = flagValue(args, "--beads");
   if (beadsDir) return { layer: new BeadsWorkLayer(beadsDir), flush: () => {} };
+  // --taskstore [dir]: the first-party taskstore work store (live sqlite, driven
+  // through its CLI). With a dir, the store is pinned to <dir>/.taskstore; bare,
+  // the ambient taskstore default/env is used. taskstore persists itself — no flush.
+  if (args.includes("--taskstore")) {
+    return { layer: new TaskstoreWorkLayer(flagValue(args, "--taskstore")), flush: () => {} };
+  }
   return null;
 }
 
@@ -220,7 +227,7 @@ switch (verb) {
     const [dir, recordsFile, implementation] = args;
     if (!dir || !recordsFile || !implementation) {
       console.error(
-        "usage: felag audit <spec-dir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>] [--store <file>|--beads <dir>]",
+        "usage: felag audit <spec-dir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>] [--store <file>|--beads <dir>|--taskstore [dir]]",
       );
       process.exit(2);
     }
@@ -383,7 +390,7 @@ switch (verb) {
     const wl = loadLayer(args);
     if (!wl || !["propose", "transition", "report"].includes(sub ?? "")) {
       console.error(
-        "usage: felag tasks <propose <proposal.json>|transition <taskRef> <status>|report> (--store <file>|--beads <dir>)",
+        "usage: felag tasks <propose <proposal.json>|transition <taskRef> <status>|report> (--store <file>|--beads <dir>|--taskstore [dir])",
       );
       process.exit(2);
     }

@@ -7,26 +7,46 @@ import { fixtureHash, parse } from "../src/canonical.js";
 import { ingest, verify } from "../src/verify.js";
 import { runOps, type Op } from "../src/tasks/run-ops.js";
 import { BeadsWorkLayer } from "../src/shims/beads.js";
+import { TaskstoreWorkLayer } from "../src/shims/taskstore.js";
 import type { WorkLayer } from "../src/tasks/layer.js";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { Criterion, Fixture, SpecRecord, VerificationRecord, VerifyInput } from "../src/records.js";
 
-// --impl beads runs the corpus through the beads shim instead of the reference.
-const useBeads = process.argv.includes("--impl") && process.argv[process.argv.indexOf("--impl") + 1] === "beads";
-const IMPLEMENTATION = useBeads ? "felag-tasks-beads-shim" : "felag-tasks-ref";
+// --impl <ref|beads|taskstore> selects the implementation under test. ref is
+// the in-memory TaskStore (no layer); beads + taskstore drive a foreign and the
+// first-party store through their shims against a fresh sandbox store per
+// fixture (so the run never touches an ambient/live store).
+const implArg = process.argv.includes("--impl") ? process.argv[process.argv.indexOf("--impl") + 1] : "ref";
+const IMPL = (["ref", "beads", "taskstore"].includes(implArg) ? implArg : "ref") as "ref" | "beads" | "taskstore";
+const IMPLEMENTATION =
+  IMPL === "beads"
+    ? "felag-tasks-beads-shim"
+    : IMPL === "taskstore"
+      ? "felag-tasks-taskstore-shim"
+      : "felag-tasks-ref";
 const IMPLEMENTATION_VERSION = "0.1.0";
 
 function makeLayer(): { layer?: WorkLayer; cleanup: () => void } {
-  if (!useBeads) return { cleanup: () => {} };
-  const sandbox = mkdtempSync(join(tmpdir(), "felag-beads-sv-"));
-  execFileSync("git", ["init", "-q"], { cwd: sandbox, stdio: "pipe" });
-  execFileSync("bd", ["init", "--prefix", "sv"], { cwd: sandbox, stdio: "pipe" });
-  return { layer: new BeadsWorkLayer(sandbox), cleanup: () => rmSync(sandbox, { recursive: true, force: true }) };
+  if (IMPL === "beads") {
+    const sandbox = mkdtempSync(join(tmpdir(), "felag-beads-sv-"));
+    execFileSync("git", ["init", "-q"], { cwd: sandbox, stdio: "pipe" });
+    execFileSync("bd", ["init", "--prefix", "sv"], { cwd: sandbox, stdio: "pipe" });
+    return { layer: new BeadsWorkLayer(sandbox), cleanup: () => rmSync(sandbox, { recursive: true, force: true }) };
+  }
+  if (IMPL === "taskstore") {
+    const sandbox = mkdtempSync(join(tmpdir(), "felag-taskstore-sv-"));
+    mkdirSync(join(sandbox, ".taskstore"), { recursive: true });
+    return { layer: new TaskstoreWorkLayer(sandbox), cleanup: () => rmSync(sandbox, { recursive: true, force: true }) };
+  }
+  return { cleanup: () => {} };
 }
 const dir = join(import.meta.dirname, "..", "spec", "felag-tasks");
-const at = new Date().toISOString();
+// Deterministic provenance stamp (see scripts/self-verify.ts): keeps the
+// committed records from churning the working tree on every run. --stamp for a
+// live wall-clock instant.
+const at = process.argv.includes("--stamp") ? new Date().toISOString() : "2026-06-13T00:00:00Z";
 
 const spec = parse(readFileSync(join(dir, "spec.jsonl"), "utf8"));
 const fixtures = parse(readFileSync(join(dir, "fixtures.jsonl"), "utf8")) as Fixture[];
