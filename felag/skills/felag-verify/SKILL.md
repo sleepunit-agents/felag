@@ -23,8 +23,7 @@ dump.
 ## How to run it
 
 `felag verify` emits the report as JSON by default — there is no HTML mode to
-switch off, so `--json` is accepted but unnecessary (it's a harmless no-op,
-there for muscle-memory parity with `felag status --json`):
+switch off:
 
 ```bash
 node dist/cli.js verify <specDir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>]

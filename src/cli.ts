@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // felag CLI — thin shell over the library.
-// Verbs: lint, fmt, hash, verify, graduate, prime, audit, render, promote, tasks.
+// Verbs: lint, fmt, hash, verify, graduate, prime, render, audit, promote,
+// status, tasks, validate-author, validate-excavate, validate-prime.
 
 import { readFileSync, writeFileSync, existsSync, watch } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
@@ -11,7 +12,12 @@ import { verify } from "./verify.js";
 import { graduate } from "./graduation.js";
 import { promote } from "./promotion.js";
 import { emitPrime } from "./prime.js";
-import { renderInventory } from "./author.js";
+import {
+  renderInventory,
+  validateAuthorOutput,
+  validateExcavateOutput,
+  validatePrimeOutput,
+} from "./author.js";
 import { audit } from "./audit.js";
 import { computeStatus, renderStatusHTML } from "./status.js";
 import { TaskStore } from "./tasks/store.js";
@@ -20,9 +26,63 @@ import type { WorkLayer } from "./tasks/layer.js";
 import type { TaskStatus } from "./tasks/store.js";
 import type { Criterion, Fixture, RenderInventoryInput, SpecRecord, VerifyInput } from "./records.js";
 
+// Exit codes: 0 ok / a meaningful negative is its own code (1 drift, 1
+// not-graduated, …); 2 is a usage error; 3 is an INFRASTRUCTURE failure
+// (unreadable or unparseable input file). Keeping 3 distinct from 1 lets a
+// caller — CI, the MCP shim, a skill — tell "the spec said no" from "your path
+// was wrong" instead of collapsing both into a bare nonzero.
+const EXIT_IO = 3;
+
+function fail(message: string): never {
+  console.error(`error: ${message}`);
+  process.exit(EXIT_IO);
+}
+
+/** Value of a `--flag <value>` option, or undefined. A following token that is
+ * itself a flag (`--out --target`) is NOT consumed as the value — that bug
+ * silently wrote a file literally named "--target". */
 function flagValue(args: string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
-  return i >= 0 ? args[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const v = args[i + 1];
+  return v !== undefined && !v.startsWith("--") ? v : undefined;
+}
+
+/** Read + JSON.parse a file, mapping any read/parse failure to a stable IO
+ * error and exit 3 (never a raw V8 stack trace). */
+function loadJson(path: string): unknown {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch (e) {
+    return fail(`cannot read ${path}: ${(e as Error).message}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return fail(`cannot parse ${path} as JSON: ${(e as Error).message}`);
+  }
+}
+
+/** Read a JSONL evidence file into one object per non-empty line, guarded. */
+function loadJsonl(path: string): unknown[] {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch (e) {
+    return fail(`cannot read ${path}: ${(e as Error).message}`);
+  }
+  const out: unknown[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    try {
+      out.push(JSON.parse(lines[i]));
+    } catch (e) {
+      return fail(`cannot parse ${path} line ${i + 1} as JSON: ${(e as Error).message}`);
+    }
+  }
+  return out;
 }
 
 // Work-layer selection: --store <file.json> (reference TaskStore persisted to
@@ -32,7 +92,7 @@ function loadLayer(args: string[]): { layer: WorkLayer; flush: () => void } | nu
   const storeFile = flagValue(args, "--store");
   if (storeFile) {
     const store = existsSync(storeFile)
-      ? new TaskStore(JSON.parse(readFileSync(storeFile, "utf8")))
+      ? new TaskStore(loadJson(storeFile) as { tasks: never[]; seq: number })
       : new TaskStore();
     return {
       layer: store,
@@ -48,9 +108,14 @@ function loadSpecDir(dir: string): SpecRecord[] {
   const records: SpecRecord[] = [];
   for (const file of ["spec.jsonl", "fixtures.jsonl"]) {
     const p = join(dir, file);
-    if (existsSync(p)) records.push(...parse(readFileSync(p, "utf8")));
+    if (!existsSync(p)) continue;
+    try {
+      records.push(...parse(readFileSync(p, "utf8")));
+    } catch (e) {
+      fail(`cannot read ${p}: ${(e as Error).message}`);
+    }
   }
-  if (records.length === 0) throw new Error(`no interchange files under ${dir}`);
+  if (records.length === 0) fail(`no interchange files (spec.jsonl/fixtures.jsonl) under ${dir}`);
   return records;
 }
 
@@ -102,16 +167,14 @@ switch (verb) {
       console.error("usage: felag verify <spec-dir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>]");
       process.exit(2);
     }
-    const asOf = args.includes("--as-of") ? args[args.indexOf("--as-of") + 1] : new Date().toISOString();
-    const waivers = args.includes("--waivers")
-      ? JSON.parse(readFileSync(args[args.indexOf("--waivers") + 1], "utf8"))
-      : [];
+    const asOf = flagValue(args, "--as-of") ?? new Date().toISOString();
+    const waiversFile = flagValue(args, "--waivers");
     const input: VerifyInput = {
       asOf,
       implementation,
-      records: readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)),
+      records: loadJsonl(recordsFile) as VerifyInput["records"],
       spec: loadSpecDir(dir),
-      waivers,
+      waivers: waiversFile ? (loadJson(waiversFile) as VerifyInput["waivers"]) : [],
     };
     const report = verify(input);
     console.log(JSON.stringify(report, null, 2));
@@ -134,7 +197,7 @@ switch (verb) {
     const positional: string[] = [];
     for (let i = 0; i < args.length; i++) {
       const a = args[i];
-      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a)) i++; continue; }
+      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a) && args[i + 1] !== undefined && !args[i + 1].startsWith("--")) i++; continue; }
       positional.push(a);
     }
     const dir = positional[0] ?? ".";
@@ -161,15 +224,13 @@ switch (verb) {
       );
       process.exit(2);
     }
+    const waiversFile = flagValue(args, "--waivers");
     const input: VerifyInput = {
       asOf: flagValue(args, "--as-of") ?? new Date().toISOString(),
       implementation,
-      records: readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)),
+      records: loadJsonl(recordsFile) as VerifyInput["records"],
       spec: loadSpecDir(dir),
-      waivers: (() => {
-        const f = flagValue(args, "--waivers");
-        return f ? JSON.parse(readFileSync(f, "utf8")) : [];
-      })(),
+      waivers: waiversFile ? (loadJson(waiversFile) as VerifyInput["waivers"]) : [],
     };
     const wl = loadLayer(args);
     const result = audit(input, wl?.layer);
@@ -187,7 +248,7 @@ switch (verb) {
     const result = graduate({
       criterionId,
       implementation,
-      records: readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)),
+      records: loadJsonl(recordsFile),
       spec: loadSpecDir(dir),
     });
     console.log(JSON.stringify(result, null, 2));
@@ -203,7 +264,7 @@ switch (verb) {
     const result = promote({
       asOf: flagValue(args, "--as-of") ?? new Date().toISOString(),
       spec: loadSpecDir(dir),
-      transition: JSON.parse(readFileSync(transitionFile, "utf8")),
+      transition: loadJson(transitionFile),
     });
     console.log(JSON.stringify(result, null, 2));
     process.exit(result.accepted ? 0 : 1);
@@ -225,7 +286,7 @@ switch (verb) {
     const positional: string[] = [];
     for (let i = 0; i < args.length; i++) {
       const a = args[i];
-      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a)) i++; continue; }
+      if (a.startsWith("--")) { if (VALUE_FLAGS.has(a) && args[i + 1] !== undefined && !args[i + 1].startsWith("--")) i++; continue; }
       positional.push(a);
     }
     const dir = positional[0];
@@ -241,7 +302,7 @@ switch (verb) {
     // Build the model fresh from disk (so --serve always reflects current files).
     const buildModel = () => {
       const records = recordsFile && existsSync(recordsFile)
-        ? readFileSync(recordsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
+        ? (loadJsonl(recordsFile) as VerifyInput["records"])
         : undefined;
       return computeStatus(loadSpecDir(dir), { records, implementation, asOf, target });
     };
@@ -328,7 +389,7 @@ switch (verb) {
     }
     let result: unknown;
     if (sub === "propose") {
-      result = wl.layer.propose(JSON.parse(readFileSync(args[1], "utf8")));
+      result = wl.layer.propose(loadJson(args[1]) as Parameters<typeof wl.layer.propose>[0]);
     } else if (sub === "transition") {
       result = wl.layer.transition(args[1], args[2] as TaskStatus);
     } else {
@@ -338,9 +399,61 @@ switch (verb) {
     console.log(JSON.stringify(result, null, 2));
     process.exit(0);
   }
+  case "validate-author": {
+    // felag validate-author <spec-dir> <new.json> [--budgets <n>]
+    // new.json: a JSON array of the criterion ids this authoring interview produced.
+    const [dir, newFile] = args;
+    if (!dir || !newFile) {
+      console.error("usage: felag validate-author <spec-dir> <new.json> [--budgets <n>]");
+      process.exit(2);
+    }
+    const budgets = flagValue(args, "--budgets");
+    const result = validateAuthorOutput({
+      spec: loadSpecDir(dir),
+      new: loadJson(newFile) as string[],
+      ...(budgets ? { budgets: { criteriaPerItem: Number(budgets) } } : {}),
+    });
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.valid ? 0 : 1);
+  }
+  case "validate-excavate": {
+    // felag validate-excavate <spec-dir> <scope.json>
+    // scope.json: {"contracts":[...]} or null.
+    const [dir, scopeFile] = args;
+    if (!dir || !scopeFile) {
+      console.error("usage: felag validate-excavate <spec-dir> <scope.json>");
+      process.exit(2);
+    }
+    const result = validateExcavateOutput({
+      spec: loadSpecDir(dir),
+      scope: loadJson(scopeFile) as { contracts: string[] } | null,
+    });
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.valid ? 0 : 1);
+  }
+  case "validate-prime": {
+    // felag validate-prime <spec-dir> <output-file>
+    // output-file: the prime brief text to validate against the spec.
+    const [dir, outputFile] = args;
+    if (!dir || !outputFile) {
+      console.error("usage: felag validate-prime <spec-dir> <output-file>");
+      process.exit(2);
+    }
+    let output: string;
+    try {
+      output = readFileSync(outputFile, "utf8");
+    } catch (e) {
+      fail(`cannot read ${outputFile}: ${(e as Error).message}`);
+    }
+    const result = validatePrimeOutput({ spec: loadSpecDir(dir), output: output! });
+    console.log(JSON.stringify(result, null, 2));
+    process.exit(result.valid ? 0 : 1);
+  }
   default:
     console.error(
-      "felag <lint|fmt|hash|verify|graduate|prime|audit|promote|status|tasks> — felag reference implementation (interchange + verifier + tasks; author-class validators)",
+      "felag <lint|fmt|hash|verify|graduate|prime|render|audit|promote|status|tasks|" +
+        "validate-author|validate-excavate|validate-prime> — felag reference implementation " +
+        "(interchange + verifier + tasks; author-class validators)",
     );
     process.exit(2);
 }

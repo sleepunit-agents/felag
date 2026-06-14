@@ -14,7 +14,7 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-**spec/felag-core 5.0.0 is live, and the reference implementation conforms —
+**spec/felag-core 5.0.1 is live, and the reference implementation conforms —
 all 55 criteria active and passing, none inert.** Three conformance classes:
 
 - `felag/interchange` (contract `c-interchange`) — canonical JSONL (numbers
@@ -62,7 +62,7 @@ contract exactly as CLI formatting is.
 
 ```bash
 node dist/mcp/bin.js           # start the stdio server (bin: felag-mcp)
-npx tsx scripts/smoke-mcp.ts   # real MCP client round-trip
+npm run smoke                  # real MCP client round-trip (tsx scripts/smoke-mcp.ts)
 # Claude Code:  claude mcp add felag -- felag-mcp
 ```
 

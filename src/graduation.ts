@@ -7,7 +7,7 @@
 // and verify; the non-determinism (the model call) lives entirely in record
 // production.
 
-import { canonicalLine, recordHash } from "./canonical.js";
+import { canonicalLine, cmpCodePoint, recordHash } from "./canonical.js";
 import { lint } from "./lint.js";
 import { parseInstant } from "./instant.js";
 import type {
@@ -123,23 +123,6 @@ export function judgmentHash(criterion: Criterion): string {
     rubric: criterion.judgment?.rubric ?? "",
     text: (criterion.type === "scenario" ? criterion.gherkin : criterion.item) ?? "",
   });
-}
-
-/** Ascending by Unicode code point (CS4's order), not UTF-16 code units —
- * they diverge above the BMP. */
-function cmpCodePoint(a: string, b: string): number {
-  const ai = a[Symbol.iterator]();
-  const bi = b[Symbol.iterator]();
-  for (;;) {
-    const av = ai.next();
-    const bv = bi.next();
-    if (av.done && bv.done) return 0;
-    if (av.done) return -1;
-    if (bv.done) return 1;
-    const ac = av.value.codePointAt(0)!;
-    const bc = bv.value.codePointAt(0)!;
-    if (ac !== bc) return ac - bc;
-  }
 }
 
 function fail(code: string): GraduationResult {

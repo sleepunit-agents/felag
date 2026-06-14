@@ -196,12 +196,16 @@ const LABEL: Record<string, string> = {
   deprecated: "Deprecated", unverified: "Unverified",
 };
 const esc = (s: string): string =>
-  s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] as string);
+  s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
+  );
 
 function critRow(c: CritView): string {
   return `<div class="row"><span class="dot" style="background:${DOT[c.status]}" title="${LABEL[c.status]}"></span>
     <div class="rbody"><div class="rhead"><span class="id">${esc(c.id)}</span>
-      <span class="badge">${esc(c.force)}</span><span class="badge st-${c.state}">${esc(c.state)}</span></div>
+      <span class="badge">${esc(c.force)}</span><span class="badge st-${esc(c.state)}">${esc(c.state)}</span></div>
       <pre class="gherkin">${esc(c.text)}</pre></div></div>`;
 }
 
@@ -215,7 +219,7 @@ export function renderStatusHTML(m: StatusModel): string {
     const c = m.criterion;
     body = `<div class="detail"><div class="rhead"><span class="dot" style="background:${DOT[c.status]}"></span>
       <span class="id big">${esc(c.id)}</span><span class="badge">${esc(c.force)}</span>
-      <span class="badge st-${c.state}">${esc(c.state)}</span><span class="badge">${LABEL[c.status]}</span></div>
+      <span class="badge st-${esc(c.state)}">${esc(c.state)}</span><span class="badge">${LABEL[c.status]}</span></div>
       <p class="meta">${esc(c.contractId ?? "")} ${c.contractDesc ? "· " + esc(c.contractDesc) : ""}</p>
       <pre class="gherkin">${esc(c.text)}</pre>
       <p class="meta">fixtures: ${c.fixtures.map(esc).join(", ") || "(none)"}</p></div>`;

@@ -7,6 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { join } from "node:path";
 
+async function main() {
 const root = join(import.meta.dirname, "..");
 const transport = new StdioClientTransport({
   command: "node",
@@ -19,13 +20,18 @@ await client.connect(transport);
 const tools = await client.listTools();
 const names = tools.tools.map((t) => t.name).sort();
 console.log(`tools/list: ${names.length} tools`);
-const expected = [
+// The twelve contracted tools (c-mcp) must all be present. felag_status is
+// routed but excluded from the contract, so this is a subset check, not an
+// exact match — it stays green when presentation-only tools are added but
+// fails loudly if a contracted verb goes missing.
+const contracted = [
   "felag_audit", "felag_fmt", "felag_graduate", "felag_hash", "felag_lint",
   "felag_prime", "felag_promote", "felag_render", "felag_validate_author",
   "felag_validate_excavate", "felag_validate_prime", "felag_verify",
 ];
-if (JSON.stringify(names) !== JSON.stringify(expected)) {
-  throw new Error(`tool set mismatch: ${names.join(", ")}`);
+const missing = contracted.filter((t) => !names.includes(t));
+if (missing.length > 0) {
+  throw new Error(`missing contracted tools: ${missing.join(", ")} (got: ${names.join(", ")})`);
 }
 
 // Round-trip: felag_lint on the committed felag-core spec (by path).
@@ -51,3 +57,9 @@ if (!primeText.includes("author-class protocols")) throw new Error("prime output
 
 await client.close();
 console.log("SMOKE OK");
+}
+
+main().catch((e) => {
+  console.error(e instanceof Error ? e.message : e);
+  process.exit(1);
+});

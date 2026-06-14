@@ -32,9 +32,14 @@ import type {
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "5.0.0";
+const IMPLEMENTATION_VERSION = "5.0.1";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
-const at = new Date().toISOString();
+// Deterministic provenance stamp. The committed records are a reproducible
+// artifact whose real "when" is the git commit, so a fixed `at` keeps
+// `npm run self-verify` from rewriting every record's timestamp (and dirtying
+// the working tree) on each run. Pass --stamp for a live wall-clock instant.
+const SELF_VERIFY_STAMP = "2026-06-13T00:00:00Z";
+const at = process.argv.includes("--stamp") ? new Date().toISOString() : SELF_VERIFY_STAMP;
 
 const spec = parse(readFileSync(join(dir, "spec.jsonl"), "utf8"));
 const fixtures = parse(readFileSync(join(dir, "fixtures.jsonl"), "utf8")) as Fixture[];

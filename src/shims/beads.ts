@@ -48,7 +48,14 @@ export class BeadsWorkLayer implements WorkLayer {
 
   private listAll(): BdIssue[] {
     const out = this.bd(["list", "--json", "--status", "all"]);
-    return out.trim() ? (JSON.parse(out) as BdIssue[]) : [];
+    if (!out.trim()) return [];
+    try {
+      return JSON.parse(out) as BdIssue[];
+    } catch {
+      // bd printed non-JSON at exit 0 (a help banner, a warning) — surface a
+      // diagnosable error rather than a bare V8 SyntaxError from deep in parse.
+      throw new Error(`bd list returned non-JSON output: ${out.slice(0, 200)}`);
+    }
   }
 
   private static marker(specItemRef: string, criterionId?: string): string {
@@ -69,6 +76,14 @@ export class BeadsWorkLayer implements WorkLayer {
     }
     const specItemRef = proposal.specItemRef as string;
     const criterionId = proposal.criterionId as string | undefined;
+    // The linkage marker is whitespace-delimited ("[felag] <ref> <crit>"), so an
+    // id containing whitespace would round-trip lossily — report() could not
+    // parse it back and would silently drop the task, breaking idempotency.
+    // Reject it loudly. (The reference store has no such constraint; this is a
+    // shim limitation of riding the marker on a free-text description line.)
+    if (/\s/.test(specItemRef) || (criterionId !== undefined && /\s/.test(criterionId))) {
+      return { accepted: false, created: false, taskRef: null, errors: ["E_MISSING_FIELD"] };
+    }
     const marker = BeadsWorkLayer.marker(specItemRef, criterionId);
 
     const existing = this.listAll().find(
@@ -79,9 +94,20 @@ export class BeadsWorkLayer implements WorkLayer {
     }
 
     const description = marker + (proposal.description ? `\n${proposal.description as string}` : "");
-    const created = JSON.parse(
-      this.bd(["create", proposal.title as string, "-d", description, "--json"]),
-    ) as { id: string };
+    const rawCreate = this.bd(["create", proposal.title as string, "-d", description, "--json"]);
+    let created: { id: string };
+    try {
+      created = JSON.parse(rawCreate) as { id: string };
+    } catch {
+      // A leading-dash title can be swallowed by bd's own arg parser, yielding
+      // non-JSON on stdout. Name the likely cause instead of a bare SyntaxError.
+      throw new Error(
+        `bd create returned non-JSON (a leading-dash title may confuse bd's parser): title=${JSON.stringify(proposal.title)}`,
+      );
+    }
+    if (typeof created?.id !== "string") {
+      throw new Error(`bd create returned no id: ${rawCreate.slice(0, 200)}`);
+    }
     return { accepted: true, created: true, taskRef: created.id, errors: [] };
   }
 

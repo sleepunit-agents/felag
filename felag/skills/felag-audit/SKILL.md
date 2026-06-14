@@ -21,8 +21,7 @@ shows those proposals as a work plan you can file with a click.
 
 ## How to run it
 
-`felag audit` emits the `AuditResult` as JSON by default (`--json` is accepted
-but unnecessary — a no-op for parity with `felag status --json`). Run it
+`felag audit` emits the `AuditResult` as JSON by default. Run it
 **without** `--store`/`--beads` here: this skill only *views* the plan, so the
 proposals come back as a report artifact rather than being written anywhere.
 The action buttons are what file them.

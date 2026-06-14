@@ -34,3 +34,22 @@ steps:
     commands:
       - npm run self-verify
     depends_on: [build]
+
+  - name: self-verify-tasks
+    image: node:22-bookworm-slim
+    commands:
+      - npx tsx scripts/self-verify-tasks.ts
+    depends_on: [build]
+
+  - name: smoke
+    image: node:22-bookworm-slim
+    commands:
+      - npm run smoke
+    depends_on: [build]
+
+  - name: check-governance
+    image: node:22-bookworm-slim
+    commands:
+      - npx tsx scripts/check-triplets.ts
+      - npx tsx scripts/check-ack-currency.ts
+    depends_on: [build]

@@ -1,7 +1,7 @@
 // verify — a ledger, not a runner (spec/felag-core it-verification, D1–D6).
 // Ingests externally-produced VerificationRecords and derives conformance.
 
-import { fixtureHash } from "./canonical.js";
+import { cmpCodePoint, fixtureHash } from "./canonical.js";
 import { graduate } from "./graduation.js";
 import { parseInstant } from "./instant.js";
 import type {
@@ -167,7 +167,7 @@ export function verify(input: VerifyInput): ConformanceReport {
     const latest = latestRecord(input.records, c.id, undefined, input.implementation, conformanceVersion);
     if (latest) advisory.push({ criterionId: c.id, verdict: latest.verdict });
   }
-  advisory.sort((a, b) => (a.criterionId < b.criterionId ? -1 : 1));
+  advisory.sort((a, b) => cmpCodePoint(a.criterionId, b.criterionId));
 
   // D3: verdict precedence drifts > conforms-with-waivers > conforms.
   const verdict =

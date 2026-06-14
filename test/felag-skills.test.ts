@@ -565,3 +565,230 @@ describe("renderInterviewWidget (/felag new)", () => {
     expect(empty).not.toContain("ready for review");
   });
 });
+
+// --- injection / escaping ------------------------------------------------
+//
+// Spec-derived strings (criterion ids, names, finding text, fixtures) reach
+// THREE sinks in the rendered fragment: HTML text, double-quoted attributes,
+// and single-quoted JS string literals inside onclick handlers. A hostile
+// string must not break out of ANY of them. These tests feed adversarial input
+// through the renderers and assert: no raw <script> survives, no bare
+// (unescaped) `'` lands inside an onclick literal, and astral chars pass
+// through without throwing. The asserts are structural, not snapshot — they
+// stay green as long as the escaping holds.
+
+// The payloads, one per sink-shape. NL/CR specifically target jsStr: an
+// unescaped newline splits the single-quoted onclick literal and silently
+// no-ops the button.
+const XSS = `"><script>alert(1)</script>`;
+const ONCLICK_BREAK = `');alert(1)//`;
+const NL = "line1\nline2";
+const CR = "a\rb";
+const ASTRAL = "smile\u{1F600}end";
+
+// Pull every onclick="..."'s attribute body out of a fragment. Attributes are
+// double-quoted, so the body runs to the next `"`. We then assert no RAW single
+// quote remains except as the literal delimiters the renderer itself wrote.
+function onclickBodies(html: string): string[] {
+  const out: string[] = [];
+  const re = /onclick="([^"]*)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[1]);
+  return out;
+}
+
+describe("widget escaping / injection hardening", () => {
+  // Every renderer fed a model whose hostile strings land in its sinks.
+  const cases: Array<[string, () => string]> = [
+    [
+      "renderStatusWidget",
+      () =>
+        renderStatusWidget({
+          name: XSS,
+          version: ONCLICK_BREAK,
+          verdict: "drifts",
+          scope: { kind: "whole" },
+          counts: { proposed: 1, drifting: 1 },
+          contracts: [
+            {
+              id: XSS,
+              description: ONCLICK_BREAK,
+              criteria: [
+                { id: XSS, contractId: "c", itemId: "i", force: "MUST", state: ONCLICK_BREAK, status: "proposed", text: NL, fixtures: [ASTRAL] },
+                { id: ONCLICK_BREAK, contractId: "c", itemId: "i", force: "MUST", state: "active", status: "drifting", text: CR, fixtures: [] },
+              ],
+            },
+          ],
+        }),
+    ],
+    [
+      "renderReviewQueueWidget",
+      () =>
+        renderReviewQueueWidget({
+          name: XSS,
+          contracts: [
+            {
+              id: "c",
+              criteria: [
+                { id: ONCLICK_BREAK, contractId: "c", itemId: "i", force: "MUST", state: "proposed", status: "proposed", text: NL, fixtures: [] },
+              ],
+            },
+          ],
+        }),
+    ],
+    [
+      "renderVerifyWidget",
+      () =>
+        renderVerifyWidget({
+          implementation: XSS,
+          conformanceVersion: ONCLICK_BREAK,
+          verdict: "drifts",
+          failing: [ONCLICK_BREAK, XSS],
+          waived: [],
+          disputed: [],
+          advisory: [],
+        }),
+    ],
+    [
+      "renderAuditWidget",
+      () =>
+        renderAuditWidget({
+          report: { implementation: XSS, conformanceVersion: "1", verdict: "drifts" },
+          proposals: [
+            { specItemRef: XSS, criterionId: ONCLICK_BREAK, title: NL, description: "Fixtures: " + ASTRAL + "." },
+            // criterionId omitted → falls back to specItemRef; both hostile.
+            { specItemRef: ONCLICK_BREAK, title: XSS, description: "no fixtures here" },
+          ],
+        }),
+    ],
+    [
+      "renderReviewWidget",
+      () =>
+        renderReviewWidget({
+          specName: ONCLICK_BREAK,
+          round: 1,
+          verdict: "REWORK",
+          findings: [
+            { severity: "critical", text: XSS, ref: ONCLICK_BREAK },
+            { severity: "nit", text: NL },
+          ],
+        }),
+    ],
+    [
+      "renderRenderWidget",
+      () => renderRenderWidget({ spec: ONCLICK_BREAK, included: [XSS, ASTRAL], excludedFields: [ONCLICK_BREAK] }, "stakeholder"),
+    ],
+    [
+      "renderLintWidget",
+      () =>
+        renderLintWidget(
+          { valid: false, errors: [{ code: XSS, ref: ONCLICK_BREAK }], orphanFixtures: [XSS] },
+          ONCLICK_BREAK,
+        ),
+    ],
+    [
+      "renderInterviewWidget",
+      () =>
+        renderInterviewWidget({
+          spec: ONCLICK_BREAK,
+          item: XSS,
+          contract: [
+            { id: ONCLICK_BREAK, force: "MUST", fixture: "fx", text: NL },
+            { id: XSS, force: "SHOULD", fixture: null, text: CR },
+          ],
+          profile: [XSS],
+          excluded: [ONCLICK_BREAK],
+          clarifications: [{ id: ONCLICK_BREAK, criterionId: XSS, question: NL }],
+          lintClean: true,
+        }),
+    ],
+  ];
+
+  for (const [name, render] of cases) {
+    describe(name, () => {
+      const html: string = render();
+
+      it("does not throw and produces a fragment", () => {
+        expect(typeof html).toBe("string");
+        expect(html.length).toBeGreaterThan(0);
+      });
+
+      it("no <script> breakout — payload reaches no text/tag-opening sink raw", () => {
+        // Strip the widget's OWN structural <script>…</script> (the staging engine
+        // / view toggle the renderer emits) — those are the renderer's code, not
+        // spec-derived. What's left must contain no script tag built from the
+        // payload. The XSS payload, where it lands in a text/tag-opening position,
+        // is escaped by esc() to &lt;script&gt;.
+        // First: the ONLY way a payload <script> goes live is by first breaking
+        // out of its sink. In an attribute that means a raw `"` closing it then a
+        // `<` opening a tag — the classic `"><script`. attr() escapes the `"`, so
+        // this sequence must be wholly absent (also covered standalone below).
+        expect(html).not.toContain(`"><script`);
+        // Now strip the widget's OWN structural <script>…</script> (the staging
+        // engine / view toggle the renderer emits — its own code, not spec data).
+        // A payload <script> that survived in an INERT spot (inside a properly
+        // quoted attribute value) is harmless; what must never happen is one in a
+        // text/tag-opening position, which esc() turns into &lt;script&gt;.
+        const structural = html.replace(/<script>[\s\S]*?<\/script>/g, "");
+        expect(structural).not.toMatch(/<script>\s*alert/);
+        // and the payload, where present, survives in escaped form.
+        if (structural.includes("alert(1)")) {
+          expect(structural).toContain("&lt;script&gt;");
+        }
+      });
+
+      it("no payload quote breaks out of any onclick literal", () => {
+        for (const body of onclickBodies(html)) {
+          // The renderer writes its OWN structural single quotes as the JS-literal
+          // delimiters (e.g. __felagStage('root','intent')) — those are sound. The
+          // attack is a spec-derived `'` that closes the literal early. jsStr turns
+          // every such payload quote into `\'`, so the dangerous breakout sequence
+          // from the ONCLICK_BREAK payload (`');`) must never appear raw — only as
+          // the escaped `\');`. Strip the escaped form, then assert the raw
+          // breakout is gone.
+          const bare = body.replace(/\\'/g, "");
+          expect(bare).not.toContain("');");
+          // No raw newline/CR survived into the onclick (jsStr → \n / \r).
+          expect(body).not.toContain("\n");
+          expect(body).not.toContain("\r");
+        }
+      });
+
+      it("no unescaped double-quote can break an HTML attribute", () => {
+        // A raw `"><script` is the classic attribute breakout; it must be escaped
+        // to &quot; (attr) or &lt; (esc) everywhere it lands.
+        expect(html).not.toContain(`"><script`);
+      });
+
+      it("passes an astral character through intact", () => {
+        // The smile is in some payloads; where present it survives unmangled
+        // (no replacement char, no surrogate split).
+        expect(html).not.toContain("�");
+      });
+    });
+  }
+
+  it("jsStr-driven onclick keeps the felag: intent parseable after escaping", () => {
+    // A status model whose proposed-criterion id carries an onclick-break
+    // payload: the staged intent still names the (escaped) id and the literal
+    // stays closed.
+    const html: string = renderReviewQueueWidget({
+      name: "s",
+      contracts: [
+        {
+          id: "c",
+          criteria: [
+            { id: ONCLICK_BREAK, contractId: "c", itemId: "i", force: "MUST", state: "proposed", status: "proposed", text: "G\nW\nT", fixtures: [] },
+          ],
+        },
+      ],
+    });
+    for (const body of onclickBodies(html)) {
+      const bare = body.replace(/\\'/g, "");
+      expect(bare).not.toContain("');");
+    }
+    // The escaped form of the payload's quote is present (proof jsStr ran):
+    // the staged intent carries the criterion id with its quote backslashed.
+    expect(html).toContain("criterion \\');alert(1)//");
+  });
+});

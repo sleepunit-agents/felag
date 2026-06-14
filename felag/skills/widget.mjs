@@ -89,8 +89,19 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 // For an HTML attribute value (we always quote attributes with ").
 const attr = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-// For a single-quoted JS string literal inside an onclick attribute.
-const jsStr = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+// For a single-quoted JS string literal inside an onclick attribute. Backslash
+// MUST be escaped first; then the quote, then newlines/carriage returns, then
+// any remaining C0 control char (an unescaped newline would split the literal
+// and break the onclick, silently no-op'ing the button).
+const jsStr = (s) =>
+  String(s ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    // Any remaining C0 control char (tab, form feed, NUL…) → \xNN.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f]/g, (c) => "\\x" + c.charCodeAt(0).toString(16).padStart(2, "0"));
 
 // Monotonic per-render id so multiple widgets in one transcript don't collide
 // on element ids / script scope. (Module-local; deterministic within a run.)
@@ -564,18 +575,21 @@ function auditFixtures(description) {
 function auditCard(p, root) {
   const fx = auditFixtures(p.description);
   const fxRow = fx ? `<p class="fw-meta">fixtures: ${esc(fx)}</p>` : "";
-  return `<div class="fw-card" data-status="drifting" data-id="${attr(p.criterionId)}">
+  // TaskProposal.criterionId is optional (src/tasks/store.ts) — fall back to the
+  // spec item ref so a proposal without one never renders "undefined".
+  const ref = p.criterionId ?? p.specItemRef;
+  return `<div class="fw-card" data-status="drifting" data-id="${attr(ref)}">
     ${dot("drifting")}
     <div class="fw-card-body">
       <div class="fw-card-head">
-        <span class="fw-id">${esc(p.criterionId)}</span>
+        <span class="fw-id">${esc(ref)}</span>
         ${badge("proposal")}
       </div>
       <p class="fw-section-desc" style="margin:0.1rem 0 0">${esc(p.title)}</p>
       ${fxRow}
       <div class="fw-acts">
-        ${act(root, "Send to work store", `send ${p.criterionId} to the work store`, "send")}
-        ${act(root, "Claim", `claim ${p.criterionId}`, "user-check")}
+        ${act(root, "Send to work store", `send ${ref} to the work store`, "send")}
+        ${act(root, "Claim", `claim ${ref}`, "user-check")}
       </div>
     </div>
   </div>`;
@@ -984,12 +998,12 @@ export function renderInterviewWidget(model) {
     const acts = hasFx
       ? [
           stagedButton(root, "Confirm", `confirm criterion ${c.id}`, "check"),
-          stagedButton(root, "Make descriptive", `mark criterion ${c.id} descriptive`, "file-text"),
+          stagedButton(root, "Make descriptive", `make criterion ${c.id} descriptive`, "file-text"),
           stagedButton(root, "Exclude", `move ${c.id} to excluded`, "circle-minus"),
         ]
       : [
           stagedButton(root, "Add fixture", `add the fixture that proves ${c.id}`, "plus"),
-          stagedButton(root, "Make descriptive", `mark criterion ${c.id} descriptive`, "file-text"),
+          stagedButton(root, "Make descriptive", `make criterion ${c.id} descriptive`, "file-text"),
           stagedButton(root, "Exclude", `move ${c.id} to excluded`, "circle-minus"),
         ];
     return `<div class="fw-card" data-status="${hasFx ? "proposed" : "clarify"}" data-id="${attr(c.id)}">

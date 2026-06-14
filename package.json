@@ -1,6 +1,6 @@
 {
   "name": "felag",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "félag — communal contract format for software: interchange + verifier classes (reference implementation)",
   "type": "module",
   "license": "Apache-2.0",
@@ -14,7 +14,9 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "self-verify": "tsx scripts/self-verify.ts"
+    "self-verify": "tsx scripts/self-verify.ts",
+    "smoke": "tsx scripts/smoke-mcp.ts",
+    "check-governance": "tsx scripts/check-triplets.ts && tsx scripts/check-ack-currency.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

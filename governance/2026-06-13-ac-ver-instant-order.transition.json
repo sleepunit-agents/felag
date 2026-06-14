@@ -1,14 +1,14 @@
 {
   "criterionId": "ac-ver-instant-order",
   "to": "active",
-  "requestedAt": "2026-06-12T20:04:13.405Z",
+  "requestedAt": "2026-06-13T00:00:00Z",
   "requestedBy": "felag project",
   "acknowledgments": [
     {
       "implementer": "felag project",
       "decision": "ack",
-      "at": "2026-06-12T20:04:13.405Z",
-      "criterionHash": "sha256:26702e25a9bbbaa75c8d40d2bff1ce89c6892576fc48cbfb9b5fa0091721a4ce"
+      "at": "2026-06-13T00:00:00Z",
+      "criterionHash": "sha256:50067257c8a082ab3442d2cf3b0b9dd4082876a87e581ddb08e25910d0f9f010"
     }
   ]
 }
