@@ -68,8 +68,14 @@ plane**:
    `{spec: "<name>"}`; a `felag_specs` discovery tool lists what exists; the
    MCP-App board opens with a spec picker.
 2. **Dispatch verbs** — `felag_cold_review`, `felag_self_verify`,
-   `felag_dispatch({scope})` — spawn `claude --bg` lanes on one and return
-   immediately. **Scoped verbs only; never an arbitrary-shell tool.**
+   `felag_dispatch({scope})` — orchestrate background execution and return
+   immediately. **Scoped verbs only; never an arbitrary-shell tool.** Dispatch is
+   a felag **contract** (orchestrate execution + report status to the work
+   store), with a **swappable execution-backend adapter** behind it — exactly as
+   `felag-tasks` is a contract with `taskstore`/`beads` as swappable impls.
+   `claude --bg` is *Art's* backend; another party swaps in `opencode`, a CI
+   runner, etc., by taking the spec and changing the binding. The contract is
+   public felag; the backend choice is the profile-binding.
 3. **MCP-App UI** — a `ui://felag/board` resource: a lean shell that calls
    `felag_status` live (`app.callServerTool`) and renders via the existing
    `widget.mjs` functions *inside the iframe* (so the 93KB-blob problem
@@ -108,6 +114,25 @@ applied: every layer is yours and exportable (jsonl/git); **there is no rug to
 pull.** It is the mothballed capability rebuilt on a foundation that can't
 betray you.
 
+### Public / private layering (felag is becoming a public product)
+
+felag will be public-facing. So the boundary is not "felag = Art's tooling" but
+**felag-the-public-product vs Art's-private-binding-built-on-it**, and felag's
+own three-strata (contract / profile-binding / excluded) draws the line per
+decision:
+
+- **Public felag:** the format, the toolchain, the general MCP server (workspace
+  registry, the `ui://felag/board` widget), and the **dispatch contract** — all
+  vendor-neutral, forkable, "spec distribution > source distribution."
+- **Art's private binding:** the specific execution backend (`claude --bg`), the
+  particular lanes/config, and any Art-specific profile-binding in a spec.
+
+This applies to **specs too**: a spec's public contract co-locates with the
+(possibly public) impl it generates; only the Art-binding stratum stays private.
+loom is the first instance — its public memory/knowledge contract goes with the
+public `loomai` repo; the slice framed against Art's own stack (e.g. the
+taskstore-shaped work-store refusal) is the private binding.
+
 ### Portability thesis (and the line that keeps it honest)
 
 loom (memory) + felag (control plane) + taskstore (work), exposed as MCP, = the
@@ -131,7 +156,13 @@ This is a multi-spec program. felag specs its own evolution and loom's. Two
 tracks plus this ADR; the topology is recorded *here* (it is deployment, not a
 behavioral contract — felag specs say what an impl *does*, not *where it runs*).
 
-**Track L — loom, brownfielded** (`~/Code/loom` impl, `~/Code/loom-spec` specs):
+**Track L — loom, brownfielded** (impl + spec, co-located):
+- **L1.0 — fold `loom-spec` into the `loomai` repo.** The public memory/knowledge
+  contract co-locates with the public impl it generates (forkable: "I want this
+  but not this"); the Art-binding stratum stays a thin private overlay. loom
+  carries the spec as committed artifacts; the public `loomai` build takes no
+  hard `felag` dependency (felag reads/verifies from outside, as a dev tool).
+  Retire the standalone `loom-spec` repo to whatever Art-private residue remains.
 - **L1a — loom-memory.** *Already done* (ceremony 4 → `c-loom-memory` 0.1.0), but
   pre-6.0.0.
 - **L1b — upgrade loom-memory to 6.0.0 honesty.** Apply evidence / projection /
