@@ -120,7 +120,14 @@ releases and the author-class ratification itself. `felag audit --taskstore`
 files drift straight into the first-party **taskstore** work store (idempotent
 on `(specItemRef, criterionId)`); the felag-side adapter conforms to felag-tasks
 (`verification/felag-tasks-taskstore-shim.report.json`).
-Next: Dolt-backed index storage.
+The index-rebuild contract (`ac-int-index-rebuild`) is already satisfied by the
+reference impl's in-memory model — the interchange files round-trip
+byte-identically. A persistent backing index (Dolt or sqlite) stays **deferred
+by design**: the spec makes any index a regenerable, non-authoritative
+accelerator, and at felag's scale `parse` is instant — a backing store earns its
+keep only once a spec is large enough to feel the cost (and the JSONL is already
+git-versioned, so Dolt's versioned-data story would be redundant). Built if/when
+that day comes, not before.
 
 ## Lineage
 
