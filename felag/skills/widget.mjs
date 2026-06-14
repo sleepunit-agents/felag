@@ -810,12 +810,13 @@ export function renderRenderWidget(inventory, audience) {
   const inv = inventory ?? {};
   const included = inv.included ?? [];
   const excluded = inv.excludedFields ?? [];
+  const projections = inv.projections ?? [];
   const spec = inv.spec ?? "the spec";
   const aud = String(audience ?? "stakeholder").toLowerCase();
   const meta = AUDIENCES.find((a) => a.key === aud) ?? AUDIENCES[0];
   const who = meta.label.toLowerCase();
 
-  const summary = `${spec} render for ${who} — ${included.length} record${included.length === 1 ? "" : "s"} included, ${excluded.length} field${excluded.length === 1 ? "" : "s"} hidden`;
+  const summary = `${spec} render for ${who} — ${included.length} record${included.length === 1 ? "" : "s"} included, ${excluded.length} field${excluded.length === 1 ? "" : "s"} hidden${projections.length ? `, ${projections.length} projection${projections.length === 1 ? "" : "s"} to audit` : ""}`;
 
   // Audience toggle: a segmented control, current audience pressed. Every button
   // drafts a re-render (no leading slash — a slash would trip command parsing);
@@ -838,6 +839,17 @@ export function renderRenderWidget(inventory, audience) {
       </div>`
     : `<p class="fw-section-desc"><i class="ti ti-eye"></i> Every field is visible to ${esc(who)}s — nothing projected out.</p>`;
 
+  // Projections (6.0.0): fixtures whose format MODELS the impl (the excavator's
+  // projection), not its native wire format. Surfaced for the verifier so the
+  // reviewer audits projection fidelity as a bounded list. Empty for others.
+  const projectionsSection = projections.length
+    ? `<div class="fw-section">
+        <div class="fw-section-title">Projections to audit <span class="fw-section-desc" style="display:inline">${projections.length}</span></div>
+        <p class="fw-section-desc">Fixtures whose format <b>models</b> the implementation — the excavator's projection, not the impl's wire format. felag checks they are declared; <b>you</b> audit whether the model is faithful.</p>
+        <div class="fw-chips">${projections.map((id) => `<span class="fw-chip">${esc(id)}</span>`).join("")}</div>
+      </div>`
+    : "";
+
   return `<div id="${root}" class="felag-widget">
     <h2 class="sr-only">${esc(summary)}</h2>
     ${styles(root)}
@@ -851,6 +863,7 @@ export function renderRenderWidget(inventory, audience) {
       <div class="fw-section-title">Included <span class="fw-section-desc" style="display:inline">${included.length}</span></div>
       ${includedChips}
     </div>
+    ${projectionsSection}
     ${excludedSection}
   </div>`;
 }

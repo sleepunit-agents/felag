@@ -8,9 +8,11 @@ description: "Use when asked to render a felag spec for an audience, see what a 
 What does each reader actually see? `felag render` projects a spec for an
 **audience** — `stakeholder`, `developer`, or `verifier` — and returns a
 **content inventory**: the exact set of record ids that audience sees
-(`included`) and the fields projected out for them (`excludedFields`). It is a
-content projection, never typesetting. This skill shows that inventory as a
-panel instead of a JSON dump.
+(`included`), the fields projected out for them (`excludedFields`), and — for
+the verifier — the fixtures that declare a `projection` (their format models the
+impl, not its wire format) as a distinct `projections` group to audit for
+fidelity. It is a content projection, never typesetting. This skill shows that
+inventory as a panel instead of a JSON dump.
 
 The three audiences are a visibility ramp:
 - **stakeholder** — items and active criteria; no fixtures, no internal fields.
@@ -39,7 +41,7 @@ node dist/cli.js render <specDir> --audience <stakeholder|developer|verifier>
 ```
 
 `--audience` is required and must be one of the three (exit `2` otherwise). The
-`felag_render` MCP tool returns the same `{included, excludedFields}` inventory
+`felag_render` MCP tool returns the same `{included, excludedFields, projections}` inventory
 if you'd rather go through MCP.
 
 ## Render the widget

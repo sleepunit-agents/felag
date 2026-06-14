@@ -388,6 +388,18 @@ describe("renderRenderWidget", () => {
     for (const id of verifierInv.included) expect(full).toContain(id);
   });
 
+  it("surfaces declared projections as a distinct audit group (6.0.0)", () => {
+    const withProj: string = renderRenderWidget(
+      { spec: "loom-memory", included: ["ac1", "fxp"], excludedFields: [], projections: ["fxp"] },
+      "verifier",
+    );
+    expect(withProj).toContain("Projections to audit");
+    expect(withProj).toMatch(/fw-chip">fxp</);
+    expect(withProj).toContain("projection to audit"); // summary count
+    // empty/absent projections show no projections section
+    expect(fragment).not.toContain("Projections to audit");
+  });
+
   it("falls back to \"the spec\" when the inventory carries no spec name", () => {
     const noName: string = renderRenderWidget(
       { included: ["it-1"], excludedFields: [] },
