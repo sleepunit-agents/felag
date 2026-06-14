@@ -91,6 +91,8 @@
         "discoveredAt": {"$ref": "#/$defs/timestamp"},
         "discoveredBy": {"$ref": "#/$defs/attribution"},
         "triggeringEvent": {"type": "string"},
+        "evidence": {"type": "string"},
+        "unfixturable": {"type": "string"},
         "fixtures": {"type": "array", "items": {"$ref": "#/$defs/id"}},
         "dispute": {
           "type": "object",
@@ -142,6 +144,7 @@
         },
         "description": {"type": "string"},
         "format": {"type": "string", "minLength": 1},
+        "projection": {"type": "string", "minLength": 1},
         "input": {},
         "expected": {}
       },

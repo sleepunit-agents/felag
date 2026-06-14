@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-excavate-projection",
+  "to": "active",
+  "requestedAt": "2026-06-14T00:00:00Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-14T00:00:00Z",
+      "criterionHash": "sha256:ec9e09da65a9f62c521d46566743acc921528cdb3c80173b7c444b9254459981"
+    }
+  ]
+}

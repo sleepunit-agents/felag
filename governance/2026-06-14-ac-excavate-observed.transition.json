@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-excavate-observed",
+  "to": "active",
+  "requestedAt": "2026-06-14T00:00:00Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-14T00:00:00Z",
+      "criterionHash": "sha256:95ea4564c857d0f224093b3aebdd09e1e63defdffd87caf3940ba9936d28673d"
+    }
+  ]
+}

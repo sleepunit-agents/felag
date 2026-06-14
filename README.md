@@ -14,8 +14,8 @@ verified against any implementation that claims to conform.
 
 ## Status
 
-**spec/felag-core 5.0.1 is live, and the reference implementation conforms —
-all 55 criteria active and passing, none inert.** Three conformance classes:
+**spec/felag-core 6.0.0 is live, and the reference implementation conforms —
+all 58 criteria active and passing, none inert.** Three conformance classes:
 
 - `felag/interchange` (contract `c-interchange`) — canonical JSONL (numbers
   in fixture payloads serialize per RFC 8785), lint, hashing, round-trip,

@@ -51,6 +51,10 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
       ) {
         return true;
       }
+      // Excavate honesty (6.0.0): evidence and unfixturable, when present, are
+      // strings (their excavate-output semantics are X2's, not lint's).
+      if (rec.evidence !== undefined && typeof rec.evidence !== "string") return true;
+      if (rec.unfixturable !== undefined && typeof rec.unfixturable !== "string") return true;
       // judgment object (3.0.0): forbidden on class behavioral; when present,
       // rubric is a string and tolerance, if present, carries integer
       // runs/agreement >= 1 (the majority rule is E_BAD_TOLERANCE, not schema).
@@ -74,6 +78,9 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
         (rec.contractId === undefined || typeof rec.contractId === "string") &&
         typeof rec.description === "string" &&
         typeof rec.format === "string" &&
+        // Excavate honesty (6.0.0): projection, when present, is a string (it
+        // declares the format as the excavator's model, not the wire format).
+        (rec.projection === undefined || typeof rec.projection === "string") &&
         "input" in rec &&
         "expected" in rec
       );
@@ -121,7 +128,17 @@ export function lint(records: SpecRecord[]): LintResult {
       if (c.contractId !== undefined && !declared.has(c.contractId)) {
         errors.push({ code: "E_UNDECLARED_CONTRACT", ref: c.id });
       }
-      if (c.contractId !== undefined && declared.has(c.contractId) && c.class === "behavioral" && c.fixtures.length === 0) {
+      // A criterion declaring itself unfixturable (6.0.0) is exempt: its
+      // behavior is real but cannot be carried by a fixture in the chosen
+      // projection (the reason rides in `unfixturable`). This is the lint-side
+      // of the observed-only escape excavate's X2 also honors.
+      if (
+        c.contractId !== undefined &&
+        declared.has(c.contractId) &&
+        c.class === "behavioral" &&
+        c.fixtures.length === 0 &&
+        c.unfixturable === undefined
+      ) {
         errors.push({ code: "E_MISSING_FIXTURES", ref: c.id });
       }
       // 3.0.0: a graduatable judgment criterion's fixtures are its calibration

@@ -61,6 +61,15 @@ export interface Criterion {
   discoveredAt?: string;
   discoveredBy?: string;
   triggeringEvent?: string;
+  // Excavate honesty (6.0.0): provenance felag checks for PRESENCE, not truth.
+  // evidence — where the discovered behavior + its expecteds were read (a
+  // file:line, commit, or transcript ref); makes the cold-review audit a
+  // checkable "does the cited evidence support this?" rather than open-ended.
+  // unfixturable — the reason a discovered criterion is real but carries no
+  // fixture in the chosen projection (a side-effect the projection can't
+  // express); names the degradation-to-prose instead of hiding it.
+  evidence?: string;
+  unfixturable?: string;
   contractId?: string;
   fixtures: string[];
   dispute?: Dispute;
@@ -86,6 +95,11 @@ export interface Fixture {
   contractId?: string; // optional since 0.2.0 — advisory criteria may reference fixtures voluntarily
   description: string;
   format: string;
+  // Excavate honesty (6.0.0): when set, this fixture's format MODELS a
+  // non-deterministic/excluded impl (the excavator's projection), not the
+  // impl's native wire format. felag checks well-formedness only and surfaces
+  // it to the verifier audience so the reviewer audits projection fidelity.
+  projection?: string;
   input: unknown;
   expected: unknown;
 }
@@ -263,6 +277,11 @@ export interface RenderInventoryInput {
 export interface RenderInventory {
   included: string[]; // exact set of record ids, sorted ascending
   excludedFields: string[]; // exact set, sorted ascending
+  // Excavate honesty (6.0.0): for the verifier audience, the included fixtures
+  // that declare a projection (their format models the impl, not its wire
+  // format) — surfaced as a distinct group so the reviewer audits projection
+  // fidelity as a bounded list. Empty for stakeholder/developer.
+  projections: string[]; // exact set of fixture ids, sorted ascending
 }
 
 export interface PrimeOutputInput {

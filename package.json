@@ -1,6 +1,6 @@
 {
   "name": "felag",
-  "version": "5.0.2",
+  "version": "6.0.0",
   "description": "félag — communal contract format for software: interchange + verifier classes (reference implementation)",
   "type": "module",
   "license": "Apache-2.0",

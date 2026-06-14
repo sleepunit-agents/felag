@@ -74,7 +74,15 @@ export function validateExcavateOutput(input: ExcavateOutputInput): LintResult {
       c.state !== "proposed" ||
       c.discoveredAt === undefined ||
       c.discoveredBy === undefined ||
-      c.triggeringEvent === undefined
+      c.triggeringEvent === undefined ||
+      // Excavate honesty (6.0.0): evidence is required provenance — every
+      // discovered criterion must cite where its behavior/expecteds were read,
+      // so cold-review is "does the cited evidence support this?" not open-ended.
+      c.evidence === undefined ||
+      // Observed-only: a discovered criterion that carries no fixture must name
+      // why (unfixturable in the chosen projection); degradation-to-prose is
+      // named, never silent. felag checks PRESENCE of these, never their truth.
+      (c.fixtures.length === 0 && c.unfixturable === undefined)
     ) {
       errors.push({ code: "E_BAD_PROVENANCE", ref: c.id });
     }
@@ -127,7 +135,15 @@ export function renderInventory(input: RenderInventoryInput): RenderInventory {
       excludedFields = [];
       break;
   }
-  return { included: included.sort(), excludedFields };
+  const includedSet = new Set(included);
+  const projections =
+    input.audience === "verifier"
+      ? fixtures
+          .filter((f) => typeof f.projection === "string" && includedSet.has(f.id))
+          .map((f) => f.id)
+          .sort()
+      : [];
+  return { included: included.sort(), excludedFields, projections };
 }
 
 /** Prime: protocol-item bodies present verbatim. A protocol item is an item
