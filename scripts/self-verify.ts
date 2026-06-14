@@ -32,7 +32,7 @@ import type {
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "5.0.1";
+const IMPLEMENTATION_VERSION = "5.0.2";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 // Deterministic provenance stamp. The committed records are a reproducible
 // artifact whose real "when" is the git commit, so a fixed `at` keeps
