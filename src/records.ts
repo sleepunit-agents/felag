@@ -9,6 +9,17 @@ export interface Contract {
   description: string;
 }
 
+/** A pinned reference to another spec this one composes (the `requires` edge).
+ * Exact version, no ranges — conformance is determinism, so resolution is
+ * Go-style MVS over exact pins. The referenced spec is itself a
+ * contract-with-a-file; `version` is its conformanceVersion. Optional and
+ * additive: a spec with no `requires` is unchanged. See
+ * docs/design/felag-composition-model.md. */
+export interface SpecRef {
+  spec: string; // the required spec's name (its preamble.name)
+  version: string; // exact pin, semver
+}
+
 export interface Implementer {
   name: string;
   roles: string[];
@@ -27,6 +38,10 @@ export interface Preamble {
   exclusions: string[];
   governance?: Governance;
   implementers: Implementer[];
+  /** Specs this one composes, each pinned to an exact version. The preamble is
+   * this spec's root contract; `requires` are its split (cross-file) members,
+   * alongside the inline members in `contracts`. Absent ⇒ a leaf spec. */
+  requires?: SpecRef[];
 }
 
 export interface Item {

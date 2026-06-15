@@ -34,7 +34,18 @@ function schemaErrors(r: SpecRecord, ref: string): boolean {
           (typeof rec.governance === "object" &&
             rec.governance !== null &&
             Number.isInteger((rec.governance as Record<string, unknown>).timeoutDays) &&
-            ((rec.governance as Record<string, unknown>).timeoutDays as number) >= 1))
+            ((rec.governance as Record<string, unknown>).timeoutDays as number) >= 1)) &&
+        // requires (composition edges), when present: an array of {spec, version}
+        // string pairs. Absent ⇒ a leaf spec (the common case, unchanged).
+        (rec.requires === undefined ||
+          (Array.isArray(rec.requires) &&
+            rec.requires.every(
+              (d) =>
+                typeof d === "object" &&
+                d !== null &&
+                typeof (d as Record<string, unknown>).spec === "string" &&
+                typeof (d as Record<string, unknown>).version === "string",
+            )))
       );
     case "item":
       return !(typeof rec.id === "string" && typeof rec.title === "string" && typeof rec.body === "string");

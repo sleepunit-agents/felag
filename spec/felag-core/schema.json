@@ -54,6 +54,19 @@
             "required": ["name", "roles"],
             "additionalProperties": false
           }
+        },
+        "requires": {
+          "type": "array",
+          "description": "Composition edges: other specs this one requires, each pinned to an exact version (MVS, no ranges). Absent for a leaf spec. See docs/design/felag-composition-model.md.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "spec": {"type": "string", "minLength": 1},
+              "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"}
+            },
+            "required": ["spec", "version"],
+            "additionalProperties": false
+          }
         }
       },
       "required": ["record", "name", "conformanceVersion", "goals", "contracts", "implementers"],
