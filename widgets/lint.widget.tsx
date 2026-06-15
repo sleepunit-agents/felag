@@ -91,10 +91,10 @@ function CodeBadge({ code, color }: { code: string; color: string }) {
  * from the board widget — same shape, same look.) */
 function History({ entries }: { entries: HistoryEntry[] }) {
   if (!entries.length) {
-    return <p class="row" style={{ fontSize: '12px', opacity: 0.7, margin: '6px 0 0' }}>No governance acts recorded.</p>;
+    return <p class="row detail-sec" style={{ fontSize: '12px', opacity: 0.7 }}>No governance acts recorded.</p>;
   }
   return (
-    <div style={{ margin: '8px 0 0' }}>
+    <div class="detail-sec">
       <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
         Governance history
       </div>
@@ -130,11 +130,14 @@ function ErrorDetail({ e, model }: { e: EnrichedError; model: LintModel }) {
   const d = e.detail ?? {};
   return (
     <div style={{ background: '#0b1220', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', margin: '2px 0 10px' }}>
-      <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
-        How to fix
+      <div class="detail-sec">
+        <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
+          How to fix
+        </div>
+        <p class="desc" style={{ margin: 0 }}>{e.fix}</p>
       </div>
-      <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '0 0 8px', lineHeight: 1.5 }}>{e.fix}</p>
 
+      <div class="detail-sec">
       <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
         Offending record <span style={{ fontFamily: 'ui-monospace, monospace', textTransform: 'none', opacity: 0.8 }}>· {e.ref} ({e.recordKind})</span>
       </div>
@@ -150,7 +153,7 @@ function ErrorDetail({ e, model }: { e: EnrichedError; model: LintModel }) {
           {item ? (
             <div style={{ fontSize: '12px', color: '#cbd5e1', margin: '0 0 6px' }}>
               <span style={{ opacity: 0.6 }}>item: </span><b>{item.title}</b>
-              <span class="row" style={{ display: 'block', marginTop: '2px', lineHeight: 1.5 }}>{item.body}</span>
+              <span class="desc" style={{ display: 'block', marginTop: '2px' }}>{item.body}</span>
             </div>
           ) : null}
           <pre style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -168,18 +171,18 @@ function ErrorDetail({ e, model }: { e: EnrichedError; model: LintModel }) {
           <History entries={critHistory} />
         </div>
       ) : e.recordKind === 'item' ? (
-        <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>
+        <div class="desc">
           <b style={{ color: '#e2e8f0' }}>{String(d.title ?? e.human)}</b>
           {d.body ? <div style={{ marginTop: '3px' }}>{String(d.body)}</div> : null}
         </div>
       ) : e.recordKind === 'fixture' ? (
-        <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>
+        <div class="desc">
           <div>{String(d.description ?? e.human)}</div>
           {d.format ? <div style={{ marginTop: '3px', opacity: 0.8 }}>format: <span style={{ fontFamily: 'ui-monospace, monospace' }}>{String(d.format)}</span></div> : null}
           {d.contractId ? <div style={{ opacity: 0.8 }}>contract: <span style={{ color: '#7dd3fc' }}>{String(d.contractId)}</span></div> : null}
         </div>
       ) : e.recordKind === 'preamble' ? (
-        <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>
+        <div class="desc">
           {e.human}
           {Array.isArray(d.implementers) ? (
             <div style={{ marginTop: '4px', opacity: 0.8 }}>
@@ -188,8 +191,9 @@ function ErrorDetail({ e, model }: { e: EnrichedError; model: LintModel }) {
           ) : null}
         </div>
       ) : (
-        <div style={{ fontSize: '12px', color: '#cbd5e1' }}>{e.human}</div>
+        <div class="desc">{e.human}</div>
       )}
+      </div>
     </div>
   );
 }
@@ -208,7 +212,7 @@ function ErrorCard({ e, model, open, onToggle }: { e: EnrichedError; model: Lint
           <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#64748b' }}>{e.ref}</span>
           {histCount ? <span class="row" style={{ fontSize: '11px', opacity: 0.6 }}>· {histCount} gov</span> : null}
         </div>
-        <div style={{ fontSize: '13px', color: '#cbd5e1', margin: '3px 0 0 18px', lineHeight: 1.45 }}>{e.meaning}</div>
+        <div class="desc" style={{ margin: '3px 0 0 18px' }}>{e.meaning}</div>
         <div style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 18px', lineHeight: 1.4 }}>
           <span style={{ opacity: 0.6 }}>at: </span>{e.human}
         </div>
@@ -231,7 +235,7 @@ function OrphanCard({ o }: { o: EnrichedOrphan }) {
           : <span class="row" style={{ fontSize: '11px', opacity: 0.7 }}>· no contract (advisory)</span>}
       </div>
       {o.description ? (
-        <div style={{ fontSize: '13px', color: '#cbd5e1', margin: '3px 0 0', lineHeight: 1.45 }}>{o.description}</div>
+        <div class="desc" style={{ margin: '3px 0 0' }}>{o.description}</div>
       ) : null}
       {o.format ? (
         <div style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>
@@ -259,7 +263,7 @@ function CleanReport({ model }: { model: LintModel }) {
     <div>
       <div style={{ background: '#0b1220', border: `1px solid ${GREEN}`, borderRadius: '10px', padding: '16px 18px', margin: '4px 0 14px' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#4ade80' }}>✓ {model.spec} is well-formed</div>
-        <p class="row" style={{ margin: '6px 0 0', fontSize: '13px' }}>
+        <p class="desc" style={{ margin: '6px 0 0' }}>
           The merge gate passed clean — no errors, no orphan fixtures. {model.version ? <span>Conformance {model.version}.</span> : null}
         </p>
       </div>
@@ -360,7 +364,7 @@ function Widget() {
               </p>
 
               {errs.length ? (
-                <div style={{ marginBottom: '18px' }}>
+                <div class="section">
                   <h2 style={{ color: RED }}>Errors <span class="row" style={{ fontWeight: 400 }}>· {errs.length} · fail the gate</span></h2>
                   {errs.map((e, i) => (
                     <ErrorCard key={`${e.code}:${e.ref}:${i}`} e={e} model={model}
@@ -371,7 +375,7 @@ function Widget() {
               ) : null}
 
               {orphans.length ? (
-                <div style={{ marginBottom: '18px' }}>
+                <div class="section">
                   <h2 style={{ color: AMBER }}>Orphan fixtures <span class="row" style={{ fontWeight: 400 }}>· {orphans.length} · warnings, not gate failures</span></h2>
                   <p class="row" style={{ fontSize: '12px', margin: '0 0 10px' }}>
                     Committed fixtures referenced by no criterion — an interop proof for nothing. Wire each to a criterion, or remove it.

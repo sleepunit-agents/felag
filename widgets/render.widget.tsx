@@ -92,7 +92,7 @@ function RecordDetail({ id, meta }: { id: string; meta: RecordMeta | undefined }
     return (
       <div style={{ background: '#0b1220', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', margin: '2px 0 8px' }}>
         <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7dd3fc' }}>{id}</span>
-        <p class="row" style={{ fontSize: '12px', margin: '6px 0 0' }}>(no detail for this id)</p>
+        <p class="desc" style={{ margin: '6px 0 0' }}>(no detail for this id)</p>
       </div>
     );
   }
@@ -102,12 +102,12 @@ function RecordDetail({ id, meta }: { id: string; meta: RecordMeta | undefined }
   return (
     <div style={{ background: '#0b1220', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', margin: '2px 0 8px' }}>
       {meta.kind === 'item' ? (
-        <>
+        <div class="detail-sec">
           <Label>Item body</Label>
-          <p class="row" style={{ fontSize: '12px', margin: 0, lineHeight: 1.5, color: '#cbd5e1' }}>{meta.body || '(no body)'}</p>
-        </>
+          <p class="desc" style={{ margin: 0 }}>{meta.body || '(no body)'}</p>
+        </div>
       ) : meta.kind === 'criterion' ? (
-        <>
+        <div class="detail-sec">
           <Label>Scenario</Label>
           <pre style={{ margin: 0 }}>{meta.gherkin || '(no scenario)'}</pre>
           <div class="row" style={{ fontSize: '11px', margin: '8px 0 0', display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -115,18 +115,18 @@ function RecordDetail({ id, meta }: { id: string; meta: RecordMeta | undefined }
             <StateBadge state={meta.state ?? ''} />
             {meta.itemId ? <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '10px', color: '#475569' }}>item {meta.itemId}</span> : null}
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div class="detail-sec">
           <Label>Fixture</Label>
-          <p class="row" style={{ fontSize: '12px', margin: '0 0 6px', color: '#cbd5e1' }}>{meta.description || '(no description)'}</p>
+          <p class="desc" style={{ margin: '0 0 6px' }}>{meta.description || '(no description)'}</p>
           <div class="row" style={{ fontSize: '11px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             {meta.format ? <span>format: <b style={{ color: '#e2e8f0', fontFamily: 'ui-monospace, monospace' }}>{meta.format}</b></span> : null}
             {meta.projection ? (
               <span style={{ color: '#4ade80' }}>· models the impl: {meta.projection}</span>
             ) : null}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -150,7 +150,7 @@ function RecordRow({ id, meta, open, onToggle, accent }:
           {meta?.kind === 'criterion' ? <ForceBadge force={meta.force ?? ''} /> : null}
           <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#64748b' }}>{id}</span>
         </div>
-        <div style={{ fontSize: '13px', color: '#cbd5e1', margin: '3px 0 0 18px', lineHeight: 1.45 }}>{clip(label, 150)}</div>
+        <div class="desc" style={{ margin: '3px 0 0 18px' }}>{clip(label, 150)}</div>
       </div>
       {open ? <div style={{ margin: '5px 0 0 18px' }}><RecordDetail id={id} meta={meta} /></div> : null}
     </div>
@@ -207,7 +207,7 @@ function IncludedByItem({ inv, model, openId, setOpenId }:
         const item = idx[iid];
         const kids = critsByItem[iid] ?? [];
         return (
-          <div key={iid} style={{ margin: '0 0 14px' }}>
+          <div key={iid} class="section">
             {row(iid)}
             {kids.length ? (
               <div style={{ margin: '0 0 0 14px' }}>{kids.map(row)}</div>
@@ -219,14 +219,14 @@ function IncludedByItem({ inv, model, openId, setOpenId }:
       })}
 
       {orphanCrits.length ? (
-        <div style={{ margin: '0 0 14px' }}>
+        <div class="section">
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', margin: '0 0 5px' }}>Other criteria</div>
           {orphanCrits.map(row)}
         </div>
       ) : null}
 
       {fixtureIds.length ? (
-        <div style={{ margin: '6px 0 14px' }}>
+        <div class="section">
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', margin: '0 0 5px' }}>
             Fixtures <span class="row" style={{ fontWeight: 400 }}>· {fixtureIds.length} · interop proofs</span>
           </div>
@@ -236,11 +236,11 @@ function IncludedByItem({ inv, model, openId, setOpenId }:
 
       {/* Verifier-only: fixtures whose format MODELS the impl — audit their fidelity. */}
       {inv.projections.length ? (
-        <div style={{ margin: '6px 0 14px', border: '1px solid #14532d', borderRadius: '8px', padding: '10px 12px', background: '#0b1a12' }}>
+        <div class="section" style={{ border: '1px solid #14532d', borderRadius: '8px', padding: '10px 12px', background: '#0b1a12' }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80', margin: '0 0 4px' }}>
             Projections to audit <span class="row" style={{ fontWeight: 400 }}>· {inv.projections.length}</span>
           </div>
-          <p class="row" style={{ fontSize: '12px', margin: '0 0 8px' }}>
+          <p class="desc" style={{ margin: '0 0 8px' }}>
             Fixtures whose format <b>models</b> the implementation — the excavator's projection, not the impl's wire format.
             felag checks they are declared; <b>you</b> audit whether the model is faithful.
           </p>
@@ -258,7 +258,7 @@ function IncludedByItem({ inv, model, openId, setOpenId }:
 function ExcludedFields({ fields, who }: { fields: string[]; who: Audience }) {
   if (!fields.length) {
     return (
-      <p class="row" style={{ fontSize: '12px', margin: '8px 0 0' }}>
+      <p class="desc" style={{ margin: '8px 0 0' }}>
         Every field is visible to the {who} — nothing projected out.
       </p>
     );
@@ -350,7 +350,7 @@ function Widget() {
             {inv.excludedFields.length ? <> · <b style={{ color: '#e2e8f0' }}>{inv.excludedFields.length}</b> fields hidden</> : null}
             {inv.projections.length ? <> · <b style={{ color: '#4ade80' }}>{inv.projections.length}</b> to audit</> : null}
           </p>
-          <p class="row" style={{ fontSize: '12px', margin: '0 0 8px' }}>{meta.desc}</p>
+          <p class="desc" style={{ margin: '0 0 8px' }}>{meta.desc}</p>
           <AudienceSwitcher active={audience} onPick={pickAudience} />
           <div style={{ marginTop: '6px' }}>
             <button onClick={() => setDisplay('fullscreen')}>expand to projection →</button>
@@ -363,7 +363,7 @@ function Widget() {
             What each audience sees — switch audience to change the included set and the hidden fields. Click any record to drill into its detail.
           </p>
           <AudienceSwitcher active={audience} onPick={pickAudience} />
-          <p class="row" style={{ fontSize: '12px', margin: '0 0 12px' }}>{meta.desc}</p>
+          <p class="desc" style={{ margin: '0 0 12px' }}>{meta.desc}</p>
 
           <IncludedByItem inv={inv} model={model} openId={openId} setOpenId={setOpenId} />
 

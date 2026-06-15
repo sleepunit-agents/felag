@@ -153,10 +153,10 @@ function CountsStrip({ counts }: { counts: Record<string, number> }) {
  * board widget essentially verbatim.) */
 function History({ entries }: { entries: HistoryEntry[] }) {
   if (!entries.length) {
-    return <p class="row" style={{ fontSize: '12px', opacity: 0.7, margin: '6px 0 0' }}>No governance acts recorded.</p>;
+    return <p class="row detail-sec" style={{ fontSize: '12px', opacity: 0.7 }}>No governance acts recorded.</p>;
   }
   return (
-    <div style={{ margin: '8px 0 0' }}>
+    <div class="detail-sec">
       <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
         Governance history
       </div>
@@ -194,7 +194,7 @@ function Evidence({ records }: { records: EvidenceRecord[] }) {
     );
   }
   return (
-    <div style={{ margin: '8px 0 0' }}>
+    <div class="detail-sec">
       <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
         Evidence ({records.length})
       </div>
@@ -212,7 +212,7 @@ function Evidence({ records }: { records: EvidenceRecord[] }) {
                 padding: '0 6px', borderRadius: '6px' }}>stale hash · ignored</span>
             ) : null}
           </div>
-          <div style={{ fontSize: '12px', color: '#cbd5e1', margin: '2px 0 0', lineHeight: 1.45 }}>{r.evidence}</div>
+          <div class="desc" style={{ margin: '2px 0 0' }}>{r.evidence}</div>
           <div class="row" style={{ fontSize: '11px', opacity: 0.6 }}>{r.runner} · {r.attribution}</div>
         </div>
       ))}
@@ -229,17 +229,19 @@ function CritDetail({ c, model }: { c: EnrichedCriterion; model: VerifyModel }) 
   return (
     <div style={{ background: '#0b1220', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px 12px', margin: '2px 0 10px' }}>
       {item?.body ? (
-        <p class="row" style={{ fontSize: '12px', margin: '0 0 8px', lineHeight: 1.5 }}>{item.body}</p>
+        <p class="desc" style={{ margin: '0 0 4px' }}>{item.body}</p>
       ) : null}
 
-      <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
-        Scenario
+      <div class="detail-sec">
+        <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
+          Scenario
+        </div>
+        <pre style={{ fontFamily: 'ui-monospace, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          margin: 0, color: '#cbd5e1' }}>{c.gherkin || '(no scenario)'}</pre>
       </div>
-      <pre style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        margin: '0 0 8px', color: '#cbd5e1' }}>{c.gherkin || '(no scenario)'}</pre>
 
       {c.fixtures.length ? (
-        <div style={{ margin: '8px 0 0' }}>
+        <div class="detail-sec">
           <div class="row" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', opacity: 0.6, marginBottom: '4px' }}>
             Fixtures ({c.fixtures.length})
           </div>
@@ -286,7 +288,7 @@ function CritCard({ c, model, open, onToggle }:
           {c.itemTitle}
         </div>
         {preview ? (
-          <div style={{ fontSize: '13px', color: '#cbd5e1', margin: '2px 0 0 18px', lineHeight: 1.45 }}>{preview}</div>
+          <div class="desc" style={{ margin: '2px 0 0 18px' }}>{preview}</div>
         ) : null}
       </div>
       {open ? <div style={{ margin: '6px 0 0 18px' }}><CritDetail c={c} model={model} /></div> : null}
@@ -302,9 +304,9 @@ function ContractSection({ ct, crits, model, openId, setOpenId }:
     (a, b) => BUCKET_ORDER.indexOf(a.bucket) - BUCKET_ORDER.indexOf(b.bucket),
   );
   return (
-    <div style={{ marginBottom: '18px' }}>
+    <div class="section">
       <h2>{ct.id} <span class="row" style={{ fontWeight: 400 }}>· {passing}/{crits.length} passing</span></h2>
-      <p class="row" style={{ fontSize: '12px', margin: '0 0 10px' }}>{ct.description}</p>
+      <p class="desc" style={{ margin: '0 0 10px' }}>{ct.description}</p>
       {sorted.map((c) => (
         <CritCard key={c.id} c={c} model={model} open={openId === c.id}
           onToggle={() => setOpenId(openId === c.id ? null : c.id)} />

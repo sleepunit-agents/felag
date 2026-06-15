@@ -22,17 +22,25 @@ const STYLE = `
          line-height: 1.5; background: #0f172a; color: #e2e8f0; padding: 16px; box-sizing: border-box; }
   .card { border: 2px solid #38bdf8; border-radius: 12px; padding: 16px 18px; background: #111c33; max-width: 640px; }
   h1 { font-size: 17px; margin: 0 0 4px; color: #7dd3fc; }
-  h2 { font-size: 14px; font-weight: 600; margin: 18px 0 6px; color: #cbd5e1; }
+  h2 { font-size: 14px; font-weight: 600; margin: 30px 0 8px; color: #cbd5e1; }
   .ok { display: inline-block; background: #16a34a; color: #fff; font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 12px; margin-bottom: 10px; }
   .sub { color: #94a3b8; margin: 0 0 12px; }
+  /* Shared legibility tokens — own the values here so all six widgets inherit one fix.
+     .desc: readable prose (criterion/item/section descriptions); was 12-13px inline.
+     .detail-sec: breathing room between expanded-detail sub-sections (scenario / fixtures / history).
+     .section: gap below a top-level section block (pairs with the h2 top margin above). */
+  .desc { font-size: 14px; line-height: 1.55; color: #cbd5e1; }
+  .detail-sec { margin-top: 24px; }
+  .detail-sec:first-child { margin-top: 0; }
+  .section { margin-bottom: 30px; }
   button { font: inherit; padding: 7px 13px; border-radius: 8px; cursor: pointer; border: 1px solid #38bdf8; background: #1e3a5f; color: #e2e8f0; margin: 0 6px 6px 0; }
   button:hover { background: #25496f; }
   button[disabled] { opacity: .4; cursor: not-allowed; }
   .status { margin: 12px 0 6px; font-weight: 600; color: #fbbf24; }
   .row { color: #94a3b8; }
   .row b { color: #e2e8f0; }
-  pre { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word;
-        max-height: 240px; overflow: auto; padding: 10px; border-radius: 8px; background: #0b1220; color: #94a3b8; border: 1px solid #1e293b; margin: 8px 0 0; }
+  pre { font-family: ui-monospace, monospace; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+        max-height: 280px; overflow: auto; padding: 10px; border-radius: 8px; background: #0b1220; color: #94a3b8; border: 1px solid #1e293b; margin: 8px 0 0; }
 `;
 
 function shell(body) {
