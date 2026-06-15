@@ -51,8 +51,14 @@ ${body}
 }
 
 /** Bodies per widget. Preact widgets render into #root. */
+const ROOT = `  <div id="root"></div>`;
 const BODIES = {
-  board: `  <div id="root"></div>`,
+  board: ROOT,
+  audit: ROOT,
+  'review-queue': ROOT,
+  verify: ROOT,
+  render: ROOT,
+  lint: ROOT,
 };
 
 async function buildWidget(name, srcRel) {
@@ -78,3 +84,8 @@ async function buildWidget(name, srcRel) {
 }
 
 await buildWidget('board', 'widgets/board.widget.tsx');
+await buildWidget('audit', 'widgets/audit.widget.tsx');
+await buildWidget('review-queue', 'widgets/review-queue.widget.tsx');
+await buildWidget('verify', 'widgets/verify.widget.tsx');
+await buildWidget('render', 'widgets/render.widget.tsx');
+await buildWidget('lint', 'widgets/lint.widget.tsx');

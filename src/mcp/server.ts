@@ -8,19 +8,11 @@
 // and (3) marshal the result envelope into MCP content. All semantics live in
 // mcpDispatch.
 
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  registerAppResource,
-  registerAppTool,
-  RESOURCE_MIME_TYPE,
-} from "@modelcontextprotocol/ext-apps/server";
 import { z, type ZodRawShape } from "zod";
 import { mcpDispatch, type FsSnapshot } from "./dispatch.js";
-import { parse } from "../canonical.js";
-import { computeStatus } from "../status.js";
+import { registerWidgets } from "./widgets/index.js";
 
 const SPEC_FILES = ["spec.jsonl", "fixtures.jsonl"];
 
@@ -83,85 +75,24 @@ const TOOLS: ToolDef[] = [
 
 // ---- MCP-App widgets (env-gated: FELAG_WIDGETS) ----
 //
-// The "board" widget renders felag's own StatusModel — felag spec'ing itself.
-// This is TRANSPORT/PRESENTATION, off the default surface (so it can't disturb
-// existing tests/smoke): the widget tool + ui:// resource register only when
-// process.env.FELAG_WIDGETS is set. The bundled HTML rides in the resource,
-// never through model context; structuredContent carries the StatusModel.
-
-/** Walk up from this module until a dir holding both spec/felag-core and the
- * dist/widgets bundle is found — robust to running from src (tsx) or dist. */
-function resolveRepoRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, "spec", "felag-core", "spec.jsonl"))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
-
-/** felag's own status: felag-core spec ⋈ the felag-ts conformance records. If
- * the verification records are absent, fall back to a spec-only (unverified)
- * view — computeStatus accepts no records and derives "unverified". */
-function boardModel(): Record<string, unknown> {
-  const root = resolveRepoRoot();
-  const spec = parse(readFileSync(join(root, "spec", "felag-core", "spec.jsonl"), "utf8"));
-  const recPath = join(root, "verification", "felag-ts.records.jsonl");
-  const records = existsSync(recPath)
-    ? (parse(readFileSync(recPath, "utf8")) as never[])
-    : undefined;
-  return computeStatus(spec, {
-    records,
-    implementation: "felag-ts",
-    asOf: new Date().toISOString(),
-  }) as unknown as Record<string, unknown>;
-}
-
-/** Register the felag_board MCP-App tool + its ui://felag/board resource. */
-function registerBoardWidget(server: McpServer): void {
-  const html = readFileSync(
-    join(resolveRepoRoot(), "dist", "widgets", "board.html"),
-    "utf-8",
-  );
-  const uri = "ui://felag/board";
-  const description =
-    "Show the felag board — felag's own spec joined to its conformance, as a widget. " +
-    "Inline = the spec name + verdict + counts strip; expand to fullscreen for the full board (criterion cards per contract).";
-  registerAppResource(
-    server,
-    "felag_board-ui",
-    uri,
-    { description },
-    async (u: URL) => ({
-      contents: [{ uri: u.href, mimeType: RESOURCE_MIME_TYPE, text: html }],
-    }),
-  );
-  registerAppTool(
-    server,
-    "felag_board",
-    {
-      description,
-      inputSchema: {},
-      _meta: { ui: { resourceUri: uri, visibility: ["model", "app"] } },
-    },
-    async () => ({
-      content: [{ type: "text" as const, text: "felag_board — see the rendered board widget." }],
-      structuredContent: boardModel(),
-    }),
-  );
-}
+// Each felag touch point has a live widget — the board (felag spec'ing itself),
+// plus audit / review-queue / verify / render / lint. These are
+// TRANSPORT/PRESENTATION, off the default surface (so they can't disturb
+// existing tests/smoke): the widget tools + ui:// resources register only when
+// process.env.FELAG_WIDGETS is set. Each widget is a self-contained module under
+// ./widgets built on ./widgets/shared.ts (repo-root resolution, the felag-core
+// loaders, governance history, the generic registrar). The bundled HTML rides in
+// the resource, never through model context; structuredContent carries the model.
 
 /** Construct the felag MCP server with the twelve contracted verb tools plus the
  * felag_status presentation tool registered. The handler for every tool is the
  * same shape: snapshot the specDir, default the clock, dispatch, marshal.
- * When FELAG_WIDGETS is set, the env-gated felag_board MCP-App widget is also
- * registered (off the default surface otherwise). */
+ * When FELAG_WIDGETS is set, the env-gated MCP-App widgets are also registered
+ * (off the default surface otherwise). */
 export function createServer(): McpServer {
   const server = new McpServer({ name: "felag-mcp", version: "0.1.0" });
 
-  if (process.env.FELAG_WIDGETS) registerBoardWidget(server);
+  if (process.env.FELAG_WIDGETS) registerWidgets(server);
 
   for (const tool of TOOLS) {
     server.registerTool(
