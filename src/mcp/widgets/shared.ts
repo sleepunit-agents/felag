@@ -6,8 +6,9 @@
 // (1) bundles a Preact view into dist/widgets/<name>.html (build-widgets.mjs)
 // and (2) registers a ui:// resource + a tool whose structuredContent carries
 // the view's model. This module is the common floor every widget builds on:
-// repo-root resolution, the felag-core spec/fixtures/items loaders, the
-// governance-history reader, and the generic registrar.
+// repo-root resolution, the governance-history reader, and the generic
+// registrar. Per-project spec/fixtures/items/records loading lives in
+// projects.ts (resolveProject).
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,7 +19,7 @@ import {
   registerAppTool,
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
-import { parse } from "../../canonical.js";
+import { z, type ZodRawShape } from "zod";
 
 /** Walk up from this module until a dir holding the felag-core spec (and, in a
  * built tree, the dist/widgets bundle) is found — robust to running from src
@@ -32,44 +33,6 @@ export function resolveRepoRoot(): string {
     dir = parent;
   }
   return process.cwd();
-}
-
-/** Path to a file under the felag-core interchange dir. */
-export function corePath(...parts: string[]): string {
-  return join(resolveRepoRoot(), "spec", "felag-core", ...parts);
-}
-
-/** Parse felag-core's spec.jsonl (preamble + items + criteria). */
-export function coreSpec(): Record<string, unknown>[] {
-  return parse(readFileSync(corePath("spec.jsonl"), "utf8")) as unknown as Record<string, unknown>[];
-}
-
-/** Parse felag-core's fixtures.jsonl, keyed by id → {description, format}. */
-export function coreFixtures(): Record<string, { description: string; format: string }> {
-  const out: Record<string, { description: string; format: string }> = {};
-  const p = corePath("fixtures.jsonl");
-  if (!existsSync(p)) return out;
-  for (const rec of parse(readFileSync(p, "utf8")) as { record: string; id?: string; description?: string; format?: string }[]) {
-    if (rec.record === "fixture" && rec.id) out[rec.id] = { description: rec.description ?? "", format: rec.format ?? "" };
-  }
-  return out;
-}
-
-/** felag-core's items keyed by id → {title, body} — the human "what" each
- * criterion belongs to. */
-export function coreItems(): Record<string, { title: string; body: string }> {
-  const out: Record<string, { title: string; body: string }> = {};
-  for (const rec of coreSpec() as { record: string; id?: string; title?: string; body?: string }[]) {
-    if (rec.record === "item" && rec.id) out[rec.id] = { title: rec.title ?? rec.id, body: rec.body ?? "" };
-  }
-  return out;
-}
-
-/** felag-core's verification records (felag-ts conformance ledger), or undefined
- * if the ledger is absent — callers then derive an unverified view. */
-export function coreRecords(): unknown[] | undefined {
-  const p = join(resolveRepoRoot(), "verification", "felag-ts.records.jsonl");
-  return existsSync(p) ? (parse(readFileSync(p, "utf8")) as unknown[]) : undefined;
 }
 
 export interface HistoryEntry {
@@ -86,15 +49,14 @@ export interface HistoryEntry {
  * transition (who requested what state, with whose acks) to its result (was it
  * ratified / lapsed / disputed) and group by criterion, oldest first. This is
  * the "review historical info" surface: a criterion's whole lifecycle. */
-export function governanceHistory(root: string = resolveRepoRoot()): Record<string, HistoryEntry[]> {
-  const dir = join(root, "governance");
-  if (!existsSync(dir)) return {};
+export function governanceHistory(govDir: string): Record<string, HistoryEntry[]> {
+  if (!existsSync(govDir)) return {};
   const out: Record<string, HistoryEntry[]> = {};
-  for (const f of readdirSync(dir)) {
+  for (const f of readdirSync(govDir)) {
     if (!f.endsWith(".transition.json")) continue;
     try {
-      const t = JSON.parse(readFileSync(join(dir, f), "utf8"));
-      const rPath = join(dir, f.replace(/\.transition\.json$/, ".result.json"));
+      const t = JSON.parse(readFileSync(join(govDir, f), "utf8"));
+      const rPath = join(govDir, f.replace(/\.transition\.json$/, ".result.json"));
       const r = existsSync(rPath) ? JSON.parse(readFileSync(rPath, "utf8")) : {};
       const id: string = t.criterionId;
       if (!id) continue;
@@ -124,10 +86,23 @@ export interface WidgetSpec {
   uri: string;         // ui:// resource uri, e.g. "ui://felag/audit"
   htmlFile: string;    // bundle under dist/widgets/, e.g. "audit.html"
   description: string; // shown to the model + as the resource description
-  /** Build the structuredContent the widget renders. Called per tool invocation
-   * so a refresh re-reads disk. Throwing yields an error envelope, not a crash. */
-  structured: () => Record<string, unknown>;
+  /** Tool inputSchema. Defaults to the project selector (an optional `project`
+   * name) — the override that lets a widget look at any registered project. */
+  inputSchema?: ZodRawShape;
+  /** Build the structuredContent the widget renders, given the call's arguments
+   * (e.g. `{ project }`). Called per tool invocation so a refresh re-reads disk.
+   * Throwing is caught and surfaced as an error envelope, not a crash. */
+  structured: (args: Record<string, unknown>) => Record<string, unknown>;
 }
+
+/** The default widget input: an optional project override. Omitted → the active
+ * project (default felag-core), so existing zero-arg calls are unchanged. */
+const PROJECT_INPUT: ZodRawShape = {
+  project: z
+    .string()
+    .optional()
+    .describe("project name to view; omit for the active project (default felag-core)"),
+};
 
 /** Register one MCP-App widget: its ui:// resource (carrying the bundled HTML)
  * and its tool (whose structuredContent carries the model). The HTML bundle is
@@ -148,12 +123,22 @@ export function registerWidget(server: McpServer, w: WidgetSpec): void {
     w.tool,
     {
       description: w.description,
-      inputSchema: {},
+      inputSchema: w.inputSchema ?? PROJECT_INPUT,
       _meta: { ui: { resourceUri: w.uri, visibility: ["model", "app"] } },
     },
-    async () => ({
-      content: [{ type: "text" as const, text: `${w.tool} — see the rendered widget.` }],
-      structuredContent: w.structured(),
-    }),
+    async (args: Record<string, unknown>) => {
+      try {
+        return {
+          content: [{ type: "text" as const, text: `${w.tool} — see the rendered widget.` }],
+          structuredContent: w.structured(args ?? {}),
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return {
+          content: [{ type: "text" as const, text: `${w.tool} error: ${msg}` }],
+          structuredContent: { error: msg },
+        };
+      }
+    },
   );
 }

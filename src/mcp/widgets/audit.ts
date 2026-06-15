@@ -18,21 +18,16 @@ import type {
   SpecRecord,
   VerificationRecord,
 } from "../../records.js";
-import {
-  coreFixtures,
-  coreItems,
-  coreRecords,
-  coreSpec,
-  governanceHistory,
-  registerWidget,
-} from "./shared.js";
+import { registerWidget } from "./shared.js";
+import { resolveProject } from "./projects.js";
 
-function auditModel(): Record<string, unknown> {
-  const spec = coreSpec();
-  const records = (coreRecords() ?? []) as VerificationRecord[];
+function auditModel(args: Record<string, unknown>): Record<string, unknown> {
+  const p = resolveProject(args.project as string | undefined);
+  const spec = p.spec;
+  const records = (p.records ?? []) as VerificationRecord[];
   const result = audit({
     asOf: new Date().toISOString(),
-    implementation: "felag-ts",
+    implementation: p.implementation,
     records,
     spec: spec as unknown as SpecRecord[],
     waivers: [],
@@ -65,9 +60,10 @@ function auditModel(): Record<string, unknown> {
   return {
     report: result.report,
     proposals,
-    items: coreItems(),
-    fixtures: coreFixtures(),
-    history: governanceHistory(),
+    project: p.name,
+    items: p.items,
+    fixtures: p.fixtures,
+    history: p.history,
   } as unknown as Record<string, unknown>;
 }
 

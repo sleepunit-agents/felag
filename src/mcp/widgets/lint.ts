@@ -16,8 +16,6 @@
 // affirms the clean bill of health richly. See widgets/lint.widget.tsx.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { readFileSync } from "node:fs";
-import { parse } from "../../canonical.js";
 import { lint } from "../../lint.js";
 import type {
   Criterion,
@@ -26,14 +24,8 @@ import type {
   Preamble,
   SpecRecord,
 } from "../../records.js";
-import {
-  coreFixtures,
-  coreItems,
-  coreSpec,
-  corePath,
-  governanceHistory,
-  registerWidget,
-} from "./shared.js";
+import { registerWidget } from "./shared.js";
+import { resolveProject } from "./projects.js";
 
 // The lint codebook, as humans. Each code → what it MEANS (one line) and how to
 // FIX it. Ported from src/lint.ts's semantics + the felag-lint skill prose, so a
@@ -127,25 +119,12 @@ function orphanIds(spec: SpecRecord[]): string[] {
   return [...new Set(ids)].sort();
 }
 
-/** Parse felag-core's fixtures.jsonl as raw Fixture records — needed so lint
- * SEES the fixtures (coreSpec() reads spec.jsonl alone, which holds none). This
- * mirrors resolveSpec's spec.jsonl + fixtures.jsonl concatenation. */
-function coreFixtureRecords(): Fixture[] {
-  try {
-    return (parse(readFileSync(corePath("fixtures.jsonl"), "utf8")) as unknown as Fixture[]).filter(
-      (r) => r.record === "fixture",
-    );
-  } catch {
-    return [];
-  }
-}
-
-function lintModel(): Record<string, unknown> {
-  const specRecords = coreSpec() as unknown as SpecRecord[];
-  const fixtureRecords = coreFixtureRecords();
-  // The FULL spec lint must see: preamble + items + criteria (spec.jsonl) AND the
-  // fixtures (fixtures.jsonl). Concatenate exactly as resolveSpec does.
-  const spec: SpecRecord[] = [...specRecords, ...fixtureRecords];
+function lintModel(args: Record<string, unknown>): Record<string, unknown> {
+  const p = resolveProject(args.project as string | undefined);
+  // lint MUST see the full spec — preamble + items + criteria (spec.jsonl) AND
+  // the fixtures (fixtures.jsonl) — or it flags every reference E_UNKNOWN_FIXTURE.
+  // resolveProject.fullSpec is that concatenation (resolveSpec parity).
+  const spec: SpecRecord[] = p.fullSpec;
 
   const result = lint(spec);
   const orphans = orphanIds(spec);
@@ -236,15 +215,16 @@ function lintModel(): Record<string, unknown> {
   };
 
   return {
-    spec: preamble?.name ?? "felag-core",
+    project: p.name,
+    spec: preamble?.name ?? p.name,
     version: preamble?.conformanceVersion ?? "",
     result, // { valid, errors }
     errorsEnriched,
     orphansEnriched,
     stats,
-    items: coreItems(),
-    fixtures: coreFixtures(),
-    history: governanceHistory(),
+    items: p.items,
+    fixtures: p.fixtures,
+    history: p.history,
   } as unknown as Record<string, unknown>;
 }
 

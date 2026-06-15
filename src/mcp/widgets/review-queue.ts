@@ -17,15 +17,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { computeStatus } from "../../status.js";
 import type { CritView } from "../../status.js";
 import type { SpecRecord, VerificationRecord } from "../../records.js";
-import {
-  coreFixtures,
-  coreItems,
-  coreRecords,
-  coreSpec,
-  governanceHistory,
-  registerWidget,
-} from "./shared.js";
+import { registerWidget } from "./shared.js";
 import type { HistoryEntry } from "./shared.js";
+import { resolveProject } from "./projects.js";
 
 /** A flattened governance act, enriched with the human "what" so the ledger
  * reads without cross-referencing: the criterion's parent item title + the
@@ -36,12 +30,13 @@ interface RecentAct extends HistoryEntry {
   itemTitle?: string;
 }
 
-function reviewQueueModel(): Record<string, unknown> {
-  const spec = coreSpec();
-  const records = coreRecords() as VerificationRecord[] | undefined;
+function reviewQueueModel(args: Record<string, unknown>): Record<string, unknown> {
+  const p = resolveProject(args.project as string | undefined);
+  const spec = p.spec;
+  const records = p.records as VerificationRecord[] | undefined;
   const model = computeStatus(spec as unknown as SpecRecord[], {
     records,
-    implementation: "felag-ts",
+    implementation: p.implementation,
     asOf: new Date().toISOString(),
   });
 
@@ -51,8 +46,8 @@ function reviewQueueModel(): Record<string, unknown> {
     .flatMap((ct) => ct.criteria)
     .filter((c) => c.status === "proposed" || c.status === "disputed");
 
-  const items = coreItems();
-  const history = governanceHistory();
+  const items = p.items;
+  const history = p.history;
 
   // Flatten the per-criterion histories into one ledger, enrich with the parent
   // item title, sort newest-first, cap at 20. Built server-side so the empty
@@ -79,9 +74,10 @@ function reviewQueueModel(): Record<string, unknown> {
   return {
     name: model.name,
     version: model.version,
+    project: p.name,
     pending,
     items,
-    fixtures: coreFixtures(),
+    fixtures: p.fixtures,
     history,
     recent,
   } as unknown as Record<string, unknown>;

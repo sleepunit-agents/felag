@@ -12,6 +12,7 @@ import { registerReviewQueueWidget } from "./review-queue.js";
 import { registerVerifyWidget } from "./verify.js";
 import { registerRenderWidget } from "./render.js";
 import { registerLintWidget } from "./lint.js";
+import { registerProjectTools } from "./project-tools.js";
 
 export function registerWidgets(server: McpServer): void {
   registerBoardWidget(server);
@@ -20,4 +21,5 @@ export function registerWidgets(server: McpServer): void {
   registerVerifyWidget(server);
   registerRenderWidget(server);
   registerLintWidget(server);
+  registerProjectTools(server);
 }

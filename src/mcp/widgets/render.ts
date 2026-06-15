@@ -16,12 +16,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { renderInventory } from "../../author.js";
 import type { Criterion, Fixture, Item, SpecRecord } from "../../records.js";
-import {
-  coreFixtures,
-  coreItems,
-  coreSpec,
-  registerWidget,
-} from "./shared.js";
+import { registerWidget } from "./shared.js";
+import { resolveProject } from "./projects.js";
 
 const AUDIENCES = ["stakeholder", "developer", "verifier"] as const;
 
@@ -40,8 +36,9 @@ interface RecordMeta {
   projection?: string; // fixture projection note (models-the-impl), if any
 }
 
-function renderModel(): Record<string, unknown> {
-  const spec = coreSpec();
+function renderModel(args: Record<string, unknown>): Record<string, unknown> {
+  const p = resolveProject(args.project as string | undefined);
+  const spec = p.spec;
 
   // All three audiences, computed once — the view toggles instantly.
   const audiences = AUDIENCES.map((a) => {
@@ -82,11 +79,12 @@ function renderModel(): Record<string, unknown> {
   }
 
   return {
-    spec: "felag-core",
+    project: p.name,
+    spec: p.name,
     audiences,
     recordIndex,
-    items: coreItems(),
-    fixtures: coreFixtures(),
+    items: p.items,
+    fixtures: p.fixtures,
   } as unknown as Record<string, unknown>;
 }
 

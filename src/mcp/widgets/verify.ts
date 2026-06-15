@@ -26,14 +26,8 @@ import type {
   VerificationRecord,
 } from "../../records.js";
 import { verify } from "../../verify.js";
-import {
-  coreFixtures,
-  coreItems,
-  coreRecords,
-  coreSpec,
-  governanceHistory,
-  registerWidget,
-} from "./shared.js";
+import { registerWidget } from "./shared.js";
+import { resolveProject } from "./projects.js";
 
 /** One VerificationRecord, trimmed to the fields the view shows as evidence. */
 interface EvidenceRecord {
@@ -74,11 +68,12 @@ function gates(c: Criterion, declared: Set<string>, implementation: string): boo
   return false;
 }
 
-function verifyModel(): Record<string, unknown> {
-  const spec = coreSpec() as unknown as SpecRecord[];
-  const records = (coreRecords() ?? []) as VerificationRecord[];
+function verifyModel(args: Record<string, unknown>): Record<string, unknown> {
+  const p = resolveProject(args.project as string | undefined);
+  const spec = p.spec as unknown as SpecRecord[];
+  const records = (p.records ?? []) as VerificationRecord[];
   const asOf = new Date().toISOString();
-  const implementation = "felag-ts";
+  const implementation = p.implementation;
 
   const report = verify({
     asOf,
@@ -94,8 +89,8 @@ function verifyModel(): Record<string, unknown> {
   const contractDesc: Record<string, string> = {};
   for (const c of preamble?.contracts ?? []) contractDesc[c.id] = c.description;
 
-  const items = coreItems();
-  const fixtures = coreFixtures();
+  const items = p.items;
+  const fixtures = p.fixtures;
   const criteria = spec.filter((r): r is Criterion => r.record === "criterion");
   const fixturesById = new Map(
     spec.filter((r): r is Fixture => r.record === "fixture").map((f) => [f.id, f]),
@@ -194,7 +189,8 @@ function verifyModel(): Record<string, unknown> {
     },
     items,
     fixtures,
-    history: governanceHistory(),
+    history: p.history,
+    project: p.name,
   } as unknown as Record<string, unknown>;
 }
 
