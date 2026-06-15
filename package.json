@@ -12,7 +12,7 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/build-widgets.mjs",
     "test": "vitest run",
     "self-verify": "tsx scripts/self-verify.ts",
     "smoke": "tsx scripts/smoke-mcp.ts",
@@ -20,11 +20,14 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "preact": "^10.29.2"
   }
 }
