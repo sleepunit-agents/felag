@@ -69,12 +69,13 @@ interface RegistryFile {
   projects: Record<string, ProjectEntry>; // non-builtin only
 }
 
-const CONFIG_DIR = join(
-  process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"),
-  "felag",
-);
-const REGISTRY_PATH = join(CONFIG_DIR, "projects.json");
-const PROJECTS_ROOT = join(CONFIG_DIR, "projects"); // scaffolded specs live here
+// Config paths are read lazily (functions, not module-load consts) so the
+// XDG_CONFIG_HOME can be set before use — e.g. tests pointing at a temp registry.
+function configDir(): string {
+  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "felag");
+}
+const registryPath = (): string => join(configDir(), "projects.json");
+const projectsRoot = (): string => join(configDir(), "projects"); // scaffolded specs live here
 
 // Known conformance ledgers for felag's own builtin specs (spec name →
 // verification/<file> + the implementation it attributes to). Specs without an
@@ -123,9 +124,9 @@ function builtinEntries(): Record<string, ProjectEntry> {
 }
 
 function readRegistry(): RegistryFile {
-  if (existsSync(REGISTRY_PATH)) {
+  if (existsSync(registryPath())) {
     try {
-      const r = JSON.parse(readFileSync(REGISTRY_PATH, "utf8"));
+      const r = JSON.parse(readFileSync(registryPath(), "utf8"));
       return {
         active: typeof r.active === "string" ? r.active : BUILTIN,
         projects:
@@ -139,8 +140,8 @@ function readRegistry(): RegistryFile {
 }
 
 function writeRegistry(r: RegistryFile): void {
-  mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(REGISTRY_PATH, JSON.stringify(r, null, 2));
+  mkdirSync(configDir(), { recursive: true });
+  writeFileSync(registryPath(), JSON.stringify(r, null, 2));
 }
 
 /** Every project: registered (disk) + felag's own builtin specs, the builtins
@@ -373,7 +374,7 @@ export function createProject(
     }
     dir = specDir; // adopt in place
   } else {
-    dir = join(PROJECTS_ROOT, name);
+    dir = join(projectsRoot(), name);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "spec.jsonl"), scaffoldPreamble(name, requires));
     writeFileSync(join(dir, "fixtures.jsonl"), SCAFFOLD_FIXTURES);
