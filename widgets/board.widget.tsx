@@ -36,6 +36,13 @@ interface HistoryEntry {
   at: string; to: string; requestedBy: string; accepted: boolean; outcome: string;
   acks: { implementer: string; decision: string }[];
 }
+interface ProductMember {
+  spec: string;
+  version: string;
+  verdict: string; // conforms | drifts | unverified
+  description: string;
+  role: 'product' | 'module';
+}
 interface StatusModel {
   name: string;
   version: string;
@@ -46,6 +53,14 @@ interface StatusModel {
   items?: Record<string, { title: string; body: string }>;
   fixtures?: Record<string, { description: string; format: string }>;
   history?: Record<string, HistoryEntry[]>;
+  // Composition (Phase 5): when this spec `requires` others, it's a product —
+  // `members` are its immediate pieces (each with its resolved verdict), and the
+  // board shows a product tier above (or instead of) the root's own contracts.
+  project?: string;
+  members?: ProductMember[];
+  isProduct?: boolean;
+  productVerdict?: string; // rolled up over the closure
+  closureErrors?: { code: string; spec: string; detail: string }[];
 }
 
 // Pill color per derived status. conforming=green; drifting/blocked=amber/red;
@@ -66,7 +81,8 @@ const STATUS_ORDER: string[] = [
 ];
 
 const VERDICT_COLOR: Record<string, string> = {
-  conforms: '#16a34a', 'conforms-with-waivers': '#a78bfa', drifts: '#f87171', unverified: '#64748b',
+  conforms: '#16a34a', 'conforms-with-waivers': '#a78bfa', drifts: '#f87171',
+  unverified: '#64748b', incomplete: '#f87171',
 };
 
 const app = new App({ name: 'felag-board', version: '1.0.0' });
@@ -249,15 +265,63 @@ function ContractSection({ ct, model, openId, setOpenId }:
   );
 }
 
+/** One member of a product — a required spec, shown by name@version + its
+ * rolled-up verdict + description. Clicking drills into that member's own board
+ * (which may itself be a product). This is the recursive tier. */
+function MemberCard({ m, onDrill }: { m: ProductMember; onDrill: () => void }) {
+  const c = VERDICT_COLOR[m.verdict] ?? '#64748b';
+  return (
+    <div onClick={onDrill} style={{ cursor: 'pointer', borderLeft: `3px solid ${c}`, padding: '8px 0 8px 12px', margin: '0 0 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: '14px' }}>{m.spec}</span>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '12px', color: '#7dd3fc' }}>@{m.version}</span>
+        <span style={{ background: c, color: '#0b1220', fontWeight: 700, fontSize: '11px', padding: '1px 8px', borderRadius: '999px' }}>{m.verdict}</span>
+        {m.role === 'product' ? (
+          <span style={{ border: '1px solid #334155', color: '#94a3b8', fontWeight: 600, fontSize: '10px', padding: '1px 6px', borderRadius: '6px' }}>product</span>
+        ) : null}
+        <span class="row" style={{ fontSize: '11px', opacity: 0.5 }}>→ drill in</span>
+      </div>
+      {m.description ? <div class="desc" style={{ margin: '3px 0 0' }}>{m.description}</div> : null}
+    </div>
+  );
+}
+
+/** The product tier — a product's immediate `requires`, each a drillable member.
+ * The product conforms only when every piece does. */
+function ProductTier({ model, onDrill }: { model: StatusModel; onDrill: (spec: string) => void }) {
+  const n = model.members?.length ?? 0;
+  return (
+    <div class="section">
+      <h2>Composed of <span class="row" style={{ fontWeight: 400 }}>· {n} {n === 1 ? 'piece' : 'pieces'}</span></h2>
+      <p class="desc" style={{ margin: '0 0 12px' }}>
+        This product requires these specs at pinned versions — drill into any to see its board. The product conforms only when every piece does.
+      </p>
+      {model.members?.map((m) => <MemberCard key={m.spec} m={m} onDrill={() => onDrill(m.spec)} />)}
+      {model.closureErrors?.length ? (
+        <p class="row" style={{ color: '#f87171', fontSize: '12px', marginTop: '8px' }}>
+          ⚠ {model.closureErrors.map((e) => `${e.code}: ${e.detail}`).join('; ')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function Widget() {
   const [model, setModel] = useState<StatusModel | null>(null);
   const [mode, setMode] = useState<string>('inline');
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Drill navigation: the stack of project names visited (product → member → …),
+  // so "← back" returns to the parent product.
+  const [nav, setNav] = useState<string[]>([]);
 
   useEffect(() => {
     app.ontoolresult = (r: { structuredContent?: unknown }) => {
-      if (r.structuredContent) setModel(r.structuredContent as StatusModel);
+      const sc = r.structuredContent as StatusModel | undefined;
+      if (sc) {
+        setModel(sc);
+        setNav((prev) => (prev.length ? prev : [sc.project ?? sc.name]));
+      }
     };
     app.onhostcontextchanged = () => setMode((app.getHostContext() as { displayMode?: string }).displayMode ?? 'inline');
     app.connect().then(() => setMode((app.getHostContext() as { displayMode?: string }).displayMode ?? 'inline'));
@@ -266,29 +330,54 @@ function Widget() {
   async function setDisplay(m: 'inline' | 'fullscreen') {
     try { await app.requestDisplayMode({ mode: m }); } catch { /* host may refuse */ }
   }
-  async function refresh() {
+  async function fetchProject(project?: string) {
     setBusy(true);
+    setOpenId(null);
     try {
-      const r = (await app.callServerTool({ name: 'felag_board', arguments: {} })) as { structuredContent?: unknown };
+      const r = (await app.callServerTool({
+        name: 'felag_board',
+        arguments: project ? { project } : {},
+      })) as { structuredContent?: unknown };
       if (r.structuredContent) setModel(r.structuredContent as StatusModel);
     } finally { setBusy(false); }
   }
+  const refresh = () => fetchProject(model?.project);
+  const drill = (spec: string) => { setNav((n) => [...n, spec]); fetchProject(spec); };
+  const back = () => {
+    const n = nav.slice(0, -1);
+    setNav(n);
+    fetchProject(n[n.length - 1]);
+  };
 
   if (!model) return <div class="card"><h1>🪢 felag board</h1><p class="status">loading the board…</p></div>;
 
   const full = mode === 'fullscreen';
+  const isProduct = !!model.isProduct;
+  const headline = isProduct ? (model.productVerdict ?? model.verdict) : model.verdict;
+  const canBack = nav.length > 1;
 
   return (
     <div class="card" style={full ? { maxWidth: 'none' } : {}}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px' }}>
         <h1>🪢 {model.name} <span class="row" style={{ fontSize: '13px' }}>{model.version}</span></h1>
-        <VerdictPill verdict={model.verdict} />
+        <VerdictPill verdict={headline} />
       </div>
+      {canBack ? (
+        <p class="row" style={{ fontSize: '12px', margin: '2px 0 0' }}>
+          <span style={{ cursor: 'pointer', color: '#7dd3fc' }} onClick={back}>← {nav[nav.length - 2]}</span>
+          <span style={{ opacity: 0.5 }}> / {model.name}</span>
+        </p>
+      ) : null}
 
       {!full ? (
         <div>
           <p class="sub" style={{ margin: '8px 0 6px' }}>
-            <CountsStrip counts={model.counts} />
+            {isProduct ? (
+              <span class="row"><b>{model.members?.length}</b> pieces · rolled up{' '}
+                <b style={{ color: VERDICT_COLOR[headline] ?? '#94a3b8' }}>{headline}</b></span>
+            ) : (
+              <CountsStrip counts={model.counts} />
+            )}
           </p>
           <div style={{ marginTop: '12px' }}>
             <button onClick={() => setDisplay('fullscreen')}>expand to board →</button>
@@ -297,14 +386,34 @@ function Widget() {
         </div>
       ) : (
         <div>
-          <p class="sub" style={{ margin: '8px 0 10px' }}>
-            The spec as a board — criteria grouped by item, each card its readable scenario; click a card for its fixtures + governance history.{' '}
-            <CountsStrip counts={model.counts} />
-          </p>
-          {model.contracts.map((ct) => (
-            <ContractSection key={ct.id} ct={ct} model={model} openId={openId} setOpenId={setOpenId} />
-          ))}
+          {isProduct ? (
+            <>
+              <p class="sub" style={{ margin: '8px 0 10px' }}>
+                {model.name} as a product — its required pieces, each drillable into its own board.
+              </p>
+              <ProductTier model={model} onDrill={drill} />
+              {model.contracts.length ? (
+                <div>
+                  <h2>Own contracts <span class="row" style={{ fontWeight: 400 }}>· this spec's direct criteria</span></h2>
+                  {model.contracts.map((ct) => (
+                    <ContractSection key={ct.id} ct={ct} model={model} openId={openId} setOpenId={setOpenId} />
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p class="sub" style={{ margin: '8px 0 10px' }}>
+                The spec as a board — criteria grouped by item, each card its readable scenario; click a card for its fixtures + governance history.{' '}
+                <CountsStrip counts={model.counts} />
+              </p>
+              {model.contracts.map((ct) => (
+                <ContractSection key={ct.id} ct={ct} model={model} openId={openId} setOpenId={setOpenId} />
+              ))}
+            </>
+          )}
           <div style={{ position: 'sticky', bottom: 0, paddingTop: '8px', background: '#111c33' }}>
+            {canBack ? <button onClick={back}>← back</button> : null}
             <button onClick={() => setDisplay('inline')}>← collapse</button>
             <button onClick={refresh} disabled={busy}>{busy ? '…' : 'refresh'}</button>
           </div>
