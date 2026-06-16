@@ -26,6 +26,15 @@ import type {
   SpecRecord,
   VerificationRecord,
 } from "../../records.js";
+import { computeStatus } from "../../status.js";
+import {
+  resolveClosure,
+  verifyClosure,
+  type ClosureError,
+  type Locate,
+  type MemberVerdict,
+  type VerifyOne,
+} from "../../compose.js";
 import {
   governanceHistory,
   resolveRepoRoot,
@@ -46,6 +55,11 @@ export interface ProjectEntry {
   /** Governance dir (holds <date>-<critId>.{transition,result}.json). Default
    * <specDir>/governance. */
   governance?: string;
+  /** A positional *label* (not a hard type): "product" = a spec you ship at a
+   * closure root; "module" = a spec something requires. Absent ⇒ derived (a spec
+   * whose preamble carries `requires` reads as a product). Promotion/demotion is
+   * free — it's just a hint for the UI. */
+  role?: "product" | "module";
 }
 
 interface RegistryFile {
@@ -128,6 +142,127 @@ export function currentProject(): ProjectInfo {
   const r = readRegistry();
   const name = activeName(r);
   return { name, ...allEntries(r)[name], active: true };
+}
+
+// ---- composition: resolve a project's `requires` closure through the registry ----
+//
+// The pure resolver in compose.ts is fed by the registry here: every registered
+// spec is indexed by (name, version) so a product's `requires` edges locate
+// their members, and each member's registered conformance ledger supplies its
+// verdict for the roll-up.
+
+interface IndexedSpec {
+  key: string; // registry key
+  entry: ProjectEntry;
+  specName: string; // preamble.name
+  version: string; // preamble.conformanceVersion
+  records: SpecRecord[]; // the spec's records (spec.jsonl)
+}
+
+/** Parse every registered project's spec.jsonl once, indexed for closure
+ * resolution. Unreadable specs are skipped (they simply won't resolve). */
+function indexSpecs(): IndexedSpec[] {
+  const out: IndexedSpec[] = [];
+  for (const [key, entry] of Object.entries(allEntries())) {
+    try {
+      const records = parse(
+        readFileSync(join(entry.specDir, "spec.jsonl"), "utf8"),
+      ) as unknown as SpecRecord[];
+      const pre = records.find((r) => (r as { record?: string }).record === "preamble") as
+        | { name?: string; conformanceVersion?: string }
+        | undefined;
+      if (pre?.name && pre.conformanceVersion) {
+        out.push({ key, entry, specName: pre.name, version: pre.conformanceVersion, records });
+      }
+    } catch {
+      /* skip an unreadable spec */
+    }
+  }
+  return out;
+}
+
+/** Locate a referenced spec by exact name + version among registered projects. */
+function registryLocate(index: IndexedSpec[]): Locate {
+  return (spec, version) =>
+    index.find((s) => s.specName === spec && s.version === version)?.records ?? null;
+}
+
+/** Judge one member's conformance from its registered ledger → a MemberVerdict.
+ * No ledger (or empty) ⇒ unverified. */
+function registryVerifyOne(index: IndexedSpec[]): VerifyOne {
+  return (spec, version, records): MemberVerdict => {
+    const hit = index.find((s) => s.specName === spec && s.version === version);
+    const recPath = hit?.entry.records;
+    const recs =
+      recPath && existsSync(recPath) ? (parse(readFileSync(recPath, "utf8")) as unknown[]) : undefined;
+    if (!recs || recs.length === 0) return "unverified";
+    const model = computeStatus(records as never, {
+      records: recs as never,
+      implementation: hit?.entry.implementation ?? "impl",
+      asOf: new Date().toISOString(),
+    });
+    if (model.verdict === "drifts") return "drifts";
+    if (model.verdict.startsWith("conforms")) return "conforms";
+    return "unverified";
+  };
+}
+
+export interface ProductMember {
+  spec: string;
+  version: string;
+  description: string;
+  role: "product" | "module";
+  verdict: MemberVerdict;
+  isRoot: boolean;
+}
+
+export interface ProductClosure {
+  name: string; // the resolved product (registry key)
+  root: { spec: string; version: string };
+  verdict: "conforms" | "drifts" | "unverified" | "incomplete";
+  members: ProductMember[]; // dependency order, root last; one entry for a leaf
+  errors: ClosureError[];
+}
+
+/** Resolve a project's `requires` closure through the registry and roll its
+ * per-spec conformance up to one product verdict. A leaf project (no `requires`)
+ * resolves to just itself, so the board can call this uniformly. Resolution
+ * order: explicit name → active project → felag-core. */
+export function resolveProductClosure(name?: string): ProductClosure {
+  const r = readRegistry();
+  const target = name && allEntries(r)[name] ? name : activeName(r);
+  const index = indexSpecs();
+  const rootHit = index.find((s) => s.key === target);
+  if (!rootHit) {
+    return {
+      name: target,
+      root: { spec: target, version: "(unknown)" },
+      verdict: "incomplete",
+      members: [],
+      errors: [{ code: "E_UNRESOLVED_DEP", spec: target, detail: `no readable spec for ${target}` }],
+    };
+  }
+  const verdict = verifyClosure(rootHit.records, registryLocate(index), registryVerifyOne(index));
+  const metaOf = (spec: string): { description: string; role: "product" | "module" } => {
+    const hit = index.find((s) => s.specName === spec);
+    const hasRequires = (
+      hit?.records.find((x) => (x as { record?: string }).record === "preamble") as
+        | { requires?: unknown[] }
+        | undefined
+    )?.requires?.length;
+    return {
+      description: hit?.entry.description ?? "",
+      role: hit?.entry.role ?? (hasRequires ? "product" : "module"),
+    };
+  };
+  const members: ProductMember[] = verdict.members.map((m) => ({
+    spec: m.spec,
+    version: m.version,
+    verdict: m.verdict,
+    isRoot: m.spec === verdict.root.spec,
+    ...metaOf(m.spec),
+  }));
+  return { name: target, root: verdict.root, verdict: verdict.verdict, members, errors: verdict.errors };
 }
 
 const SCAFFOLD_FIXTURES = "";
