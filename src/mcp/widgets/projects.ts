@@ -15,6 +15,7 @@
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
@@ -74,17 +75,50 @@ const CONFIG_DIR = join(
 const REGISTRY_PATH = join(CONFIG_DIR, "projects.json");
 const PROJECTS_ROOT = join(CONFIG_DIR, "projects"); // scaffolded specs live here
 
-/** felag-core, recomputed from the repo every load so its paths never go stale. */
-function builtinEntry(): ProjectEntry {
+// Known conformance ledgers for felag's own builtin specs (spec name →
+// verification/<file> + the implementation it attributes to). Specs without an
+// entry resolve as spec-only (unverified) — honest until a ledger exists.
+const BUILTIN_LEDGERS: Record<string, { records: string; implementation: string }> = {
+  "felag-core": { records: "felag-ts.records.jsonl", implementation: "felag-ts" },
+  "felag-tasks": { records: "felag-tasks-ref.records.jsonl", implementation: "felag-tasks-ref" },
+};
+
+/** felag's own specs (every spec/<name>/ in the repo), recomputed each load so
+ * paths never go stale. They are the builtin set — protected from create/remove
+ * — and include the `felag` product itself, so a product's `requires` closure
+ * over felag-core/mcp/tasks resolves out of the box. */
+function builtinEntries(): Record<string, ProjectEntry> {
   const root = resolveRepoRoot();
-  return {
-    specDir: join(root, "spec", "felag-core"),
-    description: "felag's own spec — the dogfooding self-audit",
-    builtin: true,
-    records: join(root, "verification", "felag-ts.records.jsonl"),
-    implementation: "felag-ts",
-    governance: join(root, "governance"),
-  };
+  const specsDir = join(root, "spec");
+  const out: Record<string, ProjectEntry> = {};
+  if (!existsSync(specsDir)) return out;
+  for (const name of readdirSync(specsDir)) {
+    const dir = join(specsDir, name);
+    if (!existsSync(join(dir, "spec.jsonl"))) continue;
+    const ledger = BUILTIN_LEDGERS[name];
+    out[name] = {
+      specDir: dir,
+      description: `felag's own ${name} spec`,
+      builtin: true,
+      governance: join(root, "governance"),
+      ...(ledger
+        ? { records: join(root, "verification", ledger.records), implementation: ledger.implementation }
+        : {}),
+    };
+  }
+  // Guarantee felag-core exists even if the spec dir scan came up empty (e.g. an
+  // unusual cwd) — it anchors the default active project.
+  if (!out[BUILTIN]) {
+    out[BUILTIN] = {
+      specDir: join(root, "spec", "felag-core"),
+      description: "felag's own spec — the dogfooding self-audit",
+      builtin: true,
+      records: join(root, "verification", "felag-ts.records.jsonl"),
+      implementation: "felag-ts",
+      governance: join(root, "governance"),
+    };
+  }
+  return out;
 }
 
 function readRegistry(): RegistryFile {
@@ -108,9 +142,10 @@ function writeRegistry(r: RegistryFile): void {
   writeFileSync(REGISTRY_PATH, JSON.stringify(r, null, 2));
 }
 
-/** Every project, builtin always present + protected (wins over any disk entry). */
+/** Every project: registered (disk) + felag's own builtin specs, the builtins
+ * winning over any disk entry of the same name. */
 function allEntries(r: RegistryFile = readRegistry()): Record<string, ProjectEntry> {
-  return { ...r.projects, [BUILTIN]: builtinEntry() };
+  return { ...r.projects, ...builtinEntries() };
 }
 
 /** The active project name, falling back to felag-core if the stored choice no
@@ -295,7 +330,9 @@ export function createProject(
   if (!name || !/^[A-Za-z0-9._-]+$/.test(name)) {
     throw new Error(`invalid project name "${name}" (use letters, digits, . _ -)`);
   }
-  if (name === BUILTIN) throw new Error(`"${BUILTIN}" is the builtin project and cannot be recreated`);
+  if (builtinEntries()[name]) {
+    throw new Error(`"${name}" is a builtin felag spec and cannot be recreated`);
+  }
   const r = readRegistry();
   if (r.projects[name]) throw new Error(`project "${name}" already exists`);
 
@@ -344,13 +381,16 @@ export function selectProject(name: string): ProjectInfo {
   return { name, ...allEntries(r)[name], active: true };
 }
 
-/** Deregister a project. Refuses the builtin; never deletes spec files. */
+/** Deregister a project. Refuses any builtin felag spec; never deletes spec
+ * files. */
 export function removeProject(name: string): { name: string; removed: boolean } {
-  if (name === BUILTIN) throw new Error(`"${BUILTIN}" is builtin and cannot be removed`);
   const r = readRegistry();
+  if (allEntries(r)[name]?.builtin) {
+    throw new Error(`"${name}" is a builtin felag spec and cannot be removed`);
+  }
   if (!r.projects[name]) throw new Error(`unknown project "${name}"`);
   delete r.projects[name];
-  if (r.active === name) r.active = BUILTIN; // fall active back to the builtin
+  if (r.active === name) r.active = BUILTIN; // fall active back to felag-core
   writeRegistry(r);
   return { name, removed: true };
 }
