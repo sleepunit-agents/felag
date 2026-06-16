@@ -1,0 +1,14 @@
+{
+  "criterionId": "ac-compose-unresolved",
+  "to": "active",
+  "requestedAt": "2026-06-16T13:58:33.837Z",
+  "requestedBy": "felag project",
+  "acknowledgments": [
+    {
+      "implementer": "felag project",
+      "decision": "ack",
+      "at": "2026-06-16T13:58:33.837Z",
+      "criterionHash": "sha256:45346d5ecad2bf5f56819dbaa34b0a97d8d814b657b9515ddd9fceb1d972a74c"
+    }
+  ]
+}
