@@ -21,10 +21,11 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parse } from "../../canonical.js";
+import { parse, serialize } from "../../canonical.js";
 import type {
   Fixture,
   SpecRecord,
+  SpecRef,
   VerificationRecord,
 } from "../../records.js";
 import { computeStatus } from "../../status.js";
@@ -158,18 +159,41 @@ function activeName(r: RegistryFile = readRegistry()): string {
 export interface ProjectInfo extends ProjectEntry {
   name: string;
   active: boolean;
+  /** Enrichment populated by listProjects (omitted by the lighter
+   * currentProject/select/create paths). resolvedRole = entry.role, else derived
+   * from whether the spec `requires` others; verdict = the rolled-up closure
+   * verdict (a leaf → its own verdict). */
+  resolvedRole?: "product" | "module";
+  isProduct?: boolean;
+  memberCount?: number;
+  verdict?: string;
 }
 
-/** List every project, builtin first, marking the active one. */
+/** List every project, builtin first, marking the active one, enriched with its
+ * role + rolled-up conformance verdict so the interface can show products vs
+ * modules at a glance. */
 export function listProjects(): ProjectInfo[] {
   const r = readRegistry();
   const all = allEntries(r);
   const active = activeName(r);
+  const index = indexSpecs();
   return Object.entries(all)
-    .map(([name, e]) => ({ name, ...e, active: name === active }))
-    .sort((a, b) =>
-      a.builtin ? -1 : b.builtin ? 1 : a.name.localeCompare(b.name),
-    );
+    .map(([name, e]) => {
+      const hit = index.find((s) => s.key === name);
+      const pre = hit?.records.find((x) => (x as { record?: string }).record === "preamble") as
+        | { requires?: unknown[] }
+        | undefined;
+      const memberCount = pre?.requires?.length ?? 0;
+      const resolvedRole: "product" | "module" = e.role ?? (memberCount > 0 ? "product" : "module");
+      let verdict: string | undefined;
+      try {
+        verdict = resolveProductClosure(name).verdict;
+      } catch {
+        verdict = undefined;
+      }
+      return { name, ...e, active: name === active, resolvedRole, isProduct: memberCount > 0, memberCount, verdict };
+    })
+    .sort((a, b) => (a.builtin ? -1 : b.builtin ? 1 : a.name.localeCompare(b.name)));
 }
 
 /** The active project entry (name + entry). */
@@ -301,17 +325,19 @@ export function resolveProductClosure(name?: string): ProductClosure {
 }
 
 const SCAFFOLD_FIXTURES = "";
-function scaffoldPreamble(name: string): string {
+function scaffoldPreamble(name: string, requires?: SpecRef[]): string {
   const preamble = {
-    record: "preamble",
+    record: "preamble" as const,
     name,
     conformanceVersion: "0.1.0",
     goals: [],
     contracts: [],
     exclusions: [],
     implementers: [{ name: `${name}-impl`, roles: ["repo-owner"] }],
+    ...(requires && requires.length ? { requires } : {}),
   };
-  return `${JSON.stringify(preamble)}\n`;
+  // Canonical interchange form (felag refuses non-canonical), via felag's own serializer.
+  return serialize([preamble as unknown as SpecRecord]);
 }
 
 export interface CreateResult extends ProjectInfo {
@@ -326,6 +352,7 @@ export function createProject(
   name: string,
   specDir?: string,
   description?: string,
+  requires?: SpecRef[],
 ): CreateResult {
   if (!name || !/^[A-Za-z0-9._-]+$/.test(name)) {
     throw new Error(`invalid project name "${name}" (use letters, digits, . _ -)`);
@@ -348,14 +375,22 @@ export function createProject(
   } else {
     dir = join(PROJECTS_ROOT, name);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "spec.jsonl"), scaffoldPreamble(name));
+    writeFileSync(join(dir, "spec.jsonl"), scaffoldPreamble(name, requires));
     writeFileSync(join(dir, "fixtures.jsonl"), SCAFFOLD_FIXTURES);
     scaffolded = true;
   }
 
+  const isProduct = scaffolded && !!requires?.length;
   const entry: ProjectEntry = {
     specDir: dir,
-    description: description ?? (scaffolded ? `scaffolded project ${name}` : `adopted spec at ${dir}`),
+    description:
+      description ??
+      (isProduct
+        ? `scaffolded product ${name} (requires ${requires?.map((d) => `${d.spec}@${d.version}`).join(", ")})`
+        : scaffolded
+          ? `scaffolded project ${name}`
+          : `adopted spec at ${dir}`),
+    ...(isProduct ? { role: "product" as const } : {}),
   };
   r.projects[name] = entry;
   writeRegistry(r);

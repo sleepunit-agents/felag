@@ -32,8 +32,9 @@ export function registerProjectTools(server: McpServer): void {
     "felag_project_list",
     {
       description:
-        "List the felag projects the view widgets can show — [{ name, specDir, description, builtin, " +
-        "implementation?, active }]. The active project is what the zero-arg widgets render (default felag-core).",
+        "List the felag projects the view widgets can show — each with { name, specDir, description, builtin, " +
+        "active, resolvedRole (product|module), isProduct, memberCount, verdict (the rolled-up closure verdict) }. " +
+        "The active project is what the zero-arg widgets render (default felag-core).",
       inputSchema: {},
     },
     async () => run(() => listProjects()),
@@ -43,21 +44,28 @@ export function registerProjectTools(server: McpServer): void {
     "felag_project_create",
     {
       description:
-        "Register a felag project. With `specDir` (a dir holding spec.jsonl [+ fixtures.jsonl]) it adopts that " +
-        "spec IN PLACE — files are never moved (e.g. point it at loom's spec). Without `specDir` it scaffolds an " +
-        "empty valid spec under the managed projects root and registers that. Rejects duplicate or builtin names; " +
-        "optionally carries a conformance ledger later. Returns the created entry (with any load warning).",
+        "Register or start a felag project. With `specDir` (a dir holding spec.jsonl [+ fixtures.jsonl]) it adopts " +
+        "that spec IN PLACE — files are never moved (e.g. point it at loom's spec). Without `specDir` it scaffolds a " +
+        "new valid spec under the managed projects root: pass `requires` to start a PRODUCT that composes existing " +
+        "specs at pinned versions, or omit it for a plain leaf spec. Rejects duplicate or builtin names. Returns the " +
+        "created entry (with any load warning).",
       inputSchema: {
         name: z.string().describe("unique project name (letters, digits, . _ -)"),
         specDir: z
           .string()
           .optional()
-          .describe("existing spec dir to adopt in place; omit to scaffold an empty spec"),
+          .describe("existing spec dir to adopt in place; omit to scaffold a new spec"),
         description: z.string().optional().describe("human description"),
+        requires: z
+          .array(z.object({ spec: z.string(), version: z.string() }))
+          .optional()
+          .describe(
+            "when scaffolding, the pieces this product composes — each an exact {spec, version} pin. Makes the new spec a product.",
+          ),
       },
     },
-    async (a: { name: string; specDir?: string; description?: string }) =>
-      run(() => createProject(a.name, a.specDir, a.description)),
+    async (a: { name: string; specDir?: string; description?: string; requires?: { spec: string; version: string }[] }) =>
+      run(() => createProject(a.name, a.specDir, a.description, a.requires)),
   );
 
   server.registerTool(
