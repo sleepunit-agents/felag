@@ -9,6 +9,7 @@ import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
 import { graduate, ingestJudgment } from "../src/graduation.js";
 import { promote } from "../src/promotion.js";
+import { resolveClosure } from "../src/compose.js";
 import {
   renderInventory,
   validateAuthorOutput,
@@ -84,6 +85,16 @@ describe("felag-core fixture corpus", () => {
         }
         case "felag/prime-output@0": {
           expect(validatePrimeOutput(fx.input as PrimeOutputInput)).toEqual(fx.expected);
+          break;
+        }
+        case "felag/compose-closure@0": {
+          const inp = fx.input as { root: SpecRecord[]; catalog: Record<string, SpecRecord[]> };
+          const res = resolveClosure(inp.root, (s, v) => inp.catalog[`${s}@${v}`] ?? null);
+          expect({
+            ok: res.ok,
+            members: res.members.map((m) => `${m.spec}@${m.version}`).sort(),
+            errors: res.errors.map((e) => e.code).sort(),
+          }).toEqual(fx.expected);
           break;
         }
         default:

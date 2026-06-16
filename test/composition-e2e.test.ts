@@ -58,7 +58,7 @@ describe("composition end-to-end", () => {
 
   it("starts a new product (scaffold with requires), selects it, removes it", () => {
     const created = createProject("e2eprod", undefined, undefined, [
-      { spec: "felag-core", version: "6.0.0" },
+      { spec: "felag-core", version: "6.1.0" },
     ]);
     expect(created.scaffolded).toBe(true);
     expect(created.role).toBe("product");

@@ -13,6 +13,7 @@ import { lint } from "../src/lint.js";
 import { ingest, verify } from "../src/verify.js";
 import { graduate, ingestJudgment } from "../src/graduation.js";
 import { promote } from "../src/promotion.js";
+import { resolveClosure } from "../src/compose.js";
 import {
   renderInventory,
   validateAuthorOutput,
@@ -32,7 +33,7 @@ import type {
 } from "../src/records.js";
 
 const IMPLEMENTATION = "felag-ts";
-const IMPLEMENTATION_VERSION = "6.0.0";
+const IMPLEMENTATION_VERSION = "6.1.0";
 const dir = join(import.meta.dirname, "..", "spec", "felag-core");
 // Deterministic provenance stamp. The committed records are a reproducible
 // artifact whose real "when" is the git commit, so a fixed `at` keeps
@@ -88,6 +89,19 @@ function runFixture(fx: Fixture): "pass" | "fail" {
       case "felag/prime-output@0":
         ok = eq(validatePrimeOutput(fx.input as PrimeOutputInput), fx.expected);
         break;
+      case "felag/compose-closure@0": {
+        const inp = fx.input as { root: SpecRecord[]; catalog: Record<string, SpecRecord[]> };
+        const res = resolveClosure(inp.root, (s, v) => inp.catalog[`${s}@${v}`] ?? null);
+        ok = eq(
+          {
+            ok: res.ok,
+            members: res.members.map((m) => `${m.spec}@${m.version}`).sort(),
+            errors: res.errors.map((e) => e.code).sort(),
+          },
+          fx.expected,
+        );
+        break;
+      }
       default:
         return "fail";
     }

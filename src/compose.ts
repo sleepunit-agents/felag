@@ -168,7 +168,9 @@ export function resolveClosure(rootRecords: SpecRecord[], locate: Locate): Closu
   return {
     ok: errors.length === 0,
     root: { spec: rootSpec, version: rootVer },
-    members: order,
+    // A failed closure (cycle or unresolved) has no valid resolution to report —
+    // members is the resolved order only when it actually resolved.
+    members: errors.length ? [] : order,
     errors,
   };
 }
