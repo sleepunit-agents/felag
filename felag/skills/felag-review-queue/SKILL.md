@@ -1,6 +1,7 @@
 ---
 name: felag-review-queue
-description: "Use when asked for the felag review queue, proposed criteria, or what's waiting to be ratified on a felag spec — renders proposed criteria as a show_widget panel of cards, each with approve / make descriptive / dispute buttons. This is the human-in-the-loop ratification surface. Trigger phrases: /felag review-queue, felag review queue, what's proposed, what needs ratifying."
+description: "Proposed felag criteria awaiting ratification (approve / dispute)."
+disable-model-invocation: true
 ---
 
 # /felag review-queue

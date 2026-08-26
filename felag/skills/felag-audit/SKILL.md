@@ -1,6 +1,7 @@
 ---
 name: felag-audit
-description: "Use when asked to audit a felag spec, turn drift into a work plan, or see what's left to build/fix to conform — renders audit proposals (one per failing gating criterion) as a show_widget panel of work cards grouped by spec item, each fileable to the work store. Trigger phrases: /felag audit, felag audit, what's left to build, what's left to do, turn this into work, make a work plan."
+description: "Audit a felag spec: failing gating criteria rendered as fileable work cards."
+disable-model-invocation: true
 ---
 
 # /felag audit

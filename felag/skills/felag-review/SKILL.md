@@ -1,6 +1,7 @@
 ---
 name: felag-review
-description: "Use when asked to cold-review a felag spec to a MERGE verdict, run the review loop, or check whether a spec is ready to merge — runs scripts/cold-review.sh with a fixture-trace prompt, parses the verdict (MERGE | REWORK) and findings (CRITICAL/MAJOR/NIT), and renders them as a show_widget panel. This is the quality engine: the cold-review loop, automated. Trigger phrases: /felag review, felag review, cold review the spec, is the spec ready to merge."
+description: "Cold-review a felag spec to a MERGE / REWORK verdict."
+disable-model-invocation: true
 ---
 
 # /felag review

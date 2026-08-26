@@ -1,6 +1,7 @@
 ---
 name: felag-status
-description: "Use when asked for felag status, the spec board, or to show me the spec/board for a felag spec — renders the spec joined to its conformance as a show_widget panel (the board: spec ⟷ kanban over the same criterion cards), scope-aware to a whole spec, one contract, or one criterion. Trigger phrases: /felag status, felag status, show me the spec, show me the board."
+description: "The felag board: a spec joined to its conformance."
+disable-model-invocation: true
 ---
 
 # /felag status [scope]

@@ -1,6 +1,7 @@
 ---
 name: felag-new
-description: "Use when asked to author a new felag spec, start a spec from scratch, run the spec interview, or turn an idea/feature into a felag contract — drives a human-in-the-loop interview that sorts surface into the three strata (contract / profile-binding / excluded), front-loads the stranger test and fixture per criterion, marks ambiguity as [NEEDS CLARIFICATION], and renders the in-progress spec as a show_widget panel. Trigger phrases: /felag new, felag new, author a spec, start a new spec, spec this out, write a felag contract, interview me for a spec."
+description: "Author a new felag spec via the human-in-the-loop interview."
+disable-model-invocation: true
 ---
 
 # /felag new

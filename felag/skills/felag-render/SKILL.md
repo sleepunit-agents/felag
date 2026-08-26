@@ -1,6 +1,7 @@
 ---
 name: felag-render
-description: "Use when asked to render a felag spec for an audience, see what a stakeholder/developer/verifier sees, or project a spec for a reader — renders the audience content inventory as a show_widget panel (audience toggle, the included record ids as chips, the excluded fields as muted hidden chips). Trigger phrases: /felag render, felag render, what does the stakeholder/developer/verifier see, render the spec for, audience projection."
+description: "Render a felag spec for an audience (stakeholder / developer / verifier)."
+disable-model-invocation: true
 ---
 
 # /felag render

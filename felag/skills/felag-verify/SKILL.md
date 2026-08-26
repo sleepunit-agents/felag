@@ -1,6 +1,7 @@
 ---
 name: felag-verify
-description: "Use when asked to verify a felag spec, check conformance, or whether an implementation conforms/drifts — renders the conformance report as a show_widget panel (verdict pill, failing/waived/disputed count strip, the criterion ids as cards). Trigger phrases: /felag verify, felag verify, is it conforming, does it conform, check conformance, what's failing."
+description: "Verify an implementation against a felag spec; conformance report as a panel."
+disable-model-invocation: true
 ---
 
 # /felag verify

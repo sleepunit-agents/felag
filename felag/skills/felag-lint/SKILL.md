@@ -1,6 +1,7 @@
 ---
 name: felag-lint
-description: "Use when asked to lint a felag spec, check whether a spec is valid/well-formed, or see lint errors — renders the lint result as a show_widget panel (a green one-liner when clean; an errors/orphan count strip with a card per error code+ref and per orphan fixture when not). Trigger phrases: /felag lint, felag lint, does the spec lint, is the spec valid, lint errors."
+description: "Lint a felag spec (valid / errors / orphan fixtures) as a panel."
+disable-model-invocation: true
 ---
 
 # /felag lint
