@@ -56,6 +56,25 @@ scripts/cold-review.sh path/to/prompt.txt > "$out" 2>&1 &
 # ...poll "$out" until the verdict line appears, then read it.
 ```
 
+## Reviewing code instead of a spec: two axes
+
+When the artifact is code (a conformance build, a PR), the fixture-trace prompt
+is the wrong shape. Ask for two axes and pass `--smells` so the script appends
+`scripts/cold-review-smells.md` — the Standards / Spec brief with the Fowler
+smell baseline — to the prompt:
+
+- **Standards** — the repo's documented standards plus the smell baseline.
+  Smells are labelled judgement calls; a documented repo standard overrides.
+- **Spec** — the diff read back against the spec's items and fixtures
+  (`felag verify` is the mechanical half of this axis).
+
+Report them under separate headings and never rerank across them — a
+standards-clean diff can implement the wrong thing, and vice versa.
+
+```bash
+scripts/cold-review.sh --smells path/to/prompt.txt > "$out" 2>&1 &
+```
+
 ## Render the widget
 
 Build the model by parsing the cold-review output, then render:
