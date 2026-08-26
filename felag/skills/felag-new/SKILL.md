@@ -20,6 +20,30 @@ like any spec. Re-running `/felag new` (or `/felag status`) on it re-opens the
 interview where it left off; the open `[NEEDS CLARIFICATION]` cards are the
 worklist. Nothing is "done" until the human sends it to review.
 
+## Contract or plan? — settle before the interview
+
+felag hosts **contract** interviews: the thing being specced has conformants
+(another service, a CLI caller, a timer, a test suite) that must prove their
+code against it. If the only conformant is the next commit it is a **plan**:
+stop here and run the `to-spec` pipeline instead (grilling → to-spec →
+to-tickets). Decision record:
+`~/Art/notes/decisions/2026-08-26-felag-vs-pocock-pipeline.md`.
+
+## Interview rules
+
+- **Facts are mine, decisions are the human's.** A question that turns on a
+  fact from the environment (the codebase, a running service, a prior spec) is
+  dispatched to a sub-agent; only the decisions downstream of that fact go to
+  the human. The human answers judgement calls, never lookups.
+- **Every question ships with a ➡️ recommended answer.** Form the opinion
+  first, then put the question: the human corrects a concrete proposal
+  instead of filling a blank.
+- **Rounds by frontier.** Ask every question whose prerequisites are settled
+  in one numbered round; a question that depends on another still open in
+  the round waits for the next. Terminal sessions use the ❓/➡️ round block
+  from the `grilling` skill. In chat surfaces (Discord) one round is one
+  message of at most four questions, each still carrying its ➡️.
+
 ## The interview arc
 
 1. **Frame the three strata.** For the thing being specced, sort its surface
