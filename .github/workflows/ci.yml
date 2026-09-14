@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: [self-hosted, wunder]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint spec
+        run: |
+          node dist/cli.js lint spec/felag-core
+          node dist/cli.js lint spec/felag-tasks
+          node dist/cli.js lint spec/felag-mcp
+
+      - name: Test
+        run: npm test
+
+      - name: Self-verify
+        run: npm run self-verify
+
+      - name: Self-verify tasks
+        run: npx tsx scripts/self-verify-tasks.ts
+
+      - name: Smoke
+        run: npm run smoke
+
+      - name: Check governance
+        run: |
+          npx tsx scripts/check-triplets.ts
+          npx tsx scripts/check-ack-currency.ts
