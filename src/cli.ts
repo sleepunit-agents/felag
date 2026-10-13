@@ -145,7 +145,8 @@ switch (verb) {
       }
     }
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.valid ? 0 : 1);
+    process.exitCode = result.valid ? 0 : 1;
+    break;
   }
   case "fmt": {
     // Canonicalize interchange files in place (writers strict).
@@ -156,7 +157,7 @@ switch (verb) {
       writeFileSync(p, serialize(parse(readFileSync(p, "utf8"))));
       console.log(`canonicalized ${p}`);
     }
-    process.exit(0);
+    break;
   }
   case "hash": {
     const records = loadSpecDir(args[0] ?? ".");
@@ -165,7 +166,7 @@ switch (verb) {
         console.log(`${(r as Fixture).id} ${fixtureHash(r)}`);
       }
     }
-    process.exit(0);
+    break;
   }
   case "verify": {
     // felag verify <spec-dir> <records.jsonl> <implementation> [--as-of <iso>] [--waivers <file>]
@@ -185,12 +186,13 @@ switch (verb) {
     };
     const report = verify(input);
     console.log(JSON.stringify(report, null, 2));
-    process.exit(report.verdict === "drifts" ? 1 : 0);
+    process.exitCode = report.verdict === "drifts" ? 1 : 0;
+    break;
   }
   case "prime": {
     // felag prime <spec-dir> — emit the author-class protocol brief.
     console.log(emitPrime(loadSpecDir(args[0] ?? ".")));
-    process.exit(0);
+    break;
   }
   case "render": {
     // felag render <spec-dir> --audience <stakeholder|developer|verifier> [--json]
@@ -219,7 +221,7 @@ switch (verb) {
       audience: audience as RenderInventoryInput["audience"],
     });
     console.log(JSON.stringify(inventory, null, 2));
-    process.exit(0);
+    break;
   }
   case "audit": {
     // felag audit <spec-dir> <records.jsonl> <implementation>
@@ -243,7 +245,7 @@ switch (verb) {
     const result = audit(input, wl?.layer);
     wl?.flush();
     console.log(JSON.stringify(result, null, 2));
-    process.exit(0);
+    break;
   }
   case "graduate": {
     // felag graduate <spec-dir> <records.jsonl> <implementation> <criterionId>
@@ -259,7 +261,8 @@ switch (verb) {
       spec: loadSpecDir(dir),
     });
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.graduated ? 0 : 1);
+    process.exitCode = result.graduated ? 0 : 1;
+    break;
   }
   case "promote": {
     // felag promote <spec-dir> <transition.json> [--as-of <iso>]
@@ -274,7 +277,8 @@ switch (verb) {
       transition: loadJson(transitionFile),
     });
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.accepted ? 0 : 1);
+    process.exitCode = result.accepted ? 0 : 1;
+    break;
   }
   case "status": {
     // felag status <spec-dir> [<records.jsonl> <impl>] [--target <id>] [--out <file>] [--as-of <iso>]
@@ -371,7 +375,7 @@ switch (verb) {
     const model = buildModel();
     if (json) {
       console.log(JSON.stringify(model, null, 2));
-      process.exit(0);
+      break;
     }
     const html = renderStatusHTML(model);
     const out = flagValue(args, "--out");
@@ -381,7 +385,7 @@ switch (verb) {
     } else {
       console.log(html);
     }
-    process.exit(0);
+    break;
   }
   case "tasks": {
     // felag tasks <propose|transition|report> (--store <file>|--beads <dir>)
@@ -404,7 +408,7 @@ switch (verb) {
     }
     wl.flush();
     console.log(JSON.stringify(result, null, 2));
-    process.exit(0);
+    break;
   }
   case "validate-author": {
     // felag validate-author <spec-dir> <new.json> [--budgets <n>]
@@ -421,7 +425,8 @@ switch (verb) {
       ...(budgets ? { budgets: { criteriaPerItem: Number(budgets) } } : {}),
     });
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.valid ? 0 : 1);
+    process.exitCode = result.valid ? 0 : 1;
+    break;
   }
   case "validate-excavate": {
     // felag validate-excavate <spec-dir> <scope.json>
@@ -436,7 +441,8 @@ switch (verb) {
       scope: loadJson(scopeFile) as { contracts: string[] } | null,
     });
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.valid ? 0 : 1);
+    process.exitCode = result.valid ? 0 : 1;
+    break;
   }
   case "validate-prime": {
     // felag validate-prime <spec-dir> <output-file>
@@ -454,7 +460,8 @@ switch (verb) {
     }
     const result = validatePrimeOutput({ spec: loadSpecDir(dir), output: output! });
     console.log(JSON.stringify(result, null, 2));
-    process.exit(result.valid ? 0 : 1);
+    process.exitCode = result.valid ? 0 : 1;
+    break;
   }
   default:
     console.error(
